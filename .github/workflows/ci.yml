@@ -14,15 +14,17 @@ jobs:
   lint-and-typecheck:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v6
-      - run: pnpm install
-      - name: Cache pnpm store
-        uses: actions/cache@v4
+      - uses: actions/checkout@v6
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
         with:
-          path: ~/.pnpm-store
-          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
-          restore-keys: |
-            ${{ runner.os }}-pnpm-store-
+          node-version: 24
+      - name: Enable pnpm
+        run: |
+          npm install --global corepack@latest
+          corepack enable
+          corepack prepare pnpm@11.12.0 --activate
+          pnpm --version
+      - run: pnpm install --frozen-lockfile
       - run: pnpm lint
       - run: pnpm typecheck

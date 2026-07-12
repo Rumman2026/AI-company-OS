@@ -7,7 +7,16 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v6
-      - run: pnpm install
+      - uses: actions/checkout@v6
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+      - name: Enable pnpm
+        run: |
+          npm install --global corepack@latest
+          corepack enable
+          corepack prepare pnpm@11.12.0 --activate
+          pnpm --version
+      - run: pnpm install --frozen-lockfile
       - run: echo "Deployment pipeline placeholder. Add deploy steps in Phase 2."
