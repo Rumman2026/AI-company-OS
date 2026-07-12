@@ -35,15 +35,21 @@ business-specific context. See [docs/INDEX.md](docs/INDEX.md) for routing.
   code lives in `packages/*`; business-specific code, when it exists,
   should live in its own `apps/*` or `packages/*` module rather than being
   hardcoded into shared packages.
-- No business currently has a dedicated module in this repository (see
-  below).
+- GreenCal Pressure Washing has one dedicated module (see below); GreenCal
+  Mobile Detailing and Navarro Builders do not yet have one.
 
 ## Known business-specific repository modules
 
-None. As of the Phase 1 scaffold, no directory, app, or package in this
-repository is dedicated to GreenCal Pressure Washing, GreenCal Mobile
-Detailing, or Navarro Builders specifically. All `apps/*` and `packages/*`
-entries are generic platform scaffolding.
+**GreenCal Pressure Washing**: `apps/greencal-website` — a public marketing
+website, technical foundation only as of Phase 2A Checkpoint 1 (Astro,
+TypeScript, plain CSS, Playwright/Chromium smoke tests). No business
+content, verified claims, address, or `LocalBusiness` data have been added.
+See [DECISIONS.md](DECISIONS.md) ADR-0004 and [ROADMAP.md](ROADMAP.md).
+
+No other business has a dedicated module. GreenCal Mobile Detailing and
+Navarro Builders have no directory, app, or package in this repository
+specifically dedicated to them; all other `apps/*` and `packages/*` entries
+remain generic platform scaffolding.
 
 ## Missing information (TBD)
 

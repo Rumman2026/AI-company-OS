@@ -30,6 +30,22 @@ complete. See [docs/INDEX.md](docs/INDEX.md) for routing.
 the present state; do not describe later phases as started without new
 repository evidence.
 
+**Phase 2A (in progress) — GreenCal Pressure Washing website, Checkpoint 1**
+
+- Scope: technical foundation only for `apps/greencal-website` (Astro,
+  TypeScript, plain CSS, Playwright/Chromium smoke tests). See
+  [DECISIONS.md](DECISIONS.md) ADR-0004.
+- Phase 2A is additive and independent of Phase 2 (shared platform
+  primitives, below) — it does not depend on auth, a database, or core
+  domain models, and its existence does not mean Phase 2 has started.
+- Phase 2A does not resolve Phase 3's "which business" designation for
+  GreenCal Mobile Detailing or Navarro Builders — those remain open.
+- Checkpoint 1 contains no business content, no unverified claims, no
+  address, no quote form, and no production/deployment configuration.
+  Later checkpoints (content migration, production migration) are separate,
+  unscheduled, and require further approval — see the Phase 2 plan and
+  Architecture Addendum for the full checkpoint sequence.
+
 ## Proposed future phases
 
 The following are **proposed** and not scheduled or committed:

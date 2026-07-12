@@ -21,22 +21,31 @@ push/PR to `main` and `develop`.
 
 ## Confirmed: application boundaries
 
-Every app below currently contains only a placeholder entry point
-(`src/index.ts` or `src/index.tsx`) and a `Dockerfile`. No business logic is
-implemented in any of them.
+Every app below except `apps/greencal-website` currently contains only a
+placeholder entry point (`src/index.ts` or `src/index.tsx`) and a
+`Dockerfile`, with no business logic implemented.
 
-| App                       | Role                                    | Port (dev) |
-| ------------------------- | --------------------------------------- | ---------- |
-| `apps/api-gateway`        | API gateway / edge service              | 4000       |
-| `apps/core-api`           | Core business API                       | 4001       |
-| `apps/agent-orchestrator` | Agent orchestration engine              | 4002       |
-| `apps/worker-service`     | Background job / worker processor       | 4003       |
-| `apps/web-console`        | Customer-facing web console (React/TSX) | 3000       |
-| `apps/admin-console`      | Internal admin interface (React/TSX)    | 3001       |
-| `apps/docs-portal`        | Documentation portal (React/TSX)        | 3002       |
+`apps/greencal-website` has a real static-site technical foundation (Astro,
+TypeScript, plain CSS, Playwright/Chromium smoke tests) as of Phase 2A
+Checkpoint 1 — see [DECISIONS.md](DECISIONS.md) ADR-0004 — but no business
+content: no verified business claims, no address, no `LocalBusiness`
+structured data, and no quote form. It has no `Dockerfile` (not required for
+this checkpoint) and is not wired into `docker-compose.dev.yml`.
 
-Ports and service wiring are defined in `docker-compose.dev.yml` and
-`config/env/.env.example`.
+| App                       | Role                                                               | Port (dev) |
+| ------------------------- | ------------------------------------------------------------------ | ---------- |
+| `apps/api-gateway`        | API gateway / edge service                                         | 4000       |
+| `apps/core-api`           | Core business API                                                  | 4001       |
+| `apps/agent-orchestrator` | Agent orchestration engine                                         | 4002       |
+| `apps/worker-service`     | Background job / worker processor                                  | 4003       |
+| `apps/web-console`        | Customer-facing web console (React/TSX)                            | 3000       |
+| `apps/admin-console`      | Internal admin interface (React/TSX)                               | 3001       |
+| `apps/docs-portal`        | Documentation portal (React/TSX)                                   | 3002       |
+| `apps/greencal-website`   | GreenCal Pressure Washing public marketing website (Astro, static) | 4321       |
+
+Ports and service wiring for the backend/console apps are defined in
+`docker-compose.dev.yml` and `config/env/.env.example`; `apps/greencal-website`
+is not part of that Docker Compose wiring during Checkpoint 1.
 
 ## Confirmed: package boundaries
 
@@ -62,10 +71,11 @@ All packages contain only a placeholder `src/index.ts` — no implementation.
   databases, agents, security permissions, deployment systems, credentials,
   or risk systems with AI Company OS. Nothing in this repository currently
   references or integrates with Quant Trading OS.
-- The three businesses (GreenCal Pressure Washing, GreenCal Mobile
-  Detailing, Navarro Builders) do not yet have dedicated directories in
-  this repository — there is no `apps/` or `packages/` module scoped to any
-  individual business today.
+- GreenCal Pressure Washing has one dedicated directory in this repository,
+  `apps/greencal-website` (technical foundation only — see ADR-0004 in
+  [DECISIONS.md](DECISIONS.md)). GreenCal Mobile Detailing and Navarro
+  Builders do not yet have dedicated directories — there is no `apps/` or
+  `packages/` module scoped to either business today.
 
 ## Present data and integration architecture
 
@@ -96,8 +106,9 @@ The following are **proposed**, not present in the repository:
   **Proposed**, planning docs only.
 - IAM and secrets management approach in `infra/iam` and `infra/secrets` —
   **Proposed**, planning docs only.
-- Per-business modules (directories or packages dedicated to GreenCal
-  Pressure Washing, GreenCal Mobile Detailing, or Navarro Builders) —
-  **Deferred**, no repository path exists yet.
+- Per-business modules for GreenCal Mobile Detailing and Navarro Builders —
+  **Deferred**, no repository path exists yet. (GreenCal Pressure Washing's
+  module, `apps/greencal-website`, now exists as a technical foundation
+  only — see ADR-0004 in [DECISIONS.md](DECISIONS.md).)
 
 Do not treat any item in this section as implemented.
