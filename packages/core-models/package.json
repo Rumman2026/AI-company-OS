@@ -1,0 +1,11 @@
+{
+  "name": "@ai-company-os/core-models",
+  "version": "0.1.0",
+  "private": true,
+  "main": "src/index.ts",
+  "scripts": {
+    "lint": "eslint . --ext .ts,.tsx --no-error-on-unmatched-pattern",
+    "format": "prettier --write .",
+    "typecheck": "tsc --noEmit"
+  }
+}

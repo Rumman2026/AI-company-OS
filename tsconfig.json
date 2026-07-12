@@ -1,0 +1,23 @@
+{
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "@auth/*": ["packages/auth/src/*"],
+      "@db/*": ["packages/db/src/*"],
+      "@models/*": ["packages/core-models/src/*"],
+      "@agent-sdk/*": ["packages/agent-sdk/src/*"],
+      "@toolkit/*": ["packages/toolkit/src/*"],
+      "@telemetry/*": ["packages/telemetry/src/*"],
+      "@platform-utils/*": ["packages/platform-utils/src/*"],
+      "@ui-kit/*": ["packages/ui-kit/src/*"],
+      "@api-gateway/*": ["apps/api-gateway/src/*"],
+      "@core-api/*": ["apps/core-api/src/*"],
+      "@agent-orchestrator/*": ["apps/agent-orchestrator/src/*"],
+      "@worker-service/*": ["apps/worker-service/src/*"],
+      "@web-console/*": ["apps/web-console/src/*"],
+      "@admin-console/*": ["apps/admin-console/src/*"],
+      "@docs-portal/*": ["apps/docs-portal/src/*"]
+    }
+  }
+}

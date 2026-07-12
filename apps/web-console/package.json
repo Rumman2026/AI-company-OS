@@ -1,0 +1,16 @@
+{
+  "name": "@ai-company-os/web-console",
+  "version": "0.1.0",
+  "private": true,
+  "main": "src/index.tsx",
+  "scripts": {
+    "dev": "tsx watch src/index.tsx",
+    "build": "echo 'No build configured for web-console yet'",
+    "lint": "eslint . --ext .ts,.tsx --no-error-on-unmatched-pattern",
+    "format": "prettier --write .",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "tsx": "^4.10.0"
+  }
+}

@@ -1,0 +1,79 @@
+version: '3.9'
+services:
+  api-gateway:
+    build:
+      context: .
+      dockerfile: ./apps/api-gateway/Dockerfile
+    working_dir: /usr/src/app/apps/api-gateway
+    volumes:
+      - .:/usr/src/app
+    ports:
+      - '4000:4000'
+    environment:
+      - NODE_ENV=development
+  core-api:
+    build:
+      context: .
+      dockerfile: ./apps/core-api/Dockerfile
+    working_dir: /usr/src/app/apps/core-api
+    volumes:
+      - .:/usr/src/app
+    ports:
+      - '4001:4001'
+    environment:
+      - NODE_ENV=development
+  agent-orchestrator:
+    build:
+      context: .
+      dockerfile: ./apps/agent-orchestrator/Dockerfile
+    working_dir: /usr/src/app/apps/agent-orchestrator
+    volumes:
+      - .:/usr/src/app
+    ports:
+      - '4002:4002'
+    environment:
+      - NODE_ENV=development
+  worker-service:
+    build:
+      context: .
+      dockerfile: ./apps/worker-service/Dockerfile
+    working_dir: /usr/src/app/apps/worker-service
+    volumes:
+      - .:/usr/src/app
+    ports:
+      - '4003:4003'
+    environment:
+      - NODE_ENV=development
+  web-console:
+    build:
+      context: .
+      dockerfile: ./apps/web-console/Dockerfile
+    working_dir: /usr/src/app/apps/web-console
+    volumes:
+      - .:/usr/src/app
+    ports:
+      - '3000:3000'
+    environment:
+      - NODE_ENV=development
+  admin-console:
+    build:
+      context: .
+      dockerfile: ./apps/admin-console/Dockerfile
+    working_dir: /usr/src/app/apps/admin-console
+    volumes:
+      - .:/usr/src/app
+    ports:
+      - '3001:3001'
+    environment:
+      - NODE_ENV=development
+  docs-portal:
+    build:
+      context: .
+      dockerfile: ./apps/docs-portal/Dockerfile
+    working_dir: /usr/src/app/apps/docs-portal
+    volumes:
+      - .:/usr/src/app
+    ports:
+      - '3002:3002'
+    environment:
+      - NODE_ENV=development
