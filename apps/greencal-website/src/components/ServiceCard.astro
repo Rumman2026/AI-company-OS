@@ -1,0 +1,15 @@
+---
+import type { ServiceRecord } from '../types/content';
+
+export interface Props {
+  service: ServiceRecord;
+}
+
+const { service } = Astro.props;
+---
+
+<article class="service-card">
+  <h2><a href={service.route}>{service.title}</a></h2>
+  <p>{service.summary}</p>
+  <a href={service.route}>Learn more about {service.title}</a>
+</article>

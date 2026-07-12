@@ -69,7 +69,9 @@ main {
 
 header nav {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
+  gap: var(--space-3);
   padding-block: var(--space-3);
 }
 
@@ -80,10 +82,30 @@ header nav {
   color: var(--color-text);
 }
 
+header nav ul,
+footer nav ul {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
 footer {
   padding-block: var(--space-4);
   color: var(--color-neutral-600);
   font-size: var(--font-size-sm);
+}
+
+.service-card {
+  padding-block: var(--space-3);
+}
+
+.contact-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
 }
 
 @media (max-width: 700px) {

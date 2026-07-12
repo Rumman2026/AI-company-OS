@@ -1,7 +1,20 @@
 ---
+import { footerNav } from '../data/navigation';
+
 const year = new Date().getFullYear();
 ---
 
 <footer>
+  <nav aria-label="Footer">
+    <ul>
+      {
+        footerNav.map((item) => (
+          <li>
+            <a href={item.href}>{item.label}</a>
+          </li>
+        ))
+      }
+    </ul>
+  </nav>
   <p>&copy; {year} GreenCal Pressure Washing</p>
 </footer>

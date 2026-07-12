@@ -1,0 +1,15 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import ContactActions from '../components/ContactActions.astro';
+import { siteInfo } from '../data/site';
+
+const title = 'Contact | GreenCal Pressure Washing';
+const description = `Contact ${siteInfo.businessName} by phone or email.`;
+---
+
+<BaseLayout title={title} description={description}>
+  <h1>Contact</h1>
+  <p>{siteInfo.businessName}</p>
+  <p>Call or email {siteInfo.businessName} to discuss your property's exterior cleaning needs.</p>
+  <ContactActions />
+</BaseLayout>

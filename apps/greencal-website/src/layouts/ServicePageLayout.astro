@@ -1,0 +1,21 @@
+---
+import BaseLayout from './BaseLayout.astro';
+import ContactActions from '../components/ContactActions.astro';
+import type { ServiceRecord } from '../types/content';
+
+export interface Props {
+  service: ServiceRecord;
+}
+
+const { service } = Astro.props;
+---
+
+<BaseLayout title={service.metaTitle} description={service.metaDescription}>
+  <h1>{service.title}</h1>
+  {service.body.map((paragraph) => <p>{paragraph}</p>)}
+  <ContactActions />
+  <p>
+    <a href="/residential-services">Back to Residential Services</a>
+    <a href="/contact-us">Contact GreenCal Pressure Washing</a>
+  </p>
+</BaseLayout>

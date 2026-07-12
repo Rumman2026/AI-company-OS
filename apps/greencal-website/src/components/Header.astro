@@ -1,8 +1,18 @@
 ---
+import { headerNav } from '../data/navigation';
 ---
 
 <header>
   <nav aria-label="Primary">
     <a href="/" class="brand">GreenCal Pressure Washing</a>
+    <ul>
+      {
+        headerNav.map((item) => (
+          <li>
+            <a href={item.href}>{item.label}</a>
+          </li>
+        ))
+      }
+    </ul>
   </nav>
 </header>

@@ -1,0 +1,17 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import ServiceCard from '../components/ServiceCard.astro';
+import ContactActions from '../components/ContactActions.astro';
+import { services } from '../data/services';
+import { siteInfo } from '../data/site';
+
+const title = 'Residential Services | GreenCal Pressure Washing';
+const description = `Residential exterior cleaning services from ${siteInfo.businessName}, serving ${siteInfo.region}.`;
+---
+
+<BaseLayout title={title} description={description}>
+  <h1>Residential Services</h1>
+  <p>{description}</p>
+  {services.map((service) => <ServiceCard service={service} />)}
+  <ContactActions />
+</BaseLayout>
