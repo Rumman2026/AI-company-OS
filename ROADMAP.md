@@ -30,21 +30,28 @@ complete. See [docs/INDEX.md](docs/INDEX.md) for routing.
 the present state; do not describe later phases as started without new
 repository evidence.
 
-**Phase 2A (in progress) — GreenCal Pressure Washing website, Checkpoint 1**
+**Phase 2A (in progress) — GreenCal Pressure Washing website, Checkpoint 2**
 
-- Scope: technical foundation only for `apps/greencal-website` (Astro,
-  TypeScript, plain CSS, Playwright/Chromium smoke tests). See
-  [DECISIONS.md](DECISIONS.md) ADR-0004.
+- Scope: technical foundation (Checkpoint 1) plus a first, residential-only
+  content slice (Checkpoint 2) for `apps/greencal-website` — homepage,
+  Residential Services overview, Roof Cleaning (`/roof`), House & Stucco
+  Washing (`/restoration/house-washing`), and Contact (`/contact-us`,
+  phone/email only). See [DECISIONS.md](DECISIONS.md) ADR-0004.
 - Phase 2A is additive and independent of Phase 2 (shared platform
   primitives, below) — it does not depend on auth, a database, or core
   domain models, and its existence does not mean Phase 2 has started.
 - Phase 2A does not resolve Phase 3's "which business" designation for
   GreenCal Mobile Detailing or Navarro Builders — those remain open.
-- Checkpoint 1 contains no business content, no unverified claims, no
-  address, no quote form, and no production/deployment configuration.
-  Later checkpoints (content migration, production migration) are separate,
-  unscheduled, and require further approval — see the Phase 2 plan and
-  Architecture Addendum for the full checkpoint sequence.
+- Checkpoint 2 contains no unverified claims, no address, no working quote
+  form, no structured data, and no Commercial Services, About, Service
+  Areas, reviews, blog, project, or gallery content. `/roof` and
+  `/restoration/house-washing` intentionally preserve the live site's
+  existing slugs rather than a cleaner URL pattern — the resulting
+  inconsistent taxonomy is deferred to a later SEO migration/redirect
+  decision, not resolved here. Broader content migration and production
+  migration are separate, unscheduled, and require further approval — see
+  the Phase 2 plan, Architecture Addendum, and Checkpoint 2 planning
+  package for the full checkpoint sequence.
 
 ## Proposed future phases
 

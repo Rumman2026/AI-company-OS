@@ -50,14 +50,28 @@ test.describe('Homepage', () => {
     await expect(mailLink).toHaveAttribute('href', 'mailto:greencaliforniacorporarion@gmail.com');
   });
 
-  test('no internal link points to a nonexistent route', async ({ page }) => {
+  test('every internal link points to an implemented route and does not 404', async ({
+    page,
+    request,
+  }) => {
     await page.goto('/');
     const hrefs = await page
       .locator('a[href]')
       .evaluateAll((links) => links.map((link) => link.getAttribute('href')));
-    const internalHrefs = hrefs.filter((href): href is string => !!href && href.startsWith('/'));
+    const internalHrefs = [
+      ...new Set(hrefs.filter((href): href is string => !!href && href.startsWith('/'))),
+    ];
+    const implementedRoutes = [
+      '/',
+      '/residential-services',
+      '/roof',
+      '/restoration/house-washing',
+      '/contact-us',
+    ];
     for (const href of internalHrefs) {
-      expect(href).toBe('/');
+      expect(implementedRoutes).toContain(href);
+      const response = await request.get(href);
+      expect(response.status()).not.toBe(404);
     }
   });
 
