@@ -11,6 +11,14 @@ apps/*/build/
 packages/*/build/
 coverage/
 
+# Astro
+.astro/
+
+# Playwright
+test-results/
+playwright-report/
+blob-report/
+
 # IDE
 .vscode/
 .idea/

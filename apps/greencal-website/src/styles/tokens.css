@@ -1,0 +1,53 @@
+/*
+ * Checkpoint 1 placeholder design tokens — not approved final brand
+ * colors or typography. Local to this app only (packages/ui-kit was not
+ * modified for this checkpoint). See DECISIONS.md ADR-0004.
+ */
+:root {
+  /* Semantic colors */
+  --color-bg: #ffffff;
+  --color-text: #1a1a1a;
+  --color-accent: #2f6b3a;
+  --color-link: #1f5c8b;
+  --color-link-visited: #5a3d8b;
+
+  /* Neutral colors */
+  --color-neutral-100: #f5f5f4;
+  --color-neutral-300: #d6d3d1;
+  --color-neutral-600: #57534e;
+  --color-neutral-900: #1c1917;
+
+  /* Typography scale */
+  --font-family-base: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font-size-sm: 0.875rem;
+  --font-size-base: 1rem;
+  --font-size-lg: 1.25rem;
+  --font-size-xl: 1.75rem;
+  --font-size-2xl: 2.5rem;
+
+  /* Spacing */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 1rem;
+  --space-4: 1.5rem;
+  --space-5: 2rem;
+  --space-6: 3rem;
+
+  /* Container sizes */
+  --container-max-width: 60rem;
+
+  /* Border radii */
+  --radius-sm: 0.25rem;
+  --radius-md: 0.5rem;
+
+  /* Shadows */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.08);
+
+  /* Focus indicators */
+  --focus-ring-color: #1f5c8b;
+  --focus-ring-width: 3px;
+
+  /* Motion durations */
+  --motion-duration-fast: 100ms;
+  --motion-duration-base: 200ms;
+}

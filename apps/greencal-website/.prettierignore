@@ -1,0 +1,8 @@
+# Core Prettier cannot parse .astro syntax without prettier-plugin-astro,
+# which is not installed for this checkpoint (not in the approved
+# dependency list).
+*.astro
+dist/
+.astro/
+test-results/
+playwright-report/

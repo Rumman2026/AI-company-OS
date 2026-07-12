@@ -1,0 +1,20 @@
+{
+  "name": "@ai-company-os/greencal-website",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "astro dev",
+    "build": "astro build",
+    "preview": "astro preview",
+    "typecheck": "astro check",
+    "lint": "eslint . --ext .ts,.astro --no-error-on-unmatched-pattern",
+    "format": "prettier --write .",
+    "test": "playwright test"
+  },
+  "devDependencies": {
+    "@astrojs/check": "^0.9.9",
+    "@playwright/test": "^1.61.1",
+    "astro": "^7.0.7",
+    "eslint-plugin-astro": "^1.7.0"
+  }
+}

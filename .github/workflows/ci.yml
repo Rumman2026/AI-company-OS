@@ -28,3 +28,9 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm lint
       - run: pnpm typecheck
+      # Scoped to apps/greencal-website only — no other workspace has a
+      # real build or test suite yet (see DECISIONS.md ADR-0004). This is
+      # not repo-wide build/test coverage.
+      - run: pnpm --filter @ai-company-os/greencal-website run build
+      - run: pnpm exec playwright install --with-deps chromium
+      - run: pnpm --filter @ai-company-os/greencal-website run test

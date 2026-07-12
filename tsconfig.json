@@ -16,6 +16,7 @@
       "@agent-orchestrator/*": ["apps/agent-orchestrator/src/*"],
       "@worker-service/*": ["apps/worker-service/src/*"],
       "@web-console/*": ["apps/web-console/src/*"],
+      "@greencal-website/*": ["apps/greencal-website/src/*"],
       "@admin-console/*": ["apps/admin-console/src/*"],
       "@docs-portal/*": ["apps/docs-portal/src/*"]
     }
