@@ -32,5 +32,5 @@ jobs:
       # real build or test suite yet (see DECISIONS.md ADR-0004). This is
       # not repo-wide build/test coverage.
       - run: pnpm --filter @ai-company-os/greencal-website run build
-      - run: pnpm exec playwright install --with-deps chromium
+      - run: pnpm --filter @ai-company-os/greencal-website exec playwright install --with-deps chromium
       - run: pnpm --filter @ai-company-os/greencal-website run test
