@@ -53,13 +53,30 @@ repository evidence.
   the Phase 2 plan, Architecture Addendum, and Checkpoint 2 planning
   package for the full checkpoint sequence.
 
+**Growth-system domain contracts (in progress) — `packages/core-models`**
+
+- Scope: a first, provider-neutral coding slice for the GreenCal
+  Lead-to-Job-to-Content growth system's domain layer — branded IDs, a
+  floating-point-free `Money` type, and full state-machine behavior (typed
+  transitions, actor authorization, precondition evidence) for five
+  lifecycles: Lead, Job, Invoice, Content, and Review Request. No database,
+  API, UI, or provider integration.
+- This is a separate track from Phase 2A (the GreenCal website) — it
+  does not touch `apps/greencal-website`, and the website does not yet
+  consume it.
+- This is the first repository evidence toward Phase 2's "core domain
+  models" component below. Phase 2 as a whole is **not** complete — auth
+  and the database layer remain unimplemented placeholders.
+
 ## Proposed future phases
 
 The following are **proposed** and not scheduled or committed:
 
 - **Phase 2 (proposed)**: Implement shared platform primitives — auth,
   database layer, core domain models — enough for one business's MVP
-  workflow end-to-end.
+  workflow end-to-end. Core domain models now has initial, provider-neutral
+  repository evidence in `packages/core-models` (see above); auth and the
+  database layer remain unstarted.
 - **Phase 3 (proposed)**: Stand up the first business-specific module
   (which business, **TBD**).
 - **Phase 4+ (proposed)**: Agent orchestration and automation features
