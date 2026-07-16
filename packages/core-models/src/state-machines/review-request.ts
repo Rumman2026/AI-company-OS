@@ -1,10 +1,17 @@
 /**
  * Review-request state machine. Eligibility never depends on customer
- * sentiment, star rating, satisfaction score, or predicted review quality -
- * no such field exists anywhere in ReviewEligibilityEvidence or the Review
- * Request type. Opt-out and suppression are always respected and are
- * reachable from every non-terminal state. No retry transition exists for
- * `failed` - the approved plan does not define one, so none is invented.
+ * sentiment, star rating, satisfaction score, predicted review quality,
+ * complaint status, or invoice-dispute status - no such field exists
+ * anywhere in ReviewEligibilityEvidence or the Review Request type.
+ * Customers meeting the same neutral operational eligibility requirements
+ * (job completed, review-request consent granted) are treated uniformly
+ * regardless of whether their experience was positive, negative,
+ * disputed, complained about, or refunded. Complaint handling and
+ * invoice-dispute management are separate operational workflows and must
+ * never gate who receives a review request - see workflow-separation
+ * tests. Opt-out and suppression are always respected and are reachable
+ * from every non-terminal state. No retry transition exists for `failed`
+ * - the approved plan does not define one, so none is invented.
  */
 
 import type { ReviewRequest, ReviewRequestStatus } from '../types/review';
@@ -33,11 +40,15 @@ const ALL_REVIEW_REQUEST_STATUSES: readonly ReviewRequestStatus[] = [
   'opted-out',
 ];
 
+/**
+ * Neutral operational eligibility only. Deliberately excludes any
+ * complaint-status, invoice-dispute-status, sentiment, satisfaction,
+ * rating, or predicted-review-quality field - see the module-level
+ * comment above. Do not add such a field back under a different name.
+ */
 export interface ReviewEligibilityEvidence {
   readonly jobCompleted: boolean;
-  readonly invoiceNotDisputed: boolean;
   readonly consentGranted: boolean;
-  readonly noActiveComplaint: boolean;
 }
 
 const REVIEW_REQUEST_TRANSITION_RULES: readonly ReviewRequestTransitionRule[] = [
@@ -104,13 +115,7 @@ export function transitionReviewRequest(
 
   if (currentStatus === 'not-eligible' && requestedStatus === 'eligible') {
     const evidence = options.eligibilityEvidence;
-    if (
-      !evidence ||
-      !evidence.jobCompleted ||
-      !evidence.invoiceNotDisputed ||
-      !evidence.consentGranted ||
-      !evidence.noActiveComplaint
-    ) {
+    if (!evidence || !evidence.jobCompleted || !evidence.consentGranted) {
       return {
         outcome: 'rejected',
         currentState: currentStatus,

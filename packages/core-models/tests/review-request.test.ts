@@ -9,9 +9,7 @@ import { makeFixtureReviewRequest, makeContext } from '../src/fixtures';
 
 const fullEligibility: ReviewEligibilityEvidence = {
   jobCompleted: true,
-  invoiceNotDisputed: true,
   consentGranted: true,
-  noActiveComplaint: true,
 };
 
 test('every approved Review Request transition succeeds', () => {
@@ -101,18 +99,74 @@ test('every approved Review Request transition succeeds', () => {
   }
 });
 
-test('eligibility must not depend on customer sentiment, rating, or predicted review quality - no such field exists on the evidence contract', () => {
+test('eligibility must not depend on customer sentiment, rating, predicted review quality, complaint status, or invoice-dispute status - no such field exists on the evidence contract', () => {
   const forbiddenKeys = [
     'sentiment',
     'starRating',
     'satisfactionScore',
     'likelyPositive',
     'predictedQuality',
+    'positiveFeedback',
+    'negativeFeedback',
+    'employeeJudgment',
+    'serviceRecoveryOutcome',
+    'noActiveComplaint',
+    'hasComplaint',
+    'complaintStatus',
+    'invoiceNotDisputed',
+    'invoiceDisputed',
+    'disputeStatus',
   ];
   const evidenceKeys = Object.keys(fullEligibility);
   for (const forbidden of forbiddenKeys) {
-    assert.ok(!evidenceKeys.includes(forbidden));
+    assert.ok(!evidenceKeys.includes(forbidden), `"${forbidden}" must not be an eligibility field`);
   }
+  assert.deepEqual(evidenceKeys.sort(), ['consentGranted', 'jobCompleted']);
+});
+
+test('review eligibility contains no complaint-status requirement, exactly', () => {
+  const evidenceKeys = Object.keys(fullEligibility);
+  assert.ok(!evidenceKeys.some((key) => key.toLowerCase().includes('complaint')));
+});
+
+test('review eligibility contains no invoice-dispute requirement, exactly', () => {
+  const evidenceKeys = Object.keys(fullEligibility);
+  assert.ok(!evidenceKeys.some((key) => key.toLowerCase().includes('dispute')));
+});
+
+test('a completed customer with review-request consent is not rejected solely because a complaint exists elsewhere in the system', () => {
+  // A complaint may be tracked by a separate, not-yet-implemented workflow,
+  // but ReviewEligibilityEvidence has no field to express it - so passing
+  // only the two neutral fields succeeds regardless of any out-of-band
+  // complaint state.
+  const notEligible = makeFixtureReviewRequest({ status: 'not-eligible' });
+  const result = transitionReviewRequest(
+    notEligible,
+    'eligible',
+    makeContext({ actorCategory: 'automation' }),
+    { eligibilityEvidence: { jobCompleted: true, consentGranted: true } },
+  );
+  assert.equal(result.outcome, 'success');
+});
+
+test('a completed customer is not rejected solely because an invoice dispute exists elsewhere in the system', () => {
+  const notEligible = makeFixtureReviewRequest({ status: 'not-eligible' });
+  const result = transitionReviewRequest(
+    notEligible,
+    'eligible',
+    makeContext({ actorCategory: 'automation' }),
+    { eligibilityEvidence: { jobCompleted: true, consentGranted: true } },
+  );
+  assert.equal(result.outcome, 'success');
+});
+
+test('Review Request eligibility remains independent from complaint and dispute workflows - no such entity or field is imported or referenced', () => {
+  // Structural check: review-request.ts and types/review.ts import
+  // nothing from a complaint or dispute module (no such module exists in
+  // this slice), and ReviewEligibilityEvidence's only fields are
+  // jobCompleted and consentGranted.
+  const evidenceKeys = Object.keys(fullEligibility);
+  assert.deepEqual(evidenceKeys.sort(), ['consentGranted', 'jobCompleted']);
 });
 
 test('review-request eligibility is uniform: any complete evidence set is accepted regardless of the specific job', () => {

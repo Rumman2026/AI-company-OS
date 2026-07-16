@@ -48,6 +48,15 @@ architecture; this README covers only what is actually implemented here.
   asset; publishability requires an explicit public derivative reference
   plus recorded metadata-stripping, privacy-review, and human-approval
   flags.
+- Review-request solicitation is uniform, not gated. `ReviewEligibilityEvidence`
+  has exactly two fields - `jobCompleted` and `consentGranted` - and
+  contains no sentiment, satisfaction, rating, predicted-review-quality,
+  complaint-status, or invoice-dispute field. Customers meeting the same
+  neutral operational requirements are treated identically regardless of
+  whether their experience was positive, negative, disputed, complained
+  about, or refunded. Complaint handling and invoice-dispute management
+  are separate, unimplemented operational workflows and must never
+  determine who receives a review request.
 
 ## What is deliberately excluded from this slice
 

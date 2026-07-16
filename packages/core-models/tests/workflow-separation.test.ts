@@ -86,6 +86,28 @@ test('Lead-status changes never overwrite first-touch Attribution, across every 
   }
 });
 
+test('Review Request eligibility and entity shape carry no complaint or dispute field - those are separate, unimplemented workflows', () => {
+  const reviewRequest = makeFixtureReviewRequest({ status: 'not-eligible' });
+  const result = transitionReviewRequest(
+    reviewRequest,
+    'eligible',
+    makeContext({ actorCategory: 'automation' }),
+    { eligibilityEvidence: { jobCompleted: true, consentGranted: true } },
+  );
+  assert.equal(result.outcome, 'success');
+  if (result.outcome === 'success') {
+    const entityKeys = Object.keys(result.entity);
+    for (const forbiddenKey of [
+      'complaintStatus',
+      'hasComplaint',
+      'disputeStatus',
+      'invoiceDisputed',
+    ]) {
+      assert.ok(!entityKeys.includes(forbiddenKey));
+    }
+  }
+});
+
 test('Conversion Events are a separate type and are never accepted as a state argument by any transition function', () => {
   // Structural check: none of the five transition functions import or
   // reference ConversionEvent anywhere in their public signatures. This is
