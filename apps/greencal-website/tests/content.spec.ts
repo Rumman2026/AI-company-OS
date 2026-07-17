@@ -164,6 +164,36 @@ test.describe('Cross-linking', () => {
   });
 });
 
+// Slice 1 migration-evidence regression guards - see
+// GREENCal-SLICE-1-IMPLEMENTATION-SCOPE-20260716.csv. These codify the
+// route-preservation evidence from the GreenCal legacy-site audit series
+// so an accidental future slug change is caught by CI.
+test.describe('Slice 1 migration-evidence regression guards', () => {
+  test('/residential-services remains served at its exact path - confirmed legacy 301 consolidation target for 7 retired residential-service subpages (see GREENCal-UNDOCUMENTED-REDIRECT-EVIDENCE-20260716.csv)', async ({
+    page,
+  }) => {
+    const response = await page.goto('/residential-services');
+    expect(response?.status()).toBe(200);
+    expect(new URL(page.url()).pathname).toBe('/residential-services');
+  });
+
+  test('/roof remains served at its exact path - confirmed live 301 target of legacy /residential-services/roof-washing (see GREENCal-UNDOCUMENTED-REDIRECT-EVIDENCE-20260716.csv)', async ({
+    page,
+  }) => {
+    const response = await page.goto('/roof');
+    expect(response?.status()).toBe(200);
+    expect(new URL(page.url()).pathname).toBe('/roof');
+  });
+
+  test('/restoration/house-washing remains served at its exact path - confirmed live 301 target of /residential-services/house-washing, corroborated by active navigation-template evidence (see GREENCal-UNDOCUMENTED-REDIRECT-EVIDENCE-20260716.csv and GREENCal-FINAL-ROUTE-AUDIT-20260716.md)', async ({
+    page,
+  }) => {
+    const response = await page.goto('/restoration/house-washing');
+    expect(response?.status()).toBe(200);
+    expect(new URL(page.url()).pathname).toBe('/restoration/house-washing');
+  });
+});
+
 test.describe('Contact page', () => {
   test('has exactly one tel link and one mailto link with the correct destinations', async ({
     page,

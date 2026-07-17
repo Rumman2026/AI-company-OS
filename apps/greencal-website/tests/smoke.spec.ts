@@ -92,6 +92,14 @@ test.describe('Homepage', () => {
     );
     expect(hasOverflow).toBe(false);
   });
+
+  // Slice 1 migration-evidence regression guard - see
+  // GREENCal-SLICE-1-IMPLEMENTATION-SCOPE-20260716.csv.
+  test('remains served at the root path', async ({ page }) => {
+    const response = await page.goto('/');
+    expect(response?.status()).toBe(200);
+    expect(new URL(page.url()).pathname).toBe('/');
+  });
 });
 
 test.describe('404 page', () => {
