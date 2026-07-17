@@ -14,8 +14,8 @@ const { service } = Astro.props;
   <h1>{service.title}</h1>
   {service.body.map((paragraph) => <p>{paragraph}</p>)}
   <ContactActions />
-  <p>
+  <nav aria-label="Related pages" class="page-links">
     <a href="/residential-services">Back to Residential Services</a>
     <a href="/contact-us">Contact GreenCal Pressure Washing</a>
-  </p>
+  </nav>
 </BaseLayout>
