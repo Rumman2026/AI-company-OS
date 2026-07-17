@@ -222,3 +222,90 @@ test.describe('Homepage residential-only scope', () => {
     expect(ogDescription?.toLowerCase()).not.toContain('commercial');
   });
 });
+
+// Sprint 1 shared-shell regression guards. These verify user-facing touch-
+// target behavior and card presentation, not incidental markup or pixel-
+// exact values - see the Sprint 1 implementation summary in the session
+// history for the measured baseline (nav/CTA links were 19-24px tall
+// before this sprint).
+test.describe('Sprint 1 shared-shell regression guards', () => {
+  test.beforeEach(async ({ page }) => {
+    await page.setViewportSize({ width: 375, height: 812 });
+  });
+
+  test('header and footer navigation list links have an adequately sized touch target on /', async ({
+    page,
+  }) => {
+    // Scoped to the nav <ul> links specifically - the brand/logo link is a
+    // separate element with its own (already adequate) sizing and is not
+    // part of this fix.
+    await page.goto('/');
+    const links = page.locator('header nav ul a, footer nav ul a');
+    const count = await links.count();
+    expect(count).toBeGreaterThan(0);
+    for (let i = 0; i < count; i++) {
+      const box = await links.nth(i).boundingBox();
+      expect(box?.height ?? 0).toBeGreaterThanOrEqual(32);
+    }
+  });
+
+  test('service cards on / are visually distinguishable (bordered)', async ({ page }) => {
+    await page.goto('/');
+    const cards = page.locator('.service-card');
+    const count = await cards.count();
+    expect(count).toBeGreaterThan(0);
+    for (let i = 0; i < count; i++) {
+      const borderWidth = await cards.nth(i).evaluate((el) => getComputedStyle(el).borderWidth);
+      expect(borderWidth).not.toBe('0px');
+    }
+  });
+
+  test('service cards on /residential-services are visually distinguishable (bordered)', async ({
+    page,
+  }) => {
+    await page.goto('/residential-services');
+    const cards = page.locator('.service-card');
+    const count = await cards.count();
+    expect(count).toBeGreaterThan(0);
+    for (let i = 0; i < count; i++) {
+      const borderWidth = await cards.nth(i).evaluate((el) => getComputedStyle(el).borderWidth);
+      expect(borderWidth).not.toBe('0px');
+    }
+  });
+
+  test('back-navigation and contact links on /roof have an adequately sized touch target', async ({
+    page,
+  }) => {
+    await page.goto('/roof');
+    const links = page.locator(
+      'a[href="/residential-services"], a[href="/contact-us"], .contact-actions a',
+    );
+    const count = await links.count();
+    expect(count).toBeGreaterThan(0);
+    for (let i = 0; i < count; i++) {
+      const box = await links.nth(i).boundingBox();
+      expect(box?.height ?? 0).toBeGreaterThanOrEqual(32);
+    }
+  });
+
+  test('/contact-us shared-shell CTA touch targets remain stable after the shared-shell update', async ({
+    page,
+  }) => {
+    // This test verifies only that the shared ContactActions component's
+    // presentation remains stable on /contact-us - it does not assert on
+    // /contact-us content, metadata, or form behavior, none of which were
+    // touched this sprint.
+    await page.goto('/contact-us');
+    const links = page.locator('.contact-actions a');
+    const count = await links.count();
+    expect(count).toBeGreaterThan(0);
+    for (let i = 0; i < count; i++) {
+      const box = await links.nth(i).boundingBox();
+      expect(box?.height ?? 0).toBeGreaterThanOrEqual(32);
+    }
+    const hasOverflow = await page.evaluate(
+      () => document.documentElement.scrollWidth > document.documentElement.clientWidth,
+    );
+    expect(hasOverflow).toBe(false);
+  });
+});
