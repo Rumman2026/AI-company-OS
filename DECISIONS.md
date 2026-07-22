@@ -205,6 +205,71 @@ DNS, domain, analytics, Search Console).
 
 ---
 
+## ADR-0005: Production domain for `apps/greencal-website` is `https://www.greencalpressurewashing.com`
+
+**Status**: Confirmed (domain value only — see scope note below)
+
+**Context**: ADR-0004 explicitly deferred the production domain decision for
+`apps/greencal-website` ("Deferred decisions: ... hosting, DNS, domain,
+analytics, Search Console"), and `.claude/rules/websites.md` requires "its
+own explicit user authorization" before any hosting/DNS/domain
+configuration is added. `astro.config.mjs` left `site` unset for this
+reason, and `BaseLayout.astro` deliberately omitted canonical URL and
+`og:url` with an in-file comment citing the same unresolved decision. A
+5-day revenue-launch sprint (Stage 2) requires canonical URLs, a
+`sitemap.xml`, and production-ready Open Graph/Twitter metadata ahead of
+paid Google Ads traffic, all of which need a base URL to be correct.
+
+**Decision**: The user has explicitly confirmed and authorized the
+production domain for GreenCal Pressure Washing as
+`https://www.greencalpressurewashing.com`. This value is authorized for use
+as:
+
+- `site` in `apps/greencal-website/astro.config.mjs`.
+- The base URL for `<link rel="canonical">` on every indexable route.
+- The base URL for `sitemap.xml` and the `Sitemap:` directive in
+  `robots.txt`.
+- The value for `og:url` and Twitter Card URL metadata.
+
+GreenCal is a service-area business. This ADR does **not** authorize
+publishing a public street address, and does not touch or resolve the
+NAP (name/address/phone) inconsistency or the `LocalBusiness`/
+`ProfessionalService` structured-data prohibition documented in
+`.claude/rules/websites.md` — those remain separately gated.
+
+**Scope note**: This ADR authorizes only the domain **value** for the four
+uses listed above. It does not authorize DNS changes, hosting/server
+configuration, live deployment, analytics or tracking-script installation,
+Google Search Console setup, or any other production integration — each of
+those remains gated by `.claude/rules/websites.md` and requires its own
+separate, explicit user authorization.
+
+**Consequences**:
+
+- `apps/greencal-website/astro.config.mjs` sets `site:
+'https://www.greencalpressurewashing.com'`, enabling `Astro.site`-derived
+  canonical URLs and sitemap generation.
+- `BaseLayout.astro`'s existing comment explaining the omission of
+  canonical/`og:url` (citing ADR-0004) is now resolved and can be replaced
+  with real canonical/OG URL output.
+- `robots.txt` gains a `Sitemap:` directive pointing at
+  `https://www.greencalpressurewashing.com/sitemap.xml`.
+- Deploying the site so that this domain actually resolves to it (DNS,
+  hosting) remains a separate, unauthorized action — this ADR records only
+  that the URL space is now confirmed for the purpose of generating correct
+  metadata ahead of that deployment.
+
+**Deferred decisions** (still not made by this ADR): DNS/hosting
+configuration and live deployment; analytics/tracking installation; Google
+Search Console setup; NAP (name/address/phone) resolution and any
+`LocalBusiness`/`ProfessionalService` structured data; brand/OG image
+assets (still none exist in the repository).
+
+**Related**: [ADR-0004](#adr-0004-dedicated-appsgreencal-website-for-greencal-pressure-washing-designated-phase-2a),
+`.claude/rules/websites.md`
+
+---
+
 ## Proposed decisions (not yet made)
 
 - Database engine and ORM for `packages/db` — **Proposed / TBD**.
