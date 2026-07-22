@@ -205,7 +205,6 @@ const { showContactActions = true } = Astro.props;
 </section>
 
 <script>
-  import { submitQuoteForm } from '../lib/quote-form/submit';
   import type { FieldErrors, QuoteSubmissionResult } from '../lib/quote-form/types';
   import { trackEvent } from '../lib/tracking/production';
   import { mapSubmissionResultToEvent } from '../lib/tracking/quote-form-events';
@@ -217,6 +216,42 @@ const { showContactActions = true } = Astro.props;
   const errorList = document.querySelector<HTMLUListElement>('#quote-form-error-list');
   const statusRegion = document.querySelector<HTMLParagraphElement>('#quote-form-status');
   const submitButton = document.querySelector<HTMLButtonElement>('#quote-form-submit');
+
+  /**
+   * The only place the client talks to the network. Validation and the
+   * real adapter boundary live server-side (src/pages/api/quote-submit.ts
+   * -> submitQuoteForm) - this just posts the raw fields and parses the
+   * same typed QuoteSubmissionResult back. A network-level failure (the
+   * request never reaching the server, or an unparseable response) is
+   * mapped to delivery_failed locally - never fabricated success.
+   */
+  async function submitQuoteFormViaApi(raw: Record<string, unknown>): Promise<QuoteSubmissionResult> {
+    try {
+      const response = await fetch('/api/quote-submit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...raw, pagePath: window.location.pathname }),
+      });
+      const result: unknown = await response.json();
+      if (
+        result &&
+        typeof result === 'object' &&
+        'status' in result &&
+        typeof (result as { status: unknown }).status === 'string'
+      ) {
+        return result as QuoteSubmissionResult;
+      }
+      return {
+        status: 'delivery_failed',
+        message: "We couldn't send your request. Please call or email us directly.",
+      };
+    } catch {
+      return {
+        status: 'delivery_failed',
+        message: "We couldn't send your request. Please call or email us directly.",
+      };
+    }
+  }
 
   if (form && errorSummary && errorList && statusRegion && submitButton) {
     let isSubmitting = false;
@@ -362,7 +397,7 @@ const { showContactActions = true } = Astro.props;
       };
 
       try {
-        const result = await submitQuoteForm(raw, { pagePath: window.location.pathname });
+        const result = await submitQuoteFormViaApi(raw);
         handleResult(result);
       } finally {
         if (!form.hasAttribute('data-submitted')) {
