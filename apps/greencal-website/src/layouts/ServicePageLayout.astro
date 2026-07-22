@@ -13,7 +13,7 @@ export interface Props {
 const { service } = Astro.props;
 ---
 
-<BaseLayout title={service.metaTitle} description={service.metaDescription}>
+<BaseLayout title={service.metaTitle} description={service.metaDescription} path={service.route}>
   <h1>{service.title}</h1>
   <p class="lede">{service.summary}</p>
   <div class="cta-banner">

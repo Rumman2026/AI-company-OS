@@ -7,9 +7,15 @@ import '../styles/global.css';
 export interface Props {
   title: string;
   description: string;
+  path: string;
+  noindex?: boolean;
 }
 
-const { title, description } = Astro.props;
+const { title, description, path, noindex = false } = Astro.props;
+
+// Domain confirmed and authorized - see DECISIONS.md ADR-0005. Astro.site
+// is the single source of truth, set in astro.config.mjs.
+const canonicalUrl = new URL(path, Astro.site).toString();
 ---
 
 <!doctype html>
@@ -19,15 +25,19 @@ const { title, description } = Astro.props;
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>{title}</title>
     <meta name="description" content={description} />
+    {noindex && <meta name="robots" content="noindex, nofollow" />}
+    {!noindex && <link rel="canonical" href={canonicalUrl} />}
     <meta property="og:title" content={title} />
     <meta property="og:description" content={description} />
     <meta property="og:type" content="website" />
+    {!noindex && <meta property="og:url" content={canonicalUrl} />}
+    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:title" content={title} />
+    <meta name="twitter:description" content={description} />
     <!--
-      Canonical URL and og:url are intentionally omitted: no production
-      domain has been confirmed or approved yet (see DECISIONS.md
-      ADR-0004). Emitting one now would misrepresent an unconfigured
-      environment as configured. og:image is omitted because no approved
-      brand image asset exists yet.
+      og:image and twitter:image are omitted: no approved brand image asset
+      exists yet. twitter:site/twitter:creator are omitted: no verified
+      GreenCal Twitter/X account exists.
     -->
   </head>
   <body>
