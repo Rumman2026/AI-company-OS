@@ -270,6 +270,75 @@ assets (still none exist in the repository).
 
 ---
 
+## ADR-0006: Vercel, Supabase, and Resend approved for `apps/greencal-website` live quote delivery
+
+**Status**: Confirmed (stack approval only - see scope note below)
+
+**Context**: The Stage 3 quote form's production adapter (`unavailableAdapter`)
+always returns `pending_configuration` because `apps/greencal-website` had
+no server runtime, database, or email-delivery mechanism (ADR-0004: Astro
+`output: 'static'`, no adapter). This is the launch blocker: the form
+cannot store or deliver real leads. The owner explicitly approved a
+specific GreenCal-owned stack to resolve it.
+
+**Decision**: The following GreenCal-owned stack is approved for live
+quote-lead delivery, and only this stack:
+
+- **Vercel** for hosting and the serverless runtime that executes the
+  trusted quote-submission endpoint.
+- The **official `@astrojs/vercel` adapter** for Astro/Vercel integration.
+- **Supabase** as the durable source of truth for stored leads.
+- **Resend** as the notification-email channel, sending to the approved
+  recipient `greencaliforniacorporation@gmail.com`.
+
+No other hosting provider, database, or email-delivery provider is
+authorized. Do not introduce SendGrid, Mailgun, Postmark, direct SMTP,
+Firebase, or any other CRM/database/hosting/email provider without a
+separate, explicit owner approval.
+
+**Scope note**: This ADR authorizes implementing against these three
+providers' APIs/SDKs only. It does **not** authorize: production
+deployment, DNS cutover, merging to `main`, creating provider accounts on
+the owner's behalf, or exposing credentials. Real activation (an owner-
+provisioned Supabase project, Resend account, and Vercel project, with
+real environment variables configured) is a separate, later step - see
+`apps/greencal-website/src/lib/quote-form/README.md`'s activation
+checklist.
+
+**Runtime model**: `output` remains `'static'` (ADR-0004 unchanged) - the
+Vercel adapter is required only so the single on-demand route
+(`src/pages/api/quote-submit.ts`, `export const prerender = false`) has a
+trusted server runtime. Every other page remains prerendered. This is the
+least invasive compatible architecture: no other route was converted to
+server rendering.
+
+**Consequences**:
+
+- `apps/greencal-website/astro.config.mjs` adds the `@astrojs/vercel`
+  adapter.
+- `apps/greencal-website/package.json` adds `@astrojs/vercel`,
+  `@supabase/supabase-js`, `resend`, and `tslib` (a required transitive
+  dependency of `@supabase/functions-js` that this repository's pnpm
+  hoisted-linker configuration does not resolve automatically without an
+  explicit top-level declaration - discovered and fixed during
+  implementation).
+- The existing Stage 3 `QuoteSubmissionAdapter` interface, typed
+  `QuoteSubmissionResult` states, and `submitQuoteForm` orchestration are
+  reused unchanged - only a new adapter implementation
+  (`supabase-resend-adapter.ts`) and its two injected dependencies
+  (`lead-store.ts`, `notification-sender.ts`) were added.
+- `@astrojs/vercel` does not support the `astro preview` command
+  (verified directly: "The @astrojs/vercel adapter does not support the
+  preview command"). Local/CI testing uses `astro dev` instead - see
+  `playwright.config.ts`. Full production-runtime verification requires a
+  real Vercel deployment, out of scope for this stage.
+
+**Related**: [ADR-0004](#adr-0004-dedicated-appsgreencal-website-for-greencal-pressure-washing-designated-phase-2a),
+[ADR-0005](#adr-0005-production-domain-for-appsgreencal-website-is-httpswwwgreencalpressurewashingcom),
+`apps/greencal-website/src/lib/quote-form/README.md`
+
+---
+
 ## Proposed decisions (not yet made)
 
 - Database engine and ORM for `packages/db` — **Proposed / TBD**.
