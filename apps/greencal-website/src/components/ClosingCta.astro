@@ -1,0 +1,20 @@
+---
+import ContactActions from './ContactActions.astro';
+import { siteInfo } from '../data/site';
+
+export interface Props {
+  heading?: string;
+  message?: string;
+}
+
+const {
+  heading = 'Ready to Get Started?',
+  message = `Call or email ${siteInfo.businessName} to request a quote.`,
+} = Astro.props;
+---
+
+<section class="closing-cta" aria-labelledby="closing-cta-heading">
+  <h2 id="closing-cta-heading">{heading}</h2>
+  <p>{message}</p>
+  <ContactActions />
+</section>

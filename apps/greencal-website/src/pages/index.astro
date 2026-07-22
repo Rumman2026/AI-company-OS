@@ -2,6 +2,8 @@
 import BaseLayout from '../layouts/BaseLayout.astro';
 import ServiceCard from '../components/ServiceCard.astro';
 import ContactActions from '../components/ContactActions.astro';
+import HowItWorks from '../components/HowItWorks.astro';
+import ClosingCta from '../components/ClosingCta.astro';
 import { services } from '../data/services';
 import { siteInfo } from '../data/site';
 
@@ -11,20 +13,19 @@ const description = `Residential exterior cleaning serving ${siteInfo.region}.`;
 
 <BaseLayout title={title} description={description}>
   <h1>GreenCal Pressure Washing</h1>
-  <p>{description}</p>
-  <p>
+  <p class="lede">
     {siteInfo.businessName} provides residential exterior cleaning for homes in {siteInfo.region}.
   </p>
-  {services.map((service) => <ServiceCard service={service} />)}
-  <section>
-    <h2>How It Works</h2>
-    <ol>
-      <li>Contact {siteInfo.businessName} by phone or email.</li>
-      <li>Discuss your property and exterior cleaning needs.</li>
-      <li>Schedule a visit.</li>
-    </ol>
+  <div class="cta-banner">
+    <p>Call or email to request a quote:</p>
+    <ContactActions />
+  </div>
+  <section aria-labelledby="services-heading">
+    <h2 id="services-heading">Our Services</h2>
+    {services.map((service) => <ServiceCard service={service} />)}
   </section>
-  <ContactActions />
+  <HowItWorks />
+  <ClosingCta />
   <nav aria-label="Related pages" class="page-links">
     <a href="/residential-services">Residential Services</a>
     <a href="/contact-us">Contact</a>
