@@ -174,11 +174,12 @@ test.describe('Corrected email regression guard', () => {
 });
 
 test.describe('robots.txt', () => {
-  test('is served and allows crawling', async ({ request }) => {
+  test('is served, allows crawling, and references the production sitemap', async ({ request }) => {
     const response = await request.get('/robots.txt');
     expect(response.status()).toBe(200);
     const body = await response.text();
     expect(body).toContain('User-agent: *');
     expect(body).toContain('Allow: /');
+    expect(body).toContain('Sitemap: https://www.greencalpressurewashing.com/sitemap.xml');
   });
 });

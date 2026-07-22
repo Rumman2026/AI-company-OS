@@ -392,11 +392,112 @@ test.describe('Revenue launch: /restoration/house-washing shares the strengthene
 });
 
 test.describe('robots.txt', () => {
-  test('is accessible and permits crawling of all current routes', async ({ request }) => {
+  test('is accessible, permits crawling, and references the production sitemap', async ({
+    request,
+  }) => {
     const response = await request.get('/robots.txt');
     expect(response.status()).toBe(200);
     const body = await response.text();
     expect(body).toContain('User-agent: *');
     expect(body).toContain('Allow: /');
+    expect(body).toContain('Sitemap: https://www.greencalpressurewashing.com/sitemap.xml');
+  });
+});
+
+const PRODUCTION_DOMAIN = 'https://www.greencalpressurewashing.com';
+const INDEXABLE_ROUTES = ['/', ...NEW_ROUTES.map((route) => route.path)];
+
+test.describe('Stage 2: production-domain canonical and Open Graph URLs', () => {
+  for (const path of INDEXABLE_ROUTES) {
+    test(`${path} has a canonical link and og:url pointing at the production domain`, async ({
+      page,
+    }) => {
+      await page.goto(path);
+      const canonical = page.locator('link[rel="canonical"]');
+      await expect(canonical).toHaveAttribute('href', `${PRODUCTION_DOMAIN}${path}`);
+      const ogUrl = page.locator('meta[property="og:url"]');
+      await expect(ogUrl).toHaveAttribute('content', `${PRODUCTION_DOMAIN}${path}`);
+    });
+
+    test(`${path} has Open Graph and Twitter metadata matching its title and description`, async ({
+      page,
+    }) => {
+      await page.goto(path);
+      const pageTitle = await page.title();
+      const description = await page.locator('meta[name="description"]').getAttribute('content');
+
+      await expect(page.locator('meta[property="og:title"]')).toHaveAttribute('content', pageTitle);
+      await expect(page.locator('meta[property="og:description"]')).toHaveAttribute(
+        'content',
+        description ?? '',
+      );
+      await expect(page.locator('meta[property="og:type"]')).toHaveAttribute('content', 'website');
+      await expect(page.locator('meta[name="twitter:card"]')).toHaveAttribute('content', 'summary');
+      await expect(page.locator('meta[name="twitter:title"]')).toHaveAttribute(
+        'content',
+        pageTitle,
+      );
+      await expect(page.locator('meta[name="twitter:description"]')).toHaveAttribute(
+        'content',
+        description ?? '',
+      );
+    });
+  }
+
+  test('404 is noindex, nofollow and does not emit a canonical link or og:url', async ({
+    page,
+  }) => {
+    const response = await page.goto('/this-route-does-not-exist');
+    expect(response?.status()).toBe(404);
+    await expect(page.locator('meta[name="robots"]')).toHaveAttribute(
+      'content',
+      'noindex, nofollow',
+    );
+    await expect(page.locator('link[rel="canonical"]')).toHaveCount(0);
+    await expect(page.locator('meta[property="og:url"]')).toHaveCount(0);
+  });
+});
+
+test.describe('Stage 2: sitemap.xml', () => {
+  test('lists exactly the indexable routes at the production domain, and excludes 404', async ({
+    request,
+  }) => {
+    const response = await request.get('/sitemap.xml');
+    expect(response.status()).toBe(200);
+    expect(response.headers()['content-type']).toContain('xml');
+    const body = await response.text();
+    for (const path of INDEXABLE_ROUTES) {
+      expect(body).toContain(`<loc>${PRODUCTION_DOMAIN}${path}</loc>`);
+    }
+    expect(body).not.toContain('404');
+    expect(body).not.toContain('this-route-does-not-exist');
+  });
+});
+
+test.describe('Stage 2: no Footbridge or unauthorized third-party references', () => {
+  test('no route renders Footbridge, analytics, CRM, or call-tracking references', async ({
+    page,
+  }) => {
+    for (const path of INDEXABLE_ROUTES) {
+      await page.goto(path);
+      const html = (await page.content()).toLowerCase();
+      for (const forbidden of [
+        'footbridge',
+        'gtag',
+        'googletagmanager',
+        'google-analytics',
+        'jobber',
+        'callrail',
+      ]) {
+        expect(html).not.toContain(forbidden);
+      }
+    }
+  });
+
+  test('no route renders any script tag other than the page document itself', async ({ page }) => {
+    for (const path of INDEXABLE_ROUTES) {
+      await page.goto(path);
+      await expect(page.locator('script')).toHaveCount(0);
+    }
   });
 });
