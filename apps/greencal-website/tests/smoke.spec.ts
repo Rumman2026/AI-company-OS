@@ -105,9 +105,16 @@ test.describe('Homepage', () => {
       '/contact-us',
     ];
     for (const href of internalHrefs) {
-      expect(implementedRoutes).toContain(href);
-      const response = await request.get(href);
+      // Fragments (e.g. the Stage 3 quote-form anchor link) are client-side
+      // only - strip before matching a route and before requesting.
+      const [path, fragment] = href.split('#');
+      expect(implementedRoutes).toContain(path);
+      const response = await request.get(path);
       expect(response.status()).not.toBe(404);
+      if (fragment) {
+        const html = await response.text();
+        expect(html).toContain(`id="${fragment}"`);
+      }
     }
   });
 

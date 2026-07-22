@@ -65,11 +65,15 @@ for (const route of NEW_ROUTES) {
       await expect(page.locator('.skip-link')).toBeFocused();
     });
 
-    test('contains no form, Wufoo reference, address text, or structured data', async ({
-      page,
-    }) => {
+    test('contains no Wufoo reference, address text, or structured data', async ({ page }) => {
       await page.goto(route.path);
-      await expect(page.locator('form')).toHaveCount(0);
+      // /contact-us is the sole, deliberate exception: it renders the real,
+      // GreenCal-owned quote form added in Stage 3 - see
+      // tests/quote-form.spec.ts and tests/quote-form-unit.spec.ts for its
+      // dedicated coverage.
+      if (route.path !== '/contact-us') {
+        await expect(page.locator('form')).toHaveCount(0);
+      }
       await expect(page.locator('script[type="application/ld+json"]')).toHaveCount(0);
       const bodyText = (await page.locator('body').innerText()).toLowerCase();
       expect(bodyText).not.toContain('wufoo');
@@ -217,9 +221,19 @@ test.describe('Contact page', () => {
     await expect(mail).toHaveAttribute('href', 'mailto:greencaliforniacorporation@gmail.com');
   });
 
-  test('quote-request path is stated explicitly and does not use a fake form', async ({ page }) => {
+  test('quote-request path is stated explicitly and the real quote form is not a stub', async ({
+    page,
+  }) => {
     await page.goto('/contact-us');
-    await expect(page.locator('form')).toHaveCount(0);
+    // Stage 3 replaced the "no form" state with one real, GreenCal-owned
+    // form. This asserts it is not a dead-end stub: it has the honest
+    // submission-boundary markers (consent, honeypot, a working submit
+    // control) - full behavioral coverage lives in quote-form.spec.ts and
+    // quote-form-unit.spec.ts.
+    await expect(page.locator('form')).toHaveCount(1);
+    await expect(page.locator('#qf-consent')).toHaveCount(1);
+    await expect(page.locator('.quote-form-honeypot')).toHaveCount(1);
+    await expect(page.locator('#quote-form-submit')).toBeVisible();
     const bodyText = (await page.locator('main').innerText()).toLowerCase();
     expect(bodyText).toContain('quote');
   });
@@ -494,10 +508,23 @@ test.describe('Stage 2: no Footbridge or unauthorized third-party references', (
     }
   });
 
-  test('no route renders any script tag other than the page document itself', async ({ page }) => {
+  test('no route other than /contact-us renders any script tag', async ({ page }) => {
     for (const path of INDEXABLE_ROUTES) {
+      if (path === '/contact-us') continue;
       await page.goto(path);
       await expect(page.locator('script')).toHaveCount(0);
     }
+  });
+
+  test('/contact-us renders exactly one same-origin, first-party module script for the quote form', async ({
+    page,
+  }) => {
+    await page.goto('/contact-us');
+    const scripts = page.locator('script');
+    await expect(scripts).toHaveCount(1);
+    await expect(scripts).toHaveAttribute('type', 'module');
+    const src = await scripts.getAttribute('src');
+    expect(src).not.toBeNull();
+    expect(src as string).toMatch(/^\//);
   });
 });
