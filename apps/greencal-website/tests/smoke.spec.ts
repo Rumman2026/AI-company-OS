@@ -38,16 +38,52 @@ test.describe('Homepage', () => {
     expect(outlineStyle).not.toBe('none');
   });
 
-  test('telephone link has the correct tel: destination', async ({ page }) => {
+  test('telephone links have the correct tel: destination', async ({ page }) => {
+    // Revenue-launch sprint: the homepage now has a top CTA banner and a
+    // closing CTA in addition to the original position, so at least one
+    // (and every) tel: link must resolve to the correct number.
     await page.goto('/');
-    const telLink = page.locator('a[href^="tel:"]');
-    await expect(telLink).toHaveAttribute('href', 'tel:+16573198550');
+    const telLinks = page.locator('a[href^="tel:"]');
+    await expect(telLinks.first()).toBeVisible();
+    const count = await telLinks.count();
+    expect(count).toBeGreaterThanOrEqual(1);
+    for (let i = 0; i < count; i++) {
+      await expect(telLinks.nth(i)).toHaveAttribute('href', 'tel:+16573198550');
+    }
   });
 
-  test('email link has the correct mailto: destination', async ({ page }) => {
+  test('email links have the correct, correctly-spelled mailto: destination', async ({ page }) => {
     await page.goto('/');
-    const mailLink = page.locator('a[href^="mailto:"]');
-    await expect(mailLink).toHaveAttribute('href', 'mailto:greencaliforniacorporarion@gmail.com');
+    const mailLinks = page.locator('a[href^="mailto:"]');
+    await expect(mailLinks.first()).toBeVisible();
+    const count = await mailLinks.count();
+    expect(count).toBeGreaterThanOrEqual(1);
+    for (let i = 0; i < count; i++) {
+      await expect(mailLinks.nth(i)).toHaveAttribute(
+        'href',
+        'mailto:greencaliforniacorporation@gmail.com',
+      );
+    }
+  });
+
+  test('homepage has a prominent call-to-action near the top, before the services list', async ({
+    page,
+  }) => {
+    await page.goto('/');
+    const ctaBanner = page.locator('.cta-banner');
+    await expect(ctaBanner).toBeVisible();
+    const servicesHeading = page.locator('#services-heading');
+    const ctaBox = await ctaBanner.boundingBox();
+    const servicesBox = await servicesHeading.boundingBox();
+    expect(ctaBox).not.toBeNull();
+    expect(servicesBox).not.toBeNull();
+    expect((ctaBox as { y: number }).y).toBeLessThan((servicesBox as { y: number }).y);
+  });
+
+  test('homepage has a closing call-to-action section', async ({ page }) => {
+    await page.goto('/');
+    await expect(page.locator('.closing-cta')).toBeVisible();
+    await expect(page.locator('.closing-cta a[href^="tel:"]')).toBeVisible();
   });
 
   test('every internal link points to an implemented route and does not 404', async ({
@@ -73,6 +109,18 @@ test.describe('Homepage', () => {
       const response = await request.get(href);
       expect(response.status()).not.toBe(404);
     }
+  });
+
+  test('narrow viewport (320px) has no horizontal overflow', async ({ page }) => {
+    // Regression guard: the CTA banner's nested padding previously narrowed
+    // available width enough that the long mailto address overflowed the
+    // viewport at this width (fixed via overflow-wrap on .contact-actions a).
+    await page.setViewportSize({ width: 320, height: 700 });
+    await page.goto('/');
+    const hasOverflow = await page.evaluate(
+      () => document.documentElement.scrollWidth > document.documentElement.clientWidth,
+    );
+    expect(hasOverflow).toBe(false);
   });
 
   test('mobile viewport has no horizontal overflow', async ({ page }) => {
@@ -109,5 +157,28 @@ test.describe('404 page', () => {
     await expect(page.locator('h1')).toHaveText('Page Not Found');
     // Scoped to #main-content: the header's brand link also has href="/".
     await expect(page.locator('#main-content a[href="/"]')).toBeVisible();
+  });
+});
+
+// Revenue-launch sprint: the site previously shipped with a misspelled
+// contact email (greencaliforniacorporarion@gmail.com). This regression
+// guard fails loudly if that exact typo ever reappears anywhere in the
+// rendered homepage output.
+test.describe('Corrected email regression guard', () => {
+  test('the previous email typo does not appear anywhere on the homepage', async ({ page }) => {
+    await page.goto('/');
+    const html = await page.content();
+    expect(html).not.toContain('greencaliforniacorporarion');
+    expect(html).toContain('greencaliforniacorporation@gmail.com');
+  });
+});
+
+test.describe('robots.txt', () => {
+  test('is served and allows crawling', async ({ request }) => {
+    const response = await request.get('/robots.txt');
+    expect(response.status()).toBe(200);
+    const body = await response.text();
+    expect(body).toContain('User-agent: *');
+    expect(body).toContain('Allow: /');
   });
 });

@@ -33,7 +33,17 @@ for (const route of NEW_ROUTES) {
       await expect(page.locator('h1')).toHaveText(route.heading);
     });
 
-    test('has no horizontal overflow at mobile and desktop widths', async ({ page }) => {
+    test('has no horizontal overflow at narrow, mobile, and desktop widths', async ({ page }) => {
+      // 320px regression guard: the CTA banner's nested padding previously
+      // narrowed available width enough that the long mailto address
+      // overflowed the viewport at this width (fixed via overflow-wrap).
+      await page.setViewportSize({ width: 320, height: 700 });
+      await page.goto(route.path);
+      const narrowOverflow = await page.evaluate(
+        () => document.documentElement.scrollWidth > document.documentElement.clientWidth,
+      );
+      expect(narrowOverflow).toBe(false);
+
       await page.setViewportSize({ width: 375, height: 812 });
       await page.goto(route.path);
       const mobileOverflow = await page.evaluate(
@@ -204,7 +214,14 @@ test.describe('Contact page', () => {
     await expect(tel).toHaveAttribute('href', 'tel:+16573198550');
     const mail = page.locator('a[href^="mailto:"]');
     await expect(mail).toHaveCount(1);
-    await expect(mail).toHaveAttribute('href', 'mailto:greencaliforniacorporarion@gmail.com');
+    await expect(mail).toHaveAttribute('href', 'mailto:greencaliforniacorporation@gmail.com');
+  });
+
+  test('quote-request path is stated explicitly and does not use a fake form', async ({ page }) => {
+    await page.goto('/contact-us');
+    await expect(page.locator('form')).toHaveCount(0);
+    const bodyText = (await page.locator('main').innerText()).toLowerCase();
+    expect(bodyText).toContain('quote');
   });
 });
 
@@ -307,5 +324,79 @@ test.describe('Sprint 1 shared-shell regression guards', () => {
       () => document.documentElement.scrollWidth > document.documentElement.clientWidth,
     );
     expect(hasOverflow).toBe(false);
+  });
+});
+
+// Revenue-launch sprint (Day 1) regression guards.
+test.describe('Revenue launch: homepage conversion path', () => {
+  test('has an "Our Services" heading before the service listing', async ({ page }) => {
+    await page.goto('/');
+    await expect(page.locator('#services-heading')).toHaveText('Our Services');
+  });
+
+  test('has a "How It Works" section', async ({ page }) => {
+    await page.goto('/');
+    await expect(page.locator('#how-it-works-heading')).toHaveText('How It Works');
+    await expect(page.locator('.how-it-works ol li')).toHaveCount(3);
+  });
+
+  test('has a closing call-to-action heading', async ({ page }) => {
+    await page.goto('/');
+    await expect(page.locator('#closing-cta-heading')).toHaveText('Ready to Get Started?');
+  });
+});
+
+test.describe('Revenue launch: /roof as the primary paid-ad landing page', () => {
+  test('has a concise opening value proposition before the call-to-action', async ({ page }) => {
+    await page.goto('/roof');
+    const lede = page.locator('.lede');
+    await expect(lede).toBeVisible();
+    await expect(lede).toHaveText(
+      'Exterior roof cleaning to address surface dirt, debris, and organic growth.',
+    );
+  });
+
+  test('has a prominent call-to-action banner before the detailed service copy', async ({
+    page,
+  }) => {
+    await page.goto('/roof');
+    const ctaBanner = page.locator('.cta-banner');
+    await expect(ctaBanner).toBeVisible();
+    await expect(ctaBanner.locator('a[href^="tel:"]')).toBeVisible();
+    await expect(ctaBanner.locator('a[href^="mailto:"]')).toBeVisible();
+  });
+
+  test('has a "How It Works" section and a closing call-to-action', async ({ page }) => {
+    await page.goto('/roof');
+    await expect(page.locator('#how-it-works-heading')).toHaveText('How It Works');
+    await expect(page.locator('.closing-cta')).toBeVisible();
+    await expect(page.locator('.closing-cta a[href^="tel:"]')).toBeVisible();
+  });
+
+  test('retains related-page links to Residential Services and Contact', async ({ page }) => {
+    await page.goto('/roof');
+    const relatedNav = page.locator('nav[aria-label="Related pages"]');
+    await expect(relatedNav.locator('a[href="/residential-services"]')).toBeVisible();
+    await expect(relatedNav.locator('a[href="/contact-us"]')).toBeVisible();
+  });
+});
+
+test.describe('Revenue launch: /restoration/house-washing shares the strengthened layout', () => {
+  test('has a lede, CTA banner, How It Works section, and closing CTA', async ({ page }) => {
+    await page.goto('/restoration/house-washing');
+    await expect(page.locator('.lede')).toBeVisible();
+    await expect(page.locator('.cta-banner')).toBeVisible();
+    await expect(page.locator('#how-it-works-heading')).toHaveText('How It Works');
+    await expect(page.locator('.closing-cta')).toBeVisible();
+  });
+});
+
+test.describe('robots.txt', () => {
+  test('is accessible and permits crawling of all current routes', async ({ request }) => {
+    const response = await request.get('/robots.txt');
+    expect(response.status()).toBe(200);
+    const body = await response.text();
+    expect(body).toContain('User-agent: *');
+    expect(body).toContain('Allow: /');
   });
 });
