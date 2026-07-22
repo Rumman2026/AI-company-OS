@@ -17,4 +17,47 @@ const year = new Date().getFullYear();
     </ul>
   </nav>
   <p>&copy; {year} GreenCal Pressure Washing</p>
+  <details class="tracking-preferences">
+    <summary>Tracking preferences</summary>
+    <div class="tracking-preferences-panel">
+      <p id="tracking-preferences-status">Checking tracking status…</p>
+      <label>
+        <input type="checkbox" id="tracking-consent-toggle" />
+        Allow optional analytics tracking
+      </label>
+      <p class="field-help">
+        Declining does not affect your ability to browse, call, email, or request a quote. You
+        can change this choice at any time.
+      </p>
+    </div>
+  </details>
 </footer>
+
+<script>
+  import { getConsentState, setConsentState } from '../lib/tracking/consent';
+  import { getTrackingConfig } from '../lib/tracking/config';
+
+  const toggle = document.querySelector<HTMLInputElement>('#tracking-consent-toggle');
+  const status = document.querySelector<HTMLParagraphElement>('#tracking-preferences-status');
+
+  if (toggle && status) {
+    const renderStatus = (): void => {
+      const { gtmContainerId } = getTrackingConfig();
+      if (!gtmContainerId) {
+        status.textContent = 'No optional tracking is currently active on this site.';
+        return;
+      }
+      status.textContent = getConsentState().analyticsGranted
+        ? 'Optional analytics tracking is currently enabled.'
+        : 'Optional analytics tracking is currently disabled.';
+    };
+
+    toggle.checked = getConsentState().analyticsGranted;
+    renderStatus();
+
+    toggle.addEventListener('change', () => {
+      setConsentState({ analyticsGranted: toggle.checked });
+      renderStatus();
+    });
+  }
+</script>

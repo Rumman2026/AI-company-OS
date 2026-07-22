@@ -207,6 +207,10 @@ const { showContactActions = true } = Astro.props;
 <script>
   import { submitQuoteForm } from '../lib/quote-form/submit';
   import type { FieldErrors, QuoteSubmissionResult } from '../lib/quote-form/types';
+  import { trackEvent } from '../lib/tracking/production';
+  import { mapSubmissionResultToEvent } from '../lib/tracking/quote-form-events';
+
+  const FORM_ID = 'quote-form-form';
 
   const form = document.querySelector<HTMLFormElement>('#quote-form-form');
   const errorSummary = document.querySelector<HTMLDivElement>('#quote-form-error-summary');
@@ -216,6 +220,20 @@ const { showContactActions = true } = Astro.props;
 
   if (form && errorSummary && errorList && statusRegion && submitButton) {
     let isSubmitting = false;
+    let hasStarted = false;
+
+    // "View" - the form was present on the loaded page. No PII in params.
+    trackEvent({ name: 'quote_form_view', params: { pagePath: window.location.pathname, formId: FORM_ID } });
+
+    const trackStartOnce = (): void => {
+      if (hasStarted) return;
+      hasStarted = true;
+      trackEvent({
+        name: 'quote_form_start',
+        params: { pagePath: window.location.pathname, formId: FORM_ID },
+      });
+    };
+    form.addEventListener('focusin', trackStartOnce, { once: true });
 
     const FIELD_IDS: Record<string, string> = {
       fullName: 'qf-fullName',
@@ -289,6 +307,13 @@ const { showContactActions = true } = Astro.props;
 
     const handleResult = (result: QuoteSubmissionResult): void => {
       clearErrors();
+
+      trackEvent(
+        mapSubmissionResultToEvent(result, {
+          pagePath: window.location.pathname,
+          formId: FORM_ID,
+        }),
+      );
 
       if (result.status === 'validation_failed') {
         if (result.fieldErrors.honeypot) {

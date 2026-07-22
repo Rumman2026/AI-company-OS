@@ -47,5 +47,9 @@ const canonicalUrl = new URL(path, Astro.site).toString();
       <slot />
     </main>
     <Footer />
+    <script>
+      import { bindEngagementTracking } from '../lib/tracking/bind';
+      bindEngagementTracking();
+    </script>
   </body>
 </html>
