@@ -4,5 +4,6 @@
 *.astro
 dist/
 .astro/
+.vercel/
 test-results/
 playwright-report/
