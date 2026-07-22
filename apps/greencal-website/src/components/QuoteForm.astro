@@ -1,0 +1,349 @@
+---
+import ContactActions from './ContactActions.astro';
+import { services } from '../data/services';
+
+export interface Props {
+  /** Suppress the inline call/email CTA when the page already shows one nearby. */
+  showContactActions?: boolean;
+}
+
+const { showContactActions = true } = Astro.props;
+---
+
+<section class="quote-form-section" aria-labelledby="quote-form-heading" id="quote-form">
+  <h2 id="quote-form-heading">Request a Quote</h2>
+  {
+    showContactActions ? (
+      <>
+        <p>Prefer to talk right away? You can also call or email us directly, no form required:</p>
+        <ContactActions />
+      </>
+    ) : (
+      <p>You can also call or email us directly, no form required - see above.</p>
+    )
+  }
+  <p>
+    Or fill out this form and GreenCal Pressure Washing will follow up using the contact method
+    you provide.
+  </p>
+
+  <div id="quote-form-error-summary" class="form-error-summary" role="alert" tabindex="-1" hidden>
+    <h3>Please fix the following:</h3>
+    <ul id="quote-form-error-list"></ul>
+  </div>
+
+  <form id="quote-form-form" novalidate>
+    <div class="form-field">
+      <label for="qf-fullName">Full name <span aria-hidden="true">*</span></label>
+      <input
+        type="text"
+        id="qf-fullName"
+        name="fullName"
+        required
+        maxlength="100"
+        autocomplete="name"
+        aria-describedby="qf-fullName-error"
+        aria-invalid="false"
+      />
+      <span id="qf-fullName-error" class="field-error" role="alert"></span>
+    </div>
+
+    <div class="form-field">
+      <label for="qf-phone">Phone number <span aria-hidden="true">*</span></label>
+      <input
+        type="tel"
+        id="qf-phone"
+        name="phone"
+        required
+        maxlength="20"
+        autocomplete="tel"
+        aria-describedby="qf-phone-error"
+        aria-invalid="false"
+      />
+      <span id="qf-phone-error" class="field-error" role="alert"></span>
+    </div>
+
+    <div class="form-field">
+      <label for="qf-email">Email <span aria-hidden="true">*</span></label>
+      <input
+        type="email"
+        id="qf-email"
+        name="email"
+        required
+        maxlength="254"
+        autocomplete="email"
+        aria-describedby="qf-email-error"
+        aria-invalid="false"
+      />
+      <span id="qf-email-error" class="field-error" role="alert"></span>
+    </div>
+
+    <div class="form-field">
+      <label for="qf-service">Requested service <span aria-hidden="true">*</span></label>
+      <select
+        id="qf-service"
+        name="service"
+        required
+        aria-describedby="qf-service-error"
+        aria-invalid="false"
+      >
+        <option value="">Select a service</option>
+        {
+          services.map((service) => (
+            <option value={service.slug}>{service.title}</option>
+          ))
+        }
+      </select>
+      <span id="qf-service-error" class="field-error" role="alert"></span>
+    </div>
+
+    <div class="form-field">
+      <label for="qf-serviceLocation">City or service address <span aria-hidden="true">*</span
+        ></label>
+      <input
+        type="text"
+        id="qf-serviceLocation"
+        name="serviceLocation"
+        required
+        maxlength="120"
+        autocomplete="address-level2"
+        aria-describedby="qf-serviceLocation-error qf-serviceLocation-help"
+        aria-invalid="false"
+      />
+      <span id="qf-serviceLocation-help" class="field-help">City is fine - a full address is not required.</span>
+      <span id="qf-serviceLocation-error" class="field-error" role="alert"></span>
+    </div>
+
+    <div class="form-field">
+      <label for="qf-projectDescription"
+        >Project description <span aria-hidden="true">*</span></label
+      >
+      <textarea
+        id="qf-projectDescription"
+        name="projectDescription"
+        required
+        maxlength="2000"
+        rows="4"
+        aria-describedby="qf-projectDescription-error qf-projectDescription-help"
+        aria-invalid="false"
+      ></textarea>
+      <span id="qf-projectDescription-help" class="field-help"
+        >Tell us about your property and what you'd like cleaned.</span
+      >
+      <span id="qf-projectDescription-error" class="field-error" role="alert"></span>
+    </div>
+
+    <fieldset class="form-fieldset">
+      <legend>Preferred contact method (optional)</legend>
+      <label class="form-radio-option">
+        <input type="radio" id="qf-preferredContactMethod-phone" name="preferredContactMethod" value="phone" />
+        Phone
+      </label>
+      <label class="form-radio-option">
+        <input type="radio" id="qf-preferredContactMethod-email" name="preferredContactMethod" value="email" />
+        Email
+      </label>
+    </fieldset>
+
+    <div class="form-field">
+      <label for="qf-preferredTiming">Preferred timing (optional)</label>
+      <select id="qf-preferredTiming" name="preferredTiming">
+        <option value="">No preference</option>
+        <option value="as-soon-as-possible">As soon as possible</option>
+        <option value="within-a-week">Within a week</option>
+        <option value="within-a-month">Within a month</option>
+        <option value="flexible">Flexible</option>
+      </select>
+    </div>
+
+    <div class="form-field">
+      <label for="qf-propertyType">Property type (optional)</label>
+      <select id="qf-propertyType" name="propertyType">
+        <option value="">Prefer not to say</option>
+        <option value="single-family-home">Single-family home</option>
+        <option value="condo-townhome">Condo / townhome</option>
+        <option value="multi-family">Multi-family</option>
+        <option value="other">Other</option>
+      </select>
+    </div>
+
+    <div class="form-field">
+      <label for="qf-estimatedProjectSize">Estimated project size (optional)</label>
+      <select id="qf-estimatedProjectSize" name="estimatedProjectSize">
+        <option value="">Not sure</option>
+        <option value="small">Small</option>
+        <option value="medium">Medium</option>
+        <option value="large">Large</option>
+      </select>
+    </div>
+
+    <div class="quote-form-honeypot" aria-hidden="true">
+      <label for="qf-website">Leave this field blank</label>
+      <input type="text" id="qf-website" name="website" tabindex="-1" autocomplete="off" />
+    </div>
+
+    <div class="form-field form-consent">
+      <label>
+        <input
+          type="checkbox"
+          id="qf-consent"
+          name="consent"
+          required
+          aria-describedby="qf-consent-error"
+          aria-invalid="false"
+        />
+        I agree that GreenCal Pressure Washing may contact me about this request.
+        <span aria-hidden="true">*</span>
+      </label>
+      <span id="qf-consent-error" class="field-error" role="alert"></span>
+    </div>
+
+    <p id="quote-form-status" role="status" aria-live="polite" class="quote-form-status"></p>
+
+    <button type="submit" id="quote-form-submit">Request a Quote</button>
+  </form>
+</section>
+
+<script>
+  import { submitQuoteForm } from '../lib/quote-form/submit';
+  import type { FieldErrors, QuoteSubmissionResult } from '../lib/quote-form/types';
+
+  const form = document.querySelector<HTMLFormElement>('#quote-form-form');
+  const errorSummary = document.querySelector<HTMLDivElement>('#quote-form-error-summary');
+  const errorList = document.querySelector<HTMLUListElement>('#quote-form-error-list');
+  const statusRegion = document.querySelector<HTMLParagraphElement>('#quote-form-status');
+  const submitButton = document.querySelector<HTMLButtonElement>('#quote-form-submit');
+
+  if (form && errorSummary && errorList && statusRegion && submitButton) {
+    let isSubmitting = false;
+
+    const FIELD_IDS: Record<string, string> = {
+      fullName: 'qf-fullName',
+      phone: 'qf-phone',
+      email: 'qf-email',
+      service: 'qf-service',
+      serviceLocation: 'qf-serviceLocation',
+      projectDescription: 'qf-projectDescription',
+      consent: 'qf-consent',
+      preferredContactMethod: 'qf-preferredContactMethod-phone',
+      preferredTiming: 'qf-preferredTiming',
+      propertyType: 'qf-propertyType',
+      estimatedProjectSize: 'qf-estimatedProjectSize',
+    };
+
+    const clearErrors = (): void => {
+      form.querySelectorAll<HTMLElement>('.field-error').forEach((el) => {
+        el.textContent = '';
+      });
+      form.querySelectorAll<HTMLElement>('[aria-invalid="true"]').forEach((el) => {
+        el.setAttribute('aria-invalid', 'false');
+      });
+      errorList.innerHTML = '';
+      errorSummary.hidden = true;
+    };
+
+    const showFieldErrors = (fieldErrors: FieldErrors): void => {
+      for (const [field, message] of Object.entries(fieldErrors)) {
+        if (field === 'honeypot' || field === 'form') continue;
+        const fieldId = FIELD_IDS[field];
+        if (!fieldId) continue;
+
+        const errorEl = document.getElementById(`${fieldId}-error`);
+        if (errorEl) errorEl.textContent = message;
+
+        const inputEl = document.getElementById(fieldId);
+        if (inputEl) inputEl.setAttribute('aria-invalid', 'true');
+
+        const li = document.createElement('li');
+        const a = document.createElement('a');
+        a.href = `#${fieldId}`;
+        a.textContent = message;
+        li.appendChild(a);
+        errorList.appendChild(li);
+      }
+
+      if (errorList.childElementCount > 0) {
+        errorSummary.hidden = false;
+        errorSummary.focus();
+      }
+    };
+
+    const setStatus = (message: string): void => {
+      statusRegion.textContent = message;
+    };
+
+    const setSubmitting = (submitting: boolean): void => {
+      isSubmitting = submitting;
+      submitButton.disabled = submitting;
+      submitButton.textContent = submitting ? 'Sending…' : 'Request a Quote';
+    };
+
+    const lockFormAfterSuccess = (): void => {
+      form.setAttribute('data-submitted', 'true');
+      Array.from(form.elements).forEach((el) => {
+        (
+          el as HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement | HTMLButtonElement
+        ).disabled = true;
+      });
+    };
+
+    const handleResult = (result: QuoteSubmissionResult): void => {
+      clearErrors();
+
+      if (result.status === 'validation_failed') {
+        if (result.fieldErrors.honeypot) {
+          // A trusted-boundary spam signal, not a real user error - never
+          // explain honeypot rejection specifically.
+          setStatus("We couldn't process that submission. Please call or email us directly.");
+          return;
+        }
+        showFieldErrors(result.fieldErrors);
+        setStatus('Please fix the highlighted fields below.');
+        return;
+      }
+
+      if (result.status === 'success') {
+        setStatus('Thank you - your request was received. We will contact you soon.');
+        lockFormAfterSuccess();
+        return;
+      }
+
+      // pending_configuration and delivery_failed both surface their own
+      // honest, pre-written message via the live status region.
+      setStatus(result.message);
+    };
+
+    form.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      if (isSubmitting || form.hasAttribute('data-submitted')) return;
+
+      setSubmitting(true);
+      setStatus('Sending your request…');
+
+      const formData = new FormData(form);
+      const raw = {
+        fullName: String(formData.get('fullName') ?? ''),
+        phone: String(formData.get('phone') ?? ''),
+        email: String(formData.get('email') ?? ''),
+        service: String(formData.get('service') ?? ''),
+        serviceLocation: String(formData.get('serviceLocation') ?? ''),
+        projectDescription: String(formData.get('projectDescription') ?? ''),
+        consent: formData.get('consent') !== null,
+        preferredContactMethod: String(formData.get('preferredContactMethod') ?? ''),
+        preferredTiming: String(formData.get('preferredTiming') ?? ''),
+        propertyType: String(formData.get('propertyType') ?? ''),
+        estimatedProjectSize: String(formData.get('estimatedProjectSize') ?? ''),
+        honeypot: String(formData.get('website') ?? ''),
+      };
+
+      try {
+        const result = await submitQuoteForm(raw, { pagePath: window.location.pathname });
+        handleResult(result);
+      } finally {
+        if (!form.hasAttribute('data-submitted')) {
+          setSubmitting(false);
+        }
+      }
+    });
+  }
+</script>

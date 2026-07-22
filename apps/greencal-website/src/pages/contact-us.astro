@@ -1,6 +1,7 @@
 ---
 import BaseLayout from '../layouts/BaseLayout.astro';
 import ContactActions from '../components/ContactActions.astro';
+import QuoteForm from '../components/QuoteForm.astro';
 import { siteInfo } from '../data/site';
 
 const title = 'Contact | GreenCal Pressure Washing';
@@ -15,4 +16,5 @@ const description = `Contact ${siteInfo.businessName} by phone or email.`;
     property's exterior cleaning needs.
   </p>
   <ContactActions />
+  <QuoteForm showContactActions={false} />
 </BaseLayout>
