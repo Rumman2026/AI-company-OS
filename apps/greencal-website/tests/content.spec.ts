@@ -508,23 +508,32 @@ test.describe('Stage 2: no Footbridge or unauthorized third-party references', (
     }
   });
 
-  test('no route other than /contact-us renders any script tag', async ({ page }) => {
+  test('every route renders exactly two same-origin, first-party module scripts (BaseLayout engagement tracking + Footer consent control) - /contact-us has one more for the quote form', async ({
+    page,
+  }) => {
     for (const path of INDEXABLE_ROUTES) {
-      if (path === '/contact-us') continue;
       await page.goto(path);
-      await expect(page.locator('script')).toHaveCount(0);
+      const scripts = page.locator('script');
+      await expect(scripts).toHaveCount(path === '/contact-us' ? 3 : 2);
+      const count = await scripts.count();
+      for (let i = 0; i < count; i++) {
+        await expect(scripts.nth(i)).toHaveAttribute('type', 'module');
+        const src = await scripts.nth(i).getAttribute('src');
+        expect(src).not.toBeNull();
+        expect(src as string).toMatch(/^\//);
+      }
     }
   });
 
-  test('/contact-us renders exactly one same-origin, first-party module script for the quote form', async ({
-    page,
-  }) => {
-    await page.goto('/contact-us');
-    const scripts = page.locator('script');
-    await expect(scripts).toHaveCount(1);
-    await expect(scripts).toHaveAttribute('type', 'module');
-    const src = await scripts.getAttribute('src');
-    expect(src).not.toBeNull();
-    expect(src as string).toMatch(/^\//);
+  test('no route ever loads a script from a third-party host', async ({ page }) => {
+    for (const path of INDEXABLE_ROUTES) {
+      await page.goto(path);
+      const srcs = await page
+        .locator('script[src]')
+        .evaluateAll((els) => els.map((el) => el.getAttribute('src')));
+      for (const src of srcs) {
+        expect(src).not.toMatch(/^https?:\/\//);
+      }
+    }
   });
 });
