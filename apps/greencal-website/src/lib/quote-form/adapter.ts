@@ -19,26 +19,19 @@ export interface QuoteSubmissionAdapter {
 }
 
 /**
- * Production default adapter.
+ * Fallback adapter, used when required backend configuration is absent.
  *
- * apps/greencal-website is Astro `output: 'static'` with no server adapter
- * installed (see astro.config.mjs) and no GreenCal-owned database, email
- * relay, or CRM ingestion endpoint exists yet (see the Stage 3 backend
- * inventory in the quote-form documentation). This adapter never claims
- * success - it is the honest, structural admission that online delivery is
- * not active, returned after a submission has already passed validation.
+ * Stage 4A (see DECISIONS.md ADR-0006) added a real server adapter
+ * (`@astrojs/vercel`) and a real QuoteSubmissionAdapter implementation
+ * (`createSupabaseResendAdapter`, wired in src/pages/api/quote-submit.ts).
+ * This adapter is now the honest fallback the server route selects only
+ * when `getServerConfig()` returns `null` (any of the five required
+ * Supabase/Resend environment variables missing or malformed) - not the
+ * unconditional production default it was before Stage 4A. It never
+ * claims success.
  *
- * Activation requires, in order, all owner-approved:
- * 1. A server adapter and hosting target for apps/greencal-website (or a
- *    separate lightweight delivery endpoint), so a request can reach a
- *    trusted server at all.
- * 2. A concrete delivery mechanism (e.g. a transactional email relay, or a
- *    GreenCal-owned database/CRM ingestion endpoint).
- * 3. A real QuoteSubmissionAdapter implementation, behind this same
- *    interface, replacing this one as the production default.
- *
- * See src/lib/quote-form/README.md for the full activation checklist and
- * the reserved environment-variable contract.
+ * See src/lib/quote-form/README.md for the current activation state and
+ * the required environment-variable contract.
  */
 export const unavailableAdapter: QuoteSubmissionAdapter = {
   name: 'unavailable',
