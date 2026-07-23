@@ -72,7 +72,7 @@ test.describe('Homepage', () => {
     await page.goto('/');
     const ctaBanner = page.locator('.cta-banner');
     await expect(ctaBanner).toBeVisible();
-    const servicesHeading = page.locator('#services-heading');
+    const servicesHeading = page.locator('#residential-heading');
     const ctaBox = await ctaBanner.boundingBox();
     const servicesBox = await servicesHeading.boundingBox();
     expect(ctaBox).not.toBeNull();
@@ -99,10 +99,23 @@ test.describe('Homepage', () => {
     ];
     const implementedRoutes = [
       '/',
-      '/residential-services',
-      '/roof',
-      '/restoration/house-washing',
+      '/residential',
+      '/commercial',
+      '/multi-family-hoa',
+      '/service-areas',
       '/contact-us',
+      '/services/roof-cleaning',
+      '/services/house-washing',
+      '/services/concrete-cleaning',
+      '/commercial/building-washing',
+      '/commercial/storefront-cleaning',
+      '/commercial/concrete-cleaning',
+      '/commercial/dumpster-pad-cleaning',
+      '/commercial/drive-thru-cleaning',
+      '/commercial/gum-stain-removal',
+      '/commercial/recurring-exterior-cleaning',
+      '/multi-family-hoa/apartment-condo-cleaning',
+      '/multi-family-hoa/hoa-pressure-washing',
     ];
     for (const href of internalHrefs) {
       // Fragments (e.g. the Stage 3 quote-form anchor link) are client-side

@@ -34,7 +34,8 @@ const VALID_INPUT: NormalizedQuoteInput = {
   phone: '+16573198551',
   email: 'jane@example.com',
   service: 'roof-cleaning',
-  serviceLocation: 'Anaheim, CA',
+  city: 'carlsbad',
+  serviceLocation: 'Carlsbad, CA 92008',
   projectDescription: 'Please clean the roof - visible algae buildup.',
   consent: true,
 };
@@ -122,7 +123,7 @@ test.describe('buildLeadNotificationEmail', () => {
     expect(subject).toContain('lead-123');
     expect(html).toContain('jane@example.com');
     expect(text).toContain('jane@example.com');
-    expect(text).toContain('Anaheim, CA');
+    expect(text).toContain('Carlsbad, CA 92008');
   });
 
   test('omits undefined optional fields rather than rendering them empty', () => {

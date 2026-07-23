@@ -13,6 +13,7 @@ async function fillValidForm(page: import('@playwright/test').Page) {
   await page.fill('#qf-phone', VALID.phone);
   await page.fill('#qf-email', VALID.email);
   await page.selectOption('#qf-service', 'roof-cleaning');
+  await page.selectOption('#qf-city', 'carlsbad');
   await page.fill('#qf-serviceLocation', VALID.serviceLocation);
   await page.fill('#qf-projectDescription', VALID.projectDescription);
   await page.check('#qf-consent');
@@ -26,10 +27,60 @@ test.describe('Quote form: structure and honest defaults', () => {
     await expect(section).toContainText(/call or email/i);
   });
 
-  test('offers only verified GreenCal services in the selector', async ({ page }) => {
+  test('offers only approved GreenCal service options, grouped by category, and no excluded service', async ({
+    page,
+  }) => {
     await page.goto('/contact-us');
     const options = await page.locator('#qf-service option').allTextContents();
-    expect(options).toEqual(['Select a service', 'Roof Cleaning', 'House & Stucco Washing']);
+    expect(options[0]).toBe('Select a service');
+    expect(options).toHaveLength(16); // placeholder + 15 approved quote-form service options
+    for (const label of [
+      'Roof Cleaning',
+      'House Washing',
+      'Concrete Cleaning',
+      'Building Washing',
+      'Storefront Cleaning',
+      'Commercial Concrete Cleaning',
+      'Dumpster Pad Cleaning',
+      'Drive-Thru Cleaning',
+      'Gum and Stain Removal',
+      'Recurring Exterior Cleaning',
+      'Apartment or Condo Exterior Cleaning',
+      'HOA Exterior Cleaning',
+      'Multi-Unit Building Washing',
+      'Common-Area Concrete Cleaning',
+      'Other Exterior Cleaning Request',
+    ]) {
+      expect(options).toContain(label);
+    }
+    const optgroupLabels = await page
+      .locator('#qf-service optgroup')
+      .evaluateAll((els) => els.map((el) => el.getAttribute('label')));
+    expect(optgroupLabels).toEqual(['Residential', 'Commercial', 'Multi-Family & HOA', 'Other']);
+    const lowered = options.map((o) => o.toLowerCase());
+    for (const excluded of [
+      'pool cleaning',
+      'auto detailing',
+      'carpet cleaning',
+      'paver sealing',
+      'lighting',
+    ]) {
+      expect(lowered).not.toContain(excluded);
+    }
+  });
+
+  test('offers city selection grouped by the three approved counties, plus an "other" option', async ({
+    page,
+  }) => {
+    await page.goto('/contact-us');
+    const optgroupLabels = await page
+      .locator('#qf-city optgroup')
+      .evaluateAll((els) => els.map((el) => el.getAttribute('label')));
+    expect(optgroupLabels).toEqual(['San Diego County', 'Orange County', 'Riverside County']);
+    const options = await page.locator('#qf-city option').allTextContents();
+    expect(options).toContain('San Diego');
+    expect(options).toContain('Other / not listed here');
+    expect(options.map((o) => o.toLowerCase())).not.toContain('los angeles');
   });
 
   test('consent checkbox is unchecked by default', async ({ page }) => {
@@ -72,7 +123,7 @@ test.describe('Quote form: accessible validation experience', () => {
     await expect(summary).toBeFocused();
 
     const items = summary.locator('li');
-    await expect(items).toHaveCount(7); // fullName, phone, email, service, serviceLocation, projectDescription, consent
+    await expect(items).toHaveCount(8); // fullName, phone, email, service, city, serviceLocation, projectDescription, consent
   });
 
   test('marks each invalid field with aria-invalid and a visible inline error linked via aria-describedby', async ({

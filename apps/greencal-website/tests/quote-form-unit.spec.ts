@@ -16,7 +16,8 @@ const VALID_INPUT = {
   phone: '(657) 319-8551',
   email: 'Jane@Example.com',
   service: 'roof-cleaning',
-  serviceLocation: 'Anaheim, CA',
+  city: 'carlsbad',
+  serviceLocation: 'Carlsbad, CA 92008',
   projectDescription: 'Please clean the roof - visible algae buildup on the north-facing slope.',
   consent: true,
   honeypot: '',
@@ -50,6 +51,12 @@ test.describe('validateQuoteInput - required fields', () => {
     const result = validateQuoteInput({ ...VALID_INPUT, service: '' });
     expect(result.valid).toBe(false);
     if (!result.valid) expect(result.fieldErrors.service).toBeTruthy();
+  });
+
+  test('rejects missing city', () => {
+    const result = validateQuoteInput({ ...VALID_INPUT, city: '' });
+    expect(result.valid).toBe(false);
+    if (!result.valid) expect(result.fieldErrors.city).toBeTruthy();
   });
 
   test('rejects missing serviceLocation', () => {
@@ -97,9 +104,62 @@ test.describe('validateQuoteInput - field-specific rules', () => {
     if (!result.valid) expect(result.fieldErrors.service).toBeTruthy();
   });
 
-  test('accepts every real, verified service slug', () => {
-    for (const service of ['roof-cleaning', 'house-washing']) {
+  test('accepts every approved quote-form service option', () => {
+    for (const service of [
+      'roof-cleaning',
+      'house-washing',
+      'concrete-cleaning',
+      'building-washing',
+      'storefront-cleaning',
+      'commercial-concrete-cleaning',
+      'dumpster-pad-cleaning',
+      'drive-thru-cleaning',
+      'gum-stain-removal',
+      'recurring-exterior-cleaning',
+      'apartment-or-condo-exterior-cleaning',
+      'hoa-exterior-cleaning',
+      'multi-unit-building-washing',
+      'common-area-concrete-cleaning',
+      'other-exterior-cleaning-request',
+    ]) {
       const result = validateQuoteInput({ ...VALID_INPUT, service });
+      expect(result.valid).toBe(true);
+    }
+  });
+
+  test('rejects an excluded-service value even if submitted directly', () => {
+    for (const excluded of [
+      'pool-cleaning',
+      'auto-detailing',
+      'carpet-cleaning',
+      'paver-sealing',
+    ]) {
+      const result = validateQuoteInput({ ...VALID_INPUT, service: excluded });
+      expect(result.valid).toBe(false);
+      if (!result.valid) expect(result.fieldErrors.service).toBeTruthy();
+    }
+  });
+
+  test('rejects a city not on the canonical approved list', () => {
+    const result = validateQuoteInput({ ...VALID_INPUT, city: 'los-angeles' });
+    expect(result.valid).toBe(false);
+    if (!result.valid) expect(result.fieldErrors.city).toBeTruthy();
+  });
+
+  test('accepts the "other / not listed" city sentinel - a legitimate lead is never rejected for an unmatched city', () => {
+    const result = validateQuoteInput({ ...VALID_INPUT, city: 'other-not-listed' });
+    expect(result.valid).toBe(true);
+  });
+
+  test('accepts every approved San Diego, Orange, and Riverside County city slug', () => {
+    for (const city of [
+      'san-diego',
+      'irvine',
+      'temecula',
+      'cardiff-by-the-sea',
+      'corona-del-mar',
+    ]) {
+      const result = validateQuoteInput({ ...VALID_INPUT, city });
       expect(result.valid).toBe(true);
     }
   });
@@ -160,9 +220,14 @@ test.describe('validateQuoteInput - field-specific rules', () => {
   });
 
   test('rejects an invalid optional propertyType', () => {
-    const result = validateQuoteInput({ ...VALID_INPUT, propertyType: 'commercial' });
+    const result = validateQuoteInput({ ...VALID_INPUT, propertyType: 'spaceship' });
     expect(result.valid).toBe(false);
     if (!result.valid) expect(result.fieldErrors.propertyType).toBeTruthy();
+  });
+
+  test('accepts "commercial" as a valid propertyType (scope now includes commercial/multi-family services)', () => {
+    const result = validateQuoteInput({ ...VALID_INPUT, propertyType: 'commercial' });
+    expect(result.valid).toBe(true);
   });
 
   test('leaves optional fields undefined when not supplied', () => {
@@ -229,7 +294,8 @@ test.describe('submitQuoteForm - typed response states', () => {
         phone: '+16573198551',
         email: 'jane@example.com',
         service: 'roof-cleaning',
-        serviceLocation: 'Anaheim, CA',
+        city: 'carlsbad',
+        serviceLocation: 'Carlsbad, CA 92008',
         projectDescription: 'Roof cleaning needed.',
         consent: true,
       },
@@ -251,6 +317,7 @@ test.describe('submitQuoteForm - typed response states', () => {
           phone: input.phone,
           email: input.email,
           service: input.service,
+          city: input.city,
           serviceLocation: input.serviceLocation,
           projectDescription: input.projectDescription,
           preferredContactMethod: input.preferredContactMethod,

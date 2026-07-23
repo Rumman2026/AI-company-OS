@@ -14,7 +14,8 @@ const VALID_PAYLOAD = {
   phone: '(657) 319-8551',
   email: 'jane@example.com',
   service: 'roof-cleaning',
-  serviceLocation: 'Anaheim, CA',
+  city: 'carlsbad',
+  serviceLocation: 'Carlsbad, CA 92008',
   projectDescription: 'Please clean the roof - visible algae buildup.',
   consent: true,
   pagePath: '/contact-us',
@@ -117,6 +118,7 @@ test.describe('Quote form UI - Stage 4A wiring preserved', () => {
     await page.fill('#qf-phone', VALID_PAYLOAD.phone);
     await page.fill('#qf-email', VALID_PAYLOAD.email);
     await page.selectOption('#qf-service', VALID_PAYLOAD.service);
+    await page.selectOption('#qf-city', VALID_PAYLOAD.city);
     await page.fill('#qf-serviceLocation', VALID_PAYLOAD.serviceLocation);
     await page.fill('#qf-projectDescription', VALID_PAYLOAD.projectDescription);
     await page.check('#qf-consent');
@@ -161,6 +163,7 @@ test.describe('Quote form UI - Stage 4A wiring preserved', () => {
     await page.fill('#qf-phone', VALID_PAYLOAD.phone);
     await page.fill('#qf-email', VALID_PAYLOAD.email);
     await page.selectOption('#qf-service', VALID_PAYLOAD.service);
+    await page.selectOption('#qf-city', VALID_PAYLOAD.city);
     await page.fill('#qf-serviceLocation', VALID_PAYLOAD.serviceLocation);
     await page.fill('#qf-projectDescription', VALID_PAYLOAD.projectDescription);
     await page.check('#qf-consent');
@@ -187,9 +190,12 @@ test.describe('Stage 4A regression: no secrets, no browser-side provider imports
     const routes = [
       '/',
       '/contact-us',
-      '/roof',
-      '/restoration/house-washing',
-      '/residential-services',
+      '/services/roof-cleaning',
+      '/services/house-washing',
+      '/residential',
+      '/commercial',
+      '/multi-family-hoa',
+      '/service-areas',
     ];
     for (const route of routes) {
       await page.goto(route);

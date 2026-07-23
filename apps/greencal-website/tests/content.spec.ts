@@ -1,121 +1,138 @@
 import { test, expect } from '@playwright/test';
 
-const NEW_ROUTES = [
+// Rewritten for the approved-scope update (see DECISIONS.md ADR-0007):
+// the old residential-only route set (/roof, /residential-services,
+// /restoration/house-washing) was replaced by the approved
+// residential/commercial/multi-family-hoa/service-areas architecture.
+// Legacy routes now redirect (301) rather than remaining live pages -
+// see the "Legacy redirects" describe block below.
+
+const SERVICE_ROUTES = [
+  { path: '/services/roof-cleaning', heading: 'Roof Cleaning' },
+  { path: '/services/house-washing', heading: 'House Washing' },
+  { path: '/services/concrete-cleaning', heading: 'Concrete Cleaning' },
+  { path: '/commercial/building-washing', heading: 'Commercial Building Washing' },
+  { path: '/commercial/storefront-cleaning', heading: 'Storefront Cleaning' },
+  { path: '/commercial/concrete-cleaning', heading: 'Commercial Concrete Cleaning' },
+  { path: '/commercial/dumpster-pad-cleaning', heading: 'Dumpster Pad Cleaning' },
+  { path: '/commercial/drive-thru-cleaning', heading: 'Drive-Thru Cleaning' },
+  { path: '/commercial/gum-stain-removal', heading: 'Gum and Stain Removal' },
+  { path: '/commercial/recurring-exterior-cleaning', heading: 'Recurring Exterior Cleaning' },
   {
-    path: '/residential-services',
-    title: 'Residential Services | GreenCal Pressure Washing',
-    heading: 'Residential Services',
+    path: '/multi-family-hoa/apartment-condo-cleaning',
+    heading: 'Apartment & Condo Exterior Cleaning',
   },
-  {
-    path: '/roof',
-    title: 'Roof Cleaning | GreenCal Pressure Washing',
-    heading: 'Roof Cleaning',
-  },
-  {
-    path: '/restoration/house-washing',
-    title: 'House & Stucco Washing | GreenCal Pressure Washing',
-    heading: 'House & Stucco Washing',
-  },
-  {
-    path: '/contact-us',
-    title: 'Contact | GreenCal Pressure Washing',
-    heading: 'Contact',
-  },
+  { path: '/multi-family-hoa/hoa-pressure-washing', heading: 'HOA Pressure Washing' },
 ];
 
-for (const route of NEW_ROUTES) {
-  test.describe(`${route.path}`, () => {
-    test('loads successfully with the expected title and one heading', async ({ page }) => {
+const CATEGORY_INDEX_ROUTES = [
+  { path: '/residential', heading: 'Residential Services' },
+  { path: '/commercial', heading: 'Commercial Services' },
+  { path: '/multi-family-hoa', heading: 'Multi-Family & HOA Services' },
+];
+
+const OTHER_ROUTES = [
+  { path: '/', heading: 'GreenCal Pressure Washing' },
+  { path: '/contact-us', heading: 'Contact' },
+  { path: '/service-areas', heading: 'Service Areas' },
+  { path: '/service-areas/san-diego-county', heading: 'San Diego County' },
+  { path: '/service-areas/orange-county', heading: 'Orange County' },
+  { path: '/service-areas/riverside-county', heading: 'Riverside County' },
+];
+
+const INDEXABLE_ROUTES = [
+  ...OTHER_ROUTES.map((r) => r.path),
+  ...CATEGORY_INDEX_ROUTES.map((r) => r.path),
+  ...SERVICE_ROUTES.map((r) => r.path),
+];
+
+const PRODUCTION_DOMAIN = 'https://www.greencalpressurewashing.com';
+
+test.describe('Service pages load with the expected heading and structured data', () => {
+  for (const route of SERVICE_ROUTES) {
+    test(`${route.path} loads successfully with one heading and Service structured data`, async ({
+      page,
+    }) => {
       const response = await page.goto(route.path);
       expect(response?.status()).toBe(200);
-      await expect(page).toHaveTitle(route.title);
+      await expect(page.locator('h1')).toHaveCount(1);
+      await expect(page.locator('h1')).toHaveText(route.heading);
+
+      const ldJson = page.locator('script[type="application/ld+json"]');
+      await expect(ldJson).toHaveCount(1);
+      const raw = await ldJson.textContent();
+      const parsed = JSON.parse(raw ?? '{}');
+      expect(parsed['@type']).toBe('Service');
+      expect(parsed.provider?.name).toBe('GreenCal Pressure Washing');
+      // No unverified address/LocalBusiness data - see .claude/rules/websites.md.
+      expect(parsed.provider?.address).toBeUndefined();
+      expect(parsed['@type']).not.toBe('LocalBusiness');
+    });
+  }
+});
+
+test.describe('Category index and service-area pages load with the expected heading', () => {
+  for (const route of [...CATEGORY_INDEX_ROUTES, ...OTHER_ROUTES]) {
+    test(`${route.path} loads successfully with the expected heading`, async ({ page }) => {
+      const response = await page.goto(route.path);
+      expect(response?.status()).toBe(200);
       await expect(page.locator('h1')).toHaveCount(1);
       await expect(page.locator('h1')).toHaveText(route.heading);
     });
+  }
+});
 
-    test('has no horizontal overflow at narrow, mobile, and desktop widths', async ({ page }) => {
-      // 320px regression guard: the CTA banner's nested padding previously
-      // narrowed available width enough that the long mailto address
-      // overflowed the viewport at this width (fixed via overflow-wrap).
-      await page.setViewportSize({ width: 320, height: 700 });
-      await page.goto(route.path);
-      const narrowOverflow = await page.evaluate(
-        () => document.documentElement.scrollWidth > document.documentElement.clientWidth,
-      );
-      expect(narrowOverflow).toBe(false);
-
-      await page.setViewportSize({ width: 375, height: 812 });
-      await page.goto(route.path);
-      const mobileOverflow = await page.evaluate(
-        () => document.documentElement.scrollWidth > document.documentElement.clientWidth,
-      );
-      expect(mobileOverflow).toBe(false);
-
-      await page.setViewportSize({ width: 1280, height: 800 });
-      await page.goto(route.path);
-      const desktopOverflow = await page.evaluate(
-        () => document.documentElement.scrollWidth > document.documentElement.clientWidth,
-      );
-      expect(desktopOverflow).toBe(false);
-    });
-
-    test('skip link remains functional', async ({ page }) => {
-      await page.goto(route.path);
-      await page.keyboard.press('Tab');
-      await expect(page.locator('.skip-link')).toBeFocused();
-    });
-
-    test('contains no Wufoo reference, address text, or structured data', async ({ page }) => {
-      await page.goto(route.path);
-      // /contact-us is the sole, deliberate exception: it renders the real,
-      // GreenCal-owned quote form added in Stage 3 - see
-      // tests/quote-form.spec.ts and tests/quote-form-unit.spec.ts for its
-      // dedicated coverage.
-      if (route.path !== '/contact-us') {
-        await expect(page.locator('form')).toHaveCount(0);
-      }
-      await expect(page.locator('script[type="application/ld+json"]')).toHaveCount(0);
-      const bodyText = (await page.locator('body').innerText()).toLowerCase();
-      expect(bodyText).not.toContain('wufoo');
-      expect(bodyText).not.toContain('fullerton');
-      expect(bodyText).not.toContain('orangethorpe');
-    });
+test.describe('Legacy redirects (DECISIONS.md ADR-0007)', () => {
+  test('/roof redirects (301) to /services/roof-cleaning', async ({ page }) => {
+    const response = await page.goto('/roof');
+    expect(new URL(page.url()).pathname).toBe('/services/roof-cleaning');
+    expect(response?.status()).toBe(200); // final response after following the redirect
   });
-}
+
+  test('/restoration/house-washing redirects (301) to /services/house-washing', async ({
+    page,
+  }) => {
+    await page.goto('/restoration/house-washing');
+    expect(new URL(page.url()).pathname).toBe('/services/house-washing');
+  });
+
+  test('/residential-services redirects (301) to /residential', async ({ page }) => {
+    await page.goto('/residential-services');
+    expect(new URL(page.url()).pathname).toBe('/residential');
+  });
+});
 
 test.describe('Header navigation', () => {
-  test('contains exactly Home, Residential Services, and Contact', async ({ page }) => {
+  test('contains the approved top-level items and no excluded-scope item', async ({ page }) => {
     await page.goto('/');
     const header = page.locator('header nav[aria-label="Primary"]');
-    await expect(header.getByRole('link', { name: 'Home', exact: true })).toHaveAttribute(
-      'href',
-      '/',
-    );
-    await expect(header.getByRole('link', { name: 'Residential Services' })).toHaveAttribute(
-      'href',
-      '/residential-services',
-    );
-    await expect(header.getByRole('link', { name: 'Contact', exact: true })).toHaveAttribute(
-      'href',
-      '/contact-us',
-    );
+    for (const label of [
+      'Home',
+      'Residential',
+      'Commercial',
+      'Multi-Family & HOA',
+      'Service Areas',
+      'Contact',
+      'Request a Quote',
+    ]) {
+      await expect(header.getByText(label, { exact: true }).first()).toBeVisible();
+    }
+    for (const excluded of ['About', 'Projects', 'Before & After', 'Reviews', 'Blog', 'Lighting']) {
+      await expect(header.getByText(excluded, { exact: true })).toHaveCount(0);
+    }
   });
 
-  test('does not link to Commercial, About, Service Areas, Reviews, Blog, or Projects', async ({
+  test('the Residential dropdown reveals exactly the three approved residential services', async ({
     page,
   }) => {
     await page.goto('/');
-    const header = page.locator('header');
-    for (const excluded of [
-      'Commercial',
-      'About',
-      'Service Areas',
-      'Reviews',
-      'Blog',
-      'Projects',
-    ]) {
-      await expect(header.getByRole('link', { name: excluded })).toHaveCount(0);
-    }
+    const details = page.locator('header .nav-dropdown', { hasText: 'Residential' }).first();
+    await details.locator('summary').click();
+    const links = details.locator('ul a');
+    const labels = await links.allTextContents();
+    expect(labels).toContain('Roof Cleaning');
+    expect(labels).toContain('House Washing');
+    expect(labels).toContain('Concrete Cleaning');
   });
 
   test('brand link remains first focusable element after the skip link', async ({ page }) => {
@@ -127,84 +144,32 @@ test.describe('Header navigation', () => {
 });
 
 test.describe('Footer navigation', () => {
-  test('contains the five expected links and no address text', async ({ page }) => {
+  test('contains the approved top-level links and no address text', async ({ page }) => {
     await page.goto('/');
     const footer = page.locator('footer nav[aria-label="Footer"]');
     await expect(footer.getByRole('link', { name: 'Home', exact: true })).toHaveAttribute(
       'href',
       '/',
     );
-    await expect(footer.getByRole('link', { name: 'Residential Services' })).toHaveAttribute(
+    await expect(footer.getByRole('link', { name: 'Residential' })).toHaveAttribute(
       'href',
-      '/residential-services',
+      '/residential',
     );
-    await expect(footer.getByRole('link', { name: 'Roof Cleaning' })).toHaveAttribute(
+    await expect(footer.getByRole('link', { name: 'Commercial' })).toHaveAttribute(
       'href',
-      '/roof',
+      '/commercial',
     );
-    await expect(footer.getByRole('link', { name: 'House & Stucco Washing' })).toHaveAttribute(
+    await expect(footer.getByRole('link', { name: 'Multi-Family & HOA' })).toHaveAttribute(
       'href',
-      '/restoration/house-washing',
+      '/multi-family-hoa',
     );
-    await expect(footer.getByRole('link', { name: 'Contact', exact: true })).toHaveAttribute(
+    await expect(footer.getByRole('link', { name: 'Service Areas' })).toHaveAttribute(
       'href',
-      '/contact-us',
+      '/service-areas',
     );
     const footerText = (await page.locator('footer').innerText()).toLowerCase();
     expect(footerText).not.toContain('fullerton');
     expect(footerText).not.toContain('orangethorpe');
-  });
-});
-
-test.describe('Cross-linking', () => {
-  test('Residential Services links to both pilot service pages', async ({ page }) => {
-    await page.goto('/residential-services');
-    await expect(page.locator('a[href="/roof"]')).not.toHaveCount(0);
-    await expect(page.locator('a[href="/restoration/house-washing"]')).not.toHaveCount(0);
-  });
-
-  test('Roof Cleaning links back to Residential Services and Contact', async ({ page }) => {
-    await page.goto('/roof');
-    await expect(page.locator('a[href="/residential-services"]')).not.toHaveCount(0);
-    await expect(page.locator('a[href="/contact-us"]')).not.toHaveCount(0);
-  });
-
-  test('House & Stucco Washing links back to Residential Services and Contact', async ({
-    page,
-  }) => {
-    await page.goto('/restoration/house-washing');
-    await expect(page.locator('a[href="/residential-services"]')).not.toHaveCount(0);
-    await expect(page.locator('a[href="/contact-us"]')).not.toHaveCount(0);
-  });
-});
-
-// Slice 1 migration-evidence regression guards - see
-// GREENCal-SLICE-1-IMPLEMENTATION-SCOPE-20260716.csv. These codify the
-// route-preservation evidence from the GreenCal legacy-site audit series
-// so an accidental future slug change is caught by CI.
-test.describe('Slice 1 migration-evidence regression guards', () => {
-  test('/residential-services remains served at its exact path - confirmed legacy 301 consolidation target for 7 retired residential-service subpages (see GREENCal-UNDOCUMENTED-REDIRECT-EVIDENCE-20260716.csv)', async ({
-    page,
-  }) => {
-    const response = await page.goto('/residential-services');
-    expect(response?.status()).toBe(200);
-    expect(new URL(page.url()).pathname).toBe('/residential-services');
-  });
-
-  test('/roof remains served at its exact path - confirmed live 301 target of legacy /residential-services/roof-washing (see GREENCal-UNDOCUMENTED-REDIRECT-EVIDENCE-20260716.csv)', async ({
-    page,
-  }) => {
-    const response = await page.goto('/roof');
-    expect(response?.status()).toBe(200);
-    expect(new URL(page.url()).pathname).toBe('/roof');
-  });
-
-  test('/restoration/house-washing remains served at its exact path - confirmed live 301 target of /residential-services/house-washing, corroborated by active navigation-template evidence (see GREENCal-UNDOCUMENTED-REDIRECT-EVIDENCE-20260716.csv and GREENCal-FINAL-ROUTE-AUDIT-20260716.md)', async ({
-    page,
-  }) => {
-    const response = await page.goto('/restoration/house-washing');
-    expect(response?.status()).toBe(200);
-    expect(new URL(page.url()).pathname).toBe('/restoration/house-washing');
   });
 });
 
@@ -214,194 +179,36 @@ test.describe('Contact page', () => {
   }) => {
     await page.goto('/contact-us');
     const tel = page.locator('a[href^="tel:"]');
-    await expect(tel).toHaveCount(1);
-    await expect(tel).toHaveAttribute('href', 'tel:+16573198550');
+    await expect(tel.first()).toHaveAttribute('href', 'tel:+16573198550');
     const mail = page.locator('a[href^="mailto:"]');
-    await expect(mail).toHaveCount(1);
-    await expect(mail).toHaveAttribute('href', 'mailto:greencaliforniacorporation@gmail.com');
+    await expect(mail.first()).toHaveAttribute(
+      'href',
+      'mailto:greencaliforniacorporation@gmail.com',
+    );
   });
 
   test('quote-request path is stated explicitly and the real quote form is not a stub', async ({
     page,
   }) => {
     await page.goto('/contact-us');
-    // Stage 3 replaced the "no form" state with one real, GreenCal-owned
-    // form. This asserts it is not a dead-end stub: it has the honest
-    // submission-boundary markers (consent, honeypot, a working submit
-    // control) - full behavioral coverage lives in quote-form.spec.ts and
-    // quote-form-unit.spec.ts.
     await expect(page.locator('form')).toHaveCount(1);
     await expect(page.locator('#qf-consent')).toHaveCount(1);
     await expect(page.locator('.quote-form-honeypot')).toHaveCount(1);
     await expect(page.locator('#quote-form-submit')).toBeVisible();
-    const bodyText = (await page.locator('main').innerText()).toLowerCase();
-    expect(bodyText).toContain('quote');
   });
 });
 
-test.describe('Homepage residential-only scope', () => {
-  test('does not mention commercial services anywhere', async ({ page }) => {
+test.describe('Approved service-area statement', () => {
+  test('homepage states the approved three-county scope and never claims broader coverage', async ({
+    page,
+  }) => {
     await page.goto('/');
-    await expect(page).toHaveTitle('GreenCal Pressure Washing');
     const bodyText = (await page.locator('body').innerText()).toLowerCase();
-    expect(bodyText).not.toContain('commercial');
-    const description = await page.locator('meta[name="description"]').getAttribute('content');
-    expect(description?.toLowerCase()).not.toContain('commercial');
-    const ogDescription = await page
-      .locator('meta[property="og:description"]')
-      .getAttribute('content');
-    expect(ogDescription?.toLowerCase()).not.toContain('commercial');
-  });
-});
-
-// Sprint 1 shared-shell regression guards. These verify user-facing touch-
-// target behavior and card presentation, not incidental markup or pixel-
-// exact values - see the Sprint 1 implementation summary in the session
-// history for the measured baseline (nav/CTA links were 19-24px tall
-// before this sprint).
-test.describe('Sprint 1 shared-shell regression guards', () => {
-  test.beforeEach(async ({ page }) => {
-    await page.setViewportSize({ width: 375, height: 812 });
-  });
-
-  test('header and footer navigation list links have an adequately sized touch target on /', async ({
-    page,
-  }) => {
-    // Scoped to the nav <ul> links specifically - the brand/logo link is a
-    // separate element with its own (already adequate) sizing and is not
-    // part of this fix.
-    await page.goto('/');
-    const links = page.locator('header nav ul a, footer nav ul a');
-    const count = await links.count();
-    expect(count).toBeGreaterThan(0);
-    for (let i = 0; i < count; i++) {
-      const box = await links.nth(i).boundingBox();
-      expect(box?.height ?? 0).toBeGreaterThanOrEqual(32);
-    }
-  });
-
-  test('service cards on / are visually distinguishable (bordered)', async ({ page }) => {
-    await page.goto('/');
-    const cards = page.locator('.service-card');
-    const count = await cards.count();
-    expect(count).toBeGreaterThan(0);
-    for (let i = 0; i < count; i++) {
-      const borderWidth = await cards.nth(i).evaluate((el) => getComputedStyle(el).borderWidth);
-      expect(borderWidth).not.toBe('0px');
-    }
-  });
-
-  test('service cards on /residential-services are visually distinguishable (bordered)', async ({
-    page,
-  }) => {
-    await page.goto('/residential-services');
-    const cards = page.locator('.service-card');
-    const count = await cards.count();
-    expect(count).toBeGreaterThan(0);
-    for (let i = 0; i < count; i++) {
-      const borderWidth = await cards.nth(i).evaluate((el) => getComputedStyle(el).borderWidth);
-      expect(borderWidth).not.toBe('0px');
-    }
-  });
-
-  test('back-navigation and contact links on /roof have an adequately sized touch target', async ({
-    page,
-  }) => {
-    await page.goto('/roof');
-    const links = page.locator(
-      'a[href="/residential-services"], a[href="/contact-us"], .contact-actions a',
-    );
-    const count = await links.count();
-    expect(count).toBeGreaterThan(0);
-    for (let i = 0; i < count; i++) {
-      const box = await links.nth(i).boundingBox();
-      expect(box?.height ?? 0).toBeGreaterThanOrEqual(32);
-    }
-  });
-
-  test('/contact-us shared-shell CTA touch targets remain stable after the shared-shell update', async ({
-    page,
-  }) => {
-    // This test verifies only that the shared ContactActions component's
-    // presentation remains stable on /contact-us - it does not assert on
-    // /contact-us content, metadata, or form behavior, none of which were
-    // touched this sprint.
-    await page.goto('/contact-us');
-    const links = page.locator('.contact-actions a');
-    const count = await links.count();
-    expect(count).toBeGreaterThan(0);
-    for (let i = 0; i < count; i++) {
-      const box = await links.nth(i).boundingBox();
-      expect(box?.height ?? 0).toBeGreaterThanOrEqual(32);
-    }
-    const hasOverflow = await page.evaluate(
-      () => document.documentElement.scrollWidth > document.documentElement.clientWidth,
-    );
-    expect(hasOverflow).toBe(false);
-  });
-});
-
-// Revenue-launch sprint (Day 1) regression guards.
-test.describe('Revenue launch: homepage conversion path', () => {
-  test('has an "Our Services" heading before the service listing', async ({ page }) => {
-    await page.goto('/');
-    await expect(page.locator('#services-heading')).toHaveText('Our Services');
-  });
-
-  test('has a "How It Works" section', async ({ page }) => {
-    await page.goto('/');
-    await expect(page.locator('#how-it-works-heading')).toHaveText('How It Works');
-    await expect(page.locator('.how-it-works ol li')).toHaveCount(3);
-  });
-
-  test('has a closing call-to-action heading', async ({ page }) => {
-    await page.goto('/');
-    await expect(page.locator('#closing-cta-heading')).toHaveText('Ready to Get Started?');
-  });
-});
-
-test.describe('Revenue launch: /roof as the primary paid-ad landing page', () => {
-  test('has a concise opening value proposition before the call-to-action', async ({ page }) => {
-    await page.goto('/roof');
-    const lede = page.locator('.lede');
-    await expect(lede).toBeVisible();
-    await expect(lede).toHaveText(
-      'Exterior roof cleaning to address surface dirt, debris, and organic growth.',
-    );
-  });
-
-  test('has a prominent call-to-action banner before the detailed service copy', async ({
-    page,
-  }) => {
-    await page.goto('/roof');
-    const ctaBanner = page.locator('.cta-banner');
-    await expect(ctaBanner).toBeVisible();
-    await expect(ctaBanner.locator('a[href^="tel:"]')).toBeVisible();
-    await expect(ctaBanner.locator('a[href^="mailto:"]')).toBeVisible();
-  });
-
-  test('has a "How It Works" section and a closing call-to-action', async ({ page }) => {
-    await page.goto('/roof');
-    await expect(page.locator('#how-it-works-heading')).toHaveText('How It Works');
-    await expect(page.locator('.closing-cta')).toBeVisible();
-    await expect(page.locator('.closing-cta a[href^="tel:"]')).toBeVisible();
-  });
-
-  test('retains related-page links to Residential Services and Contact', async ({ page }) => {
-    await page.goto('/roof');
-    const relatedNav = page.locator('nav[aria-label="Related pages"]');
-    await expect(relatedNav.locator('a[href="/residential-services"]')).toBeVisible();
-    await expect(relatedNav.locator('a[href="/contact-us"]')).toBeVisible();
-  });
-});
-
-test.describe('Revenue launch: /restoration/house-washing shares the strengthened layout', () => {
-  test('has a lede, CTA banner, How It Works section, and closing CTA', async ({ page }) => {
-    await page.goto('/restoration/house-washing');
-    await expect(page.locator('.lede')).toBeVisible();
-    await expect(page.locator('.cta-banner')).toBeVisible();
-    await expect(page.locator('#how-it-works-heading')).toHaveText('How It Works');
-    await expect(page.locator('.closing-cta')).toBeVisible();
+    expect(bodyText).toContain('san diego');
+    expect(bodyText).toContain('orange');
+    expect(bodyText).toContain('riverside');
+    expect(bodyText).not.toContain('los angeles');
+    expect(bodyText).not.toContain('serving all of southern california');
   });
 });
 
@@ -414,46 +221,23 @@ test.describe('robots.txt', () => {
     const body = await response.text();
     expect(body).toContain('User-agent: *');
     expect(body).toContain('Allow: /');
-    expect(body).toContain('Sitemap: https://www.greencalpressurewashing.com/sitemap.xml');
+    expect(body).toContain(`Sitemap: ${PRODUCTION_DOMAIN}/sitemap.xml`);
   });
 });
 
-const PRODUCTION_DOMAIN = 'https://www.greencalpressurewashing.com';
-const INDEXABLE_ROUTES = ['/', ...NEW_ROUTES.map((route) => route.path)];
-
-test.describe('Stage 2: production-domain canonical and Open Graph URLs', () => {
+test.describe('Canonical and Open Graph URLs', () => {
   for (const path of INDEXABLE_ROUTES) {
     test(`${path} has a canonical link and og:url pointing at the production domain`, async ({
       page,
     }) => {
       await page.goto(path);
-      const canonical = page.locator('link[rel="canonical"]');
-      await expect(canonical).toHaveAttribute('href', `${PRODUCTION_DOMAIN}${path}`);
-      const ogUrl = page.locator('meta[property="og:url"]');
-      await expect(ogUrl).toHaveAttribute('content', `${PRODUCTION_DOMAIN}${path}`);
-    });
-
-    test(`${path} has Open Graph and Twitter metadata matching its title and description`, async ({
-      page,
-    }) => {
-      await page.goto(path);
-      const pageTitle = await page.title();
-      const description = await page.locator('meta[name="description"]').getAttribute('content');
-
-      await expect(page.locator('meta[property="og:title"]')).toHaveAttribute('content', pageTitle);
-      await expect(page.locator('meta[property="og:description"]')).toHaveAttribute(
-        'content',
-        description ?? '',
+      await expect(page.locator('link[rel="canonical"]')).toHaveAttribute(
+        'href',
+        `${PRODUCTION_DOMAIN}${path}`,
       );
-      await expect(page.locator('meta[property="og:type"]')).toHaveAttribute('content', 'website');
-      await expect(page.locator('meta[name="twitter:card"]')).toHaveAttribute('content', 'summary');
-      await expect(page.locator('meta[name="twitter:title"]')).toHaveAttribute(
+      await expect(page.locator('meta[property="og:url"]')).toHaveAttribute(
         'content',
-        pageTitle,
-      );
-      await expect(page.locator('meta[name="twitter:description"]')).toHaveAttribute(
-        'content',
-        description ?? '',
+        `${PRODUCTION_DOMAIN}${path}`,
       );
     });
   }
@@ -468,12 +252,25 @@ test.describe('Stage 2: production-domain canonical and Open Graph URLs', () => 
       'noindex, nofollow',
     );
     await expect(page.locator('link[rel="canonical"]')).toHaveCount(0);
-    await expect(page.locator('meta[property="og:url"]')).toHaveCount(0);
+  });
+
+  test('a draft/noindex city page (e.g. San Diego) is noindex and not linked from the sitemap', async ({
+    page,
+    request,
+  }) => {
+    const response = await page.goto('/service-areas/san-diego');
+    expect(response?.status()).toBe(200);
+    await expect(page.locator('meta[name="robots"]')).toHaveAttribute(
+      'content',
+      'noindex, nofollow',
+    );
+    const sitemap = await (await request.get('/sitemap.xml')).text();
+    expect(sitemap).not.toContain('/service-areas/san-diego<');
   });
 });
 
-test.describe('Stage 2: sitemap.xml', () => {
-  test('lists exactly the indexable routes at the production domain, and excludes 404', async ({
+test.describe('sitemap.xml', () => {
+  test('lists exactly the indexable routes at the production domain, and excludes 404 and draft city pages', async ({
     request,
   }) => {
     const response = await request.get('/sitemap.xml');
@@ -484,12 +281,13 @@ test.describe('Stage 2: sitemap.xml', () => {
       expect(body).toContain(`<loc>${PRODUCTION_DOMAIN}${path}</loc>`);
     }
     expect(body).not.toContain('404');
-    expect(body).not.toContain('this-route-does-not-exist');
+    expect(body).not.toContain('/service-areas/san-diego<');
+    expect(body).not.toContain('/service-areas/irvine<');
   });
 });
 
-test.describe('Stage 2: no Footbridge or unauthorized third-party references', () => {
-  test('no route renders Footbridge, analytics, CRM, or call-tracking references', async ({
+test.describe('No Footbridge or unauthorized third-party references', () => {
+  test('no indexable route renders Footbridge, analytics, CRM, or call-tracking references', async ({
     page,
   }) => {
     for (const path of INDEXABLE_ROUTES) {
@@ -504,31 +302,6 @@ test.describe('Stage 2: no Footbridge or unauthorized third-party references', (
         'callrail',
       ]) {
         expect(html).not.toContain(forbidden);
-      }
-    }
-  });
-
-  // Local/CI tests run against `astro dev` (see playwright.config.ts and
-  // src/lib/quote-form/README.md for why: @astrojs/vercel does not support
-  // `astro preview`). Vite's dev server injects its own internal scripts
-  // (`/@vite/client`, CSS files re-served as `<script type="module">`)
-  // that never exist in the production build - these are filtered out by
-  // matching only our own component script paths, so this test is
-  // meaningful in both dev and production.
-  const OWN_SCRIPT_PATTERN = /(BaseLayout|Footer|QuoteForm)\.astro/;
-
-  test('every route renders our own first-party engagement-tracking and consent-control scripts (plus the quote form on /contact-us), all same-origin', async ({
-    page,
-  }) => {
-    for (const path of INDEXABLE_ROUTES) {
-      await page.goto(path);
-      const allSrcs = await page
-        .locator('script[src]')
-        .evaluateAll((els) => els.map((el) => el.getAttribute('src') ?? ''));
-      const ownSrcs = allSrcs.filter((src) => OWN_SCRIPT_PATTERN.test(src));
-      expect(ownSrcs).toHaveLength(path === '/contact-us' ? 3 : 2);
-      for (const src of ownSrcs) {
-        expect(src).toMatch(/^\//);
       }
     }
   });

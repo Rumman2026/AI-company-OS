@@ -2,9 +2,12 @@ import { test, expect } from '@playwright/test';
 
 const ALL_ROUTES = [
   '/',
-  '/residential-services',
-  '/roof',
-  '/restoration/house-washing',
+  '/residential',
+  '/services/roof-cleaning',
+  '/services/house-washing',
+  '/commercial',
+  '/multi-family-hoa',
+  '/service-areas',
   '/contact-us',
 ];
 
@@ -49,7 +52,8 @@ test.describe('Tracking: inactive-by-default production behavior', () => {
     await page.fill('#qf-phone', '(657) 319-8551');
     await page.fill('#qf-email', 'jane@example.com');
     await page.selectOption('#qf-service', 'roof-cleaning');
-    await page.fill('#qf-serviceLocation', 'Anaheim, CA');
+    await page.selectOption('#qf-city', 'carlsbad');
+    await page.fill('#qf-serviceLocation', 'Carlsbad, CA 92008');
     await page.fill('#qf-projectDescription', 'Please clean the roof, algae buildup present.');
     await page.check('#qf-consent');
     await page.click('#quote-form-submit');
