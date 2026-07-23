@@ -1,10 +1,22 @@
-import { services } from '../../data/services';
+import { QUOTE_FORM_SERVICE_SLUGS } from '../../data/quote-form-service-options';
+import { cities } from '../../data/cities';
 import type { FieldErrors, NormalizedQuoteInput, PreferredContactMethod } from './types';
 
-// Single source of truth for the service allowlist: the same ServiceRecord
-// list rendered on /residential-services, so the selector can never drift
-// from the site's real, verified services.
-const ALLOWED_SERVICE_SLUGS: readonly string[] = services.map((service) => service.slug);
+// Single source of truth for the service allowlist: quoteFormServiceOptions
+// (residential + commercial + multi-family/HOA + "other, reviewed
+// manually") - see DECISIONS.md ADR-0007. The selector can never drift
+// from the site's approved services because it is rendered from the same
+// list.
+const ALLOWED_SERVICE_SLUGS: readonly string[] = QUOTE_FORM_SERVICE_SLUGS;
+
+// Single source of truth for the city allowlist: src/data/cities.ts (see
+// ADR-0007 - "do not maintain separate manually duplicated city lists").
+// OTHER_CITY_SLUG is always a valid choice specifically so a legitimate
+// lead is never rejected just because the customer's city isn't listed or
+// autocomplete/matching failed - the lead is still accepted and can be
+// reviewed for service-area confirmation.
+export const OTHER_CITY_SLUG = 'other-not-listed';
+const ALLOWED_CITY_SLUGS: readonly string[] = [...cities.map((city) => city.slug), OTHER_CITY_SLUG];
 
 export const PREFERRED_CONTACT_METHODS = ['phone', 'email'] as const;
 export const PREFERRED_TIMING_OPTIONS = [
@@ -13,13 +25,11 @@ export const PREFERRED_TIMING_OPTIONS = [
   'within-a-month',
   'flexible',
 ] as const;
-// GreenCal's published scope is residential-only (see the "residential-only
-// scope" regression guard in tests/content.spec.ts) - "commercial" is
-// deliberately not an option here.
 export const PROPERTY_TYPE_OPTIONS = [
   'single-family-home',
   'condo-townhome',
   'multi-family',
+  'commercial',
   'other',
 ] as const;
 export const PROJECT_SIZE_OPTIONS = ['small', 'medium', 'large', 'not-sure'] as const;
@@ -119,6 +129,11 @@ export function validateQuoteInput(raw: unknown): ValidationResult {
     fieldErrors.service = 'Choose a service from the list.';
   }
 
+  const city = asString(input.city).trim();
+  if (!isOneOf(city, ALLOWED_CITY_SLUGS)) {
+    fieldErrors.city = 'Choose your city, or "Other / not listed here".';
+  }
+
   const serviceLocation = asString(input.serviceLocation).trim();
   if (
     serviceLocation.length < LIMITS.serviceLocationMin ||
@@ -193,6 +208,7 @@ export function validateQuoteInput(raw: unknown): ValidationResult {
       phone: phone as string,
       email,
       service,
+      city,
       serviceLocation,
       projectDescription,
       consent: true,

@@ -12,6 +12,8 @@ export interface NormalizedQuoteInput {
   phone: string;
   email: string;
   service: string;
+  /** Canonical city slug, or the OTHER_CITY_SLUG sentinel - see validation.ts. */
+  city: string;
   serviceLocation: string;
   projectDescription: string;
   consent: true;
@@ -69,6 +71,7 @@ export interface QuoteLeadRecord {
   phone: string;
   email: string;
   service: string;
+  city: string;
   serviceLocation: string;
   projectDescription: string;
   preferredContactMethod?: PreferredContactMethod;

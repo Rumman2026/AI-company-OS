@@ -21,6 +21,7 @@ export function computeIdempotencyKey(input: NormalizedQuoteInput): string {
     phone: input.phone,
     email: input.email,
     service: input.service,
+    city: input.city,
     serviceLocation: input.serviceLocation,
     projectDescription: input.projectDescription,
     preferredContactMethod: input.preferredContactMethod ?? null,

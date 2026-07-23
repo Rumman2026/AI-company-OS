@@ -1,6 +1,9 @@
 ---
 import ContactActions from './ContactActions.astro';
-import { services } from '../data/services';
+import { quoteFormServiceOptions } from '../data/quote-form-service-options';
+import { COUNTIES, citiesByCounty } from '../data/cities';
+import { OTHER_CITY_SLUG } from '../lib/quote-form/validation';
+import type { ServiceCategory } from '../types/content';
 
 export interface Props {
   /** Suppress the inline call/email CTA when the page already shows one nearby. */
@@ -8,6 +11,14 @@ export interface Props {
 }
 
 const { showContactActions = true } = Astro.props;
+
+const SERVICE_GROUP_LABELS: Record<ServiceCategory, string> = {
+  residential: 'Residential',
+  commercial: 'Commercial',
+  'multi-family-hoa': 'Multi-Family & HOA',
+};
+const serviceCategories: ServiceCategory[] = ['residential', 'commercial', 'multi-family-hoa'];
+const otherServiceOptions = quoteFormServiceOptions.filter((option) => option.category === 'other');
 ---
 
 <section class="quote-form-section" aria-labelledby="quote-form-heading" id="quote-form">
@@ -84,21 +95,66 @@ const { showContactActions = true } = Astro.props;
         id="qf-service"
         name="service"
         required
-        aria-describedby="qf-service-error"
+        aria-describedby="qf-service-error qf-service-help"
         aria-invalid="false"
       >
         <option value="">Select a service</option>
         {
-          services.map((service) => (
-            <option value={service.slug}>{service.title}</option>
+          serviceCategories.map((category) => (
+            <optgroup label={SERVICE_GROUP_LABELS[category]}>
+              {quoteFormServiceOptions
+                .filter((option) => option.category === category)
+                .map((option) => (
+                  <option value={option.slug}>{option.label}</option>
+                ))}
+            </optgroup>
           ))
         }
+        <optgroup label="Other">
+          {
+            otherServiceOptions.map((option) => (
+              <option value={option.slug}>{option.label}</option>
+            ))
+          }
+        </optgroup>
       </select>
+      <span id="qf-service-help" class="field-help"
+        >Selecting "Other Exterior Cleaning Request" means GreenCal will review whether the
+        described scope is supported before confirming.</span
+      >
       <span id="qf-service-error" class="field-error" role="alert"></span>
     </div>
 
     <div class="form-field">
-      <label for="qf-serviceLocation">City or service address <span aria-hidden="true">*</span
+      <label for="qf-city">City <span aria-hidden="true">*</span></label>
+      <select
+        id="qf-city"
+        name="city"
+        required
+        aria-describedby="qf-city-error qf-city-help"
+        aria-invalid="false"
+      >
+        <option value="">Select your city</option>
+        {
+          COUNTIES.map((county) => (
+            <optgroup label={county}>
+              {citiesByCounty(county).map((city) => (
+                <option value={city.slug}>{city.name}</option>
+              ))}
+            </optgroup>
+          ))
+        }
+        <option value={OTHER_CITY_SLUG}>Other / not listed here</option>
+      </select>
+      <span id="qf-city-help" class="field-help"
+        >Don't see your city? Choose "Other / not listed here" - we'll still review your
+        request.</span
+      >
+      <span id="qf-city-error" class="field-error" role="alert"></span>
+    </div>
+
+    <div class="form-field">
+      <label for="qf-serviceLocation">Street address or ZIP code <span aria-hidden="true">*</span
         ></label>
       <input
         type="text"
@@ -106,11 +162,13 @@ const { showContactActions = true } = Astro.props;
         name="serviceLocation"
         required
         maxlength="120"
-        autocomplete="address-level2"
+        autocomplete="street-address"
         aria-describedby="qf-serviceLocation-error qf-serviceLocation-help"
         aria-invalid="false"
       />
-      <span id="qf-serviceLocation-help" class="field-help">City is fine - a full address is not required.</span>
+      <span id="qf-serviceLocation-help" class="field-help"
+        >Street address, ZIP code, or nearest cross-streets - a full address is not required.</span
+      >
       <span id="qf-serviceLocation-error" class="field-error" role="alert"></span>
     </div>
 
@@ -275,6 +333,7 @@ const { showContactActions = true } = Astro.props;
       phone: 'qf-phone',
       email: 'qf-email',
       service: 'qf-service',
+      city: 'qf-city',
       serviceLocation: 'qf-serviceLocation',
       projectDescription: 'qf-projectDescription',
       consent: 'qf-consent',
@@ -386,6 +445,7 @@ const { showContactActions = true } = Astro.props;
         phone: String(formData.get('phone') ?? ''),
         email: String(formData.get('email') ?? ''),
         service: String(formData.get('service') ?? ''),
+        city: String(formData.get('city') ?? ''),
         serviceLocation: String(formData.get('serviceLocation') ?? ''),
         projectDescription: String(formData.get('projectDescription') ?? ''),
         consent: formData.get('consent') !== null,

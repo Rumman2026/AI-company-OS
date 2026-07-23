@@ -51,6 +51,7 @@ export function buildLeadNotificationEmail(payload: LeadNotificationPayload): {
     ['Phone', input.phone],
     ['Email', input.email],
     ['Requested service', input.service],
+    ['City', input.city],
     ['Service location', input.serviceLocation],
     ['Project description', input.projectDescription],
     ['Preferred contact method', input.preferredContactMethod],

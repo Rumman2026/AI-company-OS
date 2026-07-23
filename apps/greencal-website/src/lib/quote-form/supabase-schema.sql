@@ -24,6 +24,9 @@ create table if not exists quote_leads (
   phone text not null,
   email text not null,
   service text not null,
+  -- Canonical city slug from src/data/cities.ts, or 'other-not-listed' -
+  -- never a second, hand-typed city list (see DECISIONS.md ADR-0007).
+  city text not null,
   service_location text not null,
   project_description text not null,
   preferred_contact_method text,
@@ -49,6 +52,7 @@ create table if not exists quote_leads (
 
 create index if not exists quote_leads_created_at_idx on quote_leads (created_at desc);
 create index if not exists quote_leads_email_idx on quote_leads (email);
+create index if not exists quote_leads_city_idx on quote_leads (city);
 
 alter table quote_leads enable row level security;
 -- No policies are created intentionally - see the security-model note

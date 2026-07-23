@@ -58,6 +58,7 @@ export function createSupabaseLeadStore(url: string, serviceRoleKey: string): Le
         phone: input.phone,
         email: input.email,
         service: input.service,
+        city: input.city,
         service_location: input.serviceLocation,
         project_description: input.projectDescription,
         preferred_contact_method: input.preferredContactMethod ?? null,
