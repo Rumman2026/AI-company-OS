@@ -7,11 +7,29 @@ import { headerNav } from '../data/navigation';
     <a href="/" class="brand">GreenCal Pressure Washing</a>
     <ul>
       {
-        headerNav.map((item) => (
-          <li>
-            <a href={item.href}>{item.label}</a>
-          </li>
-        ))
+        headerNav.map((item) =>
+          item.children && item.children.length > 0 ? (
+            <li class="nav-has-children">
+              <details class="nav-dropdown">
+                <summary>{item.label}</summary>
+                <ul>
+                  <li>
+                    <a href={item.href}>All {item.label} Services</a>
+                  </li>
+                  {item.children.map((child) => (
+                    <li>
+                      <a href={child.href}>{child.label}</a>
+                    </li>
+                  ))}
+                </ul>
+              </details>
+            </li>
+          ) : (
+            <li>
+              <a href={item.href}>{item.label}</a>
+            </li>
+          ),
+        )
       }
     </ul>
   </nav>
