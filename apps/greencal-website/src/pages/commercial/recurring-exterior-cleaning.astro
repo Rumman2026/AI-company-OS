@@ -1,0 +1,8 @@
+---
+import ServicePageLayout from '../../layouts/ServicePageLayout.astro';
+import { services } from '../../data/services';
+
+const service = services.find((s) => s.slug === 'recurring-exterior-cleaning')!;
+---
+
+<ServicePageLayout service={service} />

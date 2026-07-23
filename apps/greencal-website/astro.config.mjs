@@ -20,6 +20,16 @@ export default defineConfig({
   server: {
     port: 4321,
   },
+  // Legacy routes retired by the approved-scope update (see DECISIONS.md
+  // ADR-0007) - permanent redirects to their replacements, not new pages.
+  // No excluded-service legacy route exists to redirect (this site never
+  // published one), so this list is limited to the residential-page
+  // restructure.
+  redirects: {
+    '/roof': '/services/roof-cleaning',
+    '/restoration/house-washing': '/services/house-washing',
+    '/residential-services': '/residential',
+  },
   // The dev toolbar is a local-only convenience overlay, already absent
   // from every production build - disabling it has no effect on the
   // deployed site. Disabled only when Playwright starts the dev server

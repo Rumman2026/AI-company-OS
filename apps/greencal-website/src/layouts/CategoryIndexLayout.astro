@@ -1,0 +1,43 @@
+---
+import BaseLayout from './BaseLayout.astro';
+import ServiceCard from '../components/ServiceCard.astro';
+import ContactActions from '../components/ContactActions.astro';
+import HowItWorks from '../components/HowItWorks.astro';
+import ClosingCta from '../components/ClosingCta.astro';
+import { servicesByCategory } from '../data/services';
+import type { ServiceRecord } from '../types/content';
+
+export interface Props {
+  category: ServiceRecord['category'];
+  path: string;
+  title: string;
+  heading: string;
+  description: string;
+  intro: string;
+}
+
+const { category, path, title, heading, description, intro } = Astro.props;
+const categoryServices = servicesByCategory(category);
+---
+
+<BaseLayout title={title} description={description} path={path}>
+  <nav aria-label="Breadcrumb" class="breadcrumbs">
+    <a href="/">Home</a> / <span aria-current="page">{heading}</span>
+  </nav>
+  <h1>{heading}</h1>
+  <p class="lede">{intro}</p>
+  <div class="cta-banner">
+    <p>Call or email to request a quote:</p>
+    <ContactActions />
+  </div>
+  <section aria-labelledby="services-heading">
+    <h2 id="services-heading">Services</h2>
+    {categoryServices.map((service) => <ServiceCard service={service} />)}
+  </section>
+  <HowItWorks />
+  <ClosingCta />
+  <nav aria-label="Related pages" class="page-links">
+    <a href="/service-areas">Service Areas</a>
+    <a href="/contact-us">Contact GreenCal Pressure Washing</a>
+  </nav>
+</BaseLayout>

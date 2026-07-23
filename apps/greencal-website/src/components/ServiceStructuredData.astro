@@ -1,0 +1,32 @@
+---
+import { siteInfo } from '../data/site';
+import { COUNTIES } from '../data/cities';
+import type { ServiceRecord } from '../types/content';
+
+export interface Props {
+  service: ServiceRecord;
+}
+
+const { service } = Astro.props;
+
+// Service-type structured data only - never LocalBusiness/ProfessionalService
+// (no public street address is published - see .claude/rules/websites.md
+// and DECISIONS.md ADR-0007). areaServed lists the three approved counties,
+// not all 80 approved cities, to avoid oversized/repetitive per-page markup
+// (see ADR-0007's structured-data note).
+const jsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'Service',
+  name: service.title,
+  description: service.summary,
+  serviceType: service.title,
+  provider: {
+    '@type': 'Organization',
+    name: siteInfo.businessName,
+    telephone: siteInfo.phoneDisplay,
+  },
+  areaServed: COUNTIES.map((county) => ({ '@type': 'AdministrativeArea', name: county })),
+};
+---
+
+<script type="application/ld+json" set:html={JSON.stringify(jsonLd)} is:inline />

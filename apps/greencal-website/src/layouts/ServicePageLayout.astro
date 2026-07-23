@@ -3,6 +3,7 @@ import BaseLayout from './BaseLayout.astro';
 import ContactActions from '../components/ContactActions.astro';
 import HowItWorks from '../components/HowItWorks.astro';
 import ClosingCta from '../components/ClosingCta.astro';
+import ServiceStructuredData from '../components/ServiceStructuredData.astro';
 import { siteInfo } from '../data/site';
 import type { ServiceRecord } from '../types/content';
 
@@ -11,9 +12,20 @@ export interface Props {
 }
 
 const { service } = Astro.props;
+
+const CATEGORY_INDEX: Record<ServiceRecord['category'], { href: string; label: string }> = {
+  residential: { href: '/residential', label: 'Back to Residential Services' },
+  commercial: { href: '/commercial', label: 'Back to Commercial Services' },
+  'multi-family-hoa': { href: '/multi-family-hoa', label: 'Back to Multi-Family & HOA Services' },
+};
+const categoryIndex = CATEGORY_INDEX[service.category];
 ---
 
 <BaseLayout title={service.metaTitle} description={service.metaDescription} path={service.route}>
+  <ServiceStructuredData service={service} />
+  <nav aria-label="Breadcrumb" class="breadcrumbs">
+    <a href="/">Home</a> / <a href={categoryIndex.href}>{categoryIndex.label.replace('Back to ', '')}</a> / <span aria-current="page">{service.title}</span>
+  </nav>
   <h1>{service.title}</h1>
   <p class="lede">{service.summary}</p>
   <div class="cta-banner">
@@ -26,7 +38,8 @@ const { service } = Astro.props;
     message={`Call or email ${siteInfo.businessName} to request a quote for ${service.title}.`}
   />
   <nav aria-label="Related pages" class="page-links">
-    <a href="/residential-services">Back to Residential Services</a>
+    <a href={categoryIndex.href}>{categoryIndex.label}</a>
+    <a href="/service-areas">Service Areas</a>
     <a href="/contact-us">Contact GreenCal Pressure Washing</a>
   </nav>
 </BaseLayout>

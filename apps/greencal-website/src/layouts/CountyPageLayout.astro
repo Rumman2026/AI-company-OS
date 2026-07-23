@@ -1,0 +1,68 @@
+---
+import BaseLayout from './BaseLayout.astro';
+import ContactActions from '../components/ContactActions.astro';
+import ClosingCta from '../components/ClosingCta.astro';
+import { siteInfo } from '../data/site';
+import { citiesByCounty, countySlug } from '../data/cities';
+import { services } from '../data/services';
+import type { County } from '../types/content';
+
+export interface Props {
+  county: County;
+}
+
+const { county } = Astro.props;
+const slug = countySlug[county];
+const path = `/service-areas/${slug}`;
+const title = `${county} Pressure Washing | GreenCal Pressure Washing`;
+const description = `Exterior cleaning services from ${siteInfo.businessName} for approved communities in ${county}.`;
+const countyCities = citiesByCounty(county);
+---
+
+<BaseLayout title={title} description={description} path={path}>
+  <nav aria-label="Breadcrumb" class="breadcrumbs">
+    <a href="/">Home</a> / <a href="/service-areas">Service Areas</a> /{' '}
+    <span aria-current="page">{county}</span>
+  </nav>
+  <h1>{county}</h1>
+  <p class="lede">
+    {siteInfo.businessName} provides residential, commercial, and multi-family/HOA exterior
+    cleaning for approved communities in {county}.
+  </p>
+  <div class="cta-banner">
+    <p>Call or email to request a quote:</p>
+    <ContactActions />
+  </div>
+  <p>
+    Service availability may depend on property location, project size, access, scope, and
+    scheduling. Submit your project details for confirmation.
+  </p>
+
+  <section aria-labelledby="services-in-county-heading">
+    <h2 id="services-in-county-heading">Services</h2>
+    <ul>
+      {services.map((service) => (
+        <li>
+          <a href={service.route}>{service.title}</a>
+        </li>
+      ))}
+    </ul>
+  </section>
+
+  <section aria-labelledby="cities-in-county-heading">
+    <h2 id="cities-in-county-heading">Communities served in {county}</h2>
+    <ul class="city-list">
+      {countyCities.map((city) => (
+        <li>
+          <a href={`/service-areas/${city.slug}`}>{city.name}</a>
+        </li>
+      ))}
+    </ul>
+  </section>
+
+  <ClosingCta />
+  <nav aria-label="Related pages" class="page-links">
+    <a href="/service-areas">All Service Areas</a>
+    <a href="/contact-us">Contact GreenCal Pressure Washing</a>
+  </nav>
+</BaseLayout>

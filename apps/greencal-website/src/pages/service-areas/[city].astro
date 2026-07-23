@@ -1,0 +1,71 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import ContactActions from '../../components/ContactActions.astro';
+import ClosingCta from '../../components/ClosingCta.astro';
+import { siteInfo } from '../../data/site';
+import { cities, countySlug } from '../../data/cities';
+import { services } from '../../data/services';
+import type { CityRecord } from '../../types/content';
+
+export function getStaticPaths() {
+  return cities.map((city) => ({ params: { city: city.slug }, props: { city } }));
+}
+
+export interface Props {
+  city: CityRecord;
+}
+
+const { city } = Astro.props;
+const path = `/service-areas/${city.slug}`;
+const title = `${city.name} Pressure Washing | GreenCal Pressure Washing`;
+const description = `Exterior cleaning services from ${siteInfo.businessName} for ${city.name}, ${city.county}.`;
+
+// Every city page starts noindex/draft - see the city-page publication
+// policy in DECISIONS.md ADR-0007: no city-specific proof, project
+// reference, or unique local content exists yet for any of the 80
+// approved cities, so no individual city page is indexed. The reusable
+// system exists (this route generates all of them) but only the
+// /service-areas index and the three county pages are indexable, since
+// their content (a factual coverage list) doesn't depend on unverified
+// per-city claims.
+const noindex = !city.indexable;
+---
+
+<BaseLayout title={title} description={description} path={path} noindex={noindex}>
+  <nav aria-label="Breadcrumb" class="breadcrumbs">
+    <a href="/">Home</a> / <a href="/service-areas">Service Areas</a> /{' '}
+    <a href={`/service-areas/${countySlug[city.county]}`}>{city.county}</a> /{' '}
+    <span aria-current="page">{city.name}</span>
+  </nav>
+  <h1>{city.name} Pressure Washing</h1>
+  <p class="lede">
+    {siteInfo.businessName} provides exterior cleaning services for {city.name}, located in{' '}
+    {city.county}.
+  </p>
+  <div class="cta-banner">
+    <p>Call or email to request a quote:</p>
+    <ContactActions />
+  </div>
+  <p>
+    Service availability may depend on property location, project size, access, scope, and
+    scheduling. Submit your project details for confirmation.
+  </p>
+
+  <section aria-labelledby="services-in-city-heading">
+    <h2 id="services-in-city-heading">Services</h2>
+    <ul>
+      {services.map((service) => (
+        <li>
+          <a href={service.route}>{service.title}</a>
+        </li>
+      ))}
+    </ul>
+  </section>
+
+  <ClosingCta message={`Call or email ${siteInfo.businessName} to request a quote for ${city.name}.`} />
+  <nav aria-label="Related pages" class="page-links">
+    <a href={`/service-areas/${countySlug[city.county]}`}>{city.county}</a>
+    <a href="/service-areas">All Service Areas</a>
+    <a href="/contact-us">Contact GreenCal Pressure Washing</a>
+  </nav>
+</BaseLayout>

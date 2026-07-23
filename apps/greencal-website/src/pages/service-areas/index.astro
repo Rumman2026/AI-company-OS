@@ -1,0 +1,54 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import ContactActions from '../../components/ContactActions.astro';
+import ClosingCta from '../../components/ClosingCta.astro';
+import { siteInfo } from '../../data/site';
+import { COUNTIES, citiesByCounty, countySlug } from '../../data/cities';
+
+const title = 'Service Areas | GreenCal Pressure Washing';
+const description = `Approved service-area communities across San Diego, Orange, and Riverside Counties served by ${siteInfo.businessName}.`;
+---
+
+<BaseLayout title={title} description={description} path="/service-areas">
+  <nav aria-label="Breadcrumb" class="breadcrumbs">
+    <a href="/">Home</a> / <span aria-current="page">Service Areas</span>
+  </nav>
+  <h1>Service Areas</h1>
+  <p class="lede">
+    Serving approved communities across San Diego, Orange, and Riverside Counties.
+  </p>
+  <div class="cta-banner">
+    <p>Call or email to request a quote:</p>
+    <ContactActions />
+  </div>
+  <p>
+    Service availability may depend on property location, project size, access, scope, and
+    scheduling. Submit your project details for confirmation - if your city isn't listed below,
+    contact us and we'll confirm whether we can help.
+  </p>
+
+  {
+    COUNTIES.map((county) => (
+      <section aria-labelledby={`county-${countySlug[county]}`}>
+        <h2 id={`county-${countySlug[county]}`}>
+          <a href={`/service-areas/${countySlug[county]}`}>{county}</a>
+        </h2>
+        <ul class="city-list">
+          {citiesByCounty(county).map((city) => (
+            <li>
+              <a href={`/service-areas/${city.slug}`}>{city.name}</a>
+            </li>
+          ))}
+        </ul>
+      </section>
+    ))
+  }
+
+  <ClosingCta />
+  <nav aria-label="Related pages" class="page-links">
+    <a href="/residential">Residential Services</a>
+    <a href="/commercial">Commercial Services</a>
+    <a href="/multi-family-hoa">Multi-Family & HOA Services</a>
+    <a href="/contact-us">Contact GreenCal Pressure Washing</a>
+  </nav>
+</BaseLayout>
