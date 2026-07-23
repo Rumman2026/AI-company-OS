@@ -339,6 +339,115 @@ server rendering.
 
 ---
 
+## ADR-0007: Approved GreenCal service and city-coverage scope (services/cities centralized, LA County removed)
+
+**Status**: Confirmed (owner-directed scope update)
+
+**Context**: `apps/greencal-website` originally published a residential-only,
+two-service scope (`roof-cleaning`, `house-washing`) with no defined
+service-area city list. The owner directed an expanded, final approved
+scope covering residential, commercial, and multi-family/HOA exterior
+cleaning, modeled structurally on the published service-category and
+city-coverage architecture of `washedoutpressurewashing.com` (inspected
+2026-07-22) - used only as a reference for scope/IA/UX structure, never
+copied for wording, branding, claims, or design (see BUSINESS_FACTS.md and
+the source note there).
+
+**Decision**:
+
+- Adopt exactly the approved service categories in BUSINESS_FACTS.md:
+  3 residential, 7 commercial, 2 multi-family/HOA pages (13 selectable
+  quote-form service options including "Other Exterior Cleaning
+  Request", reviewed manually).
+- Adopt exactly the approved 80-city list in BUSINESS_FACTS.md, spanning
+  San Diego, Orange, and Riverside Counties only.
+- **Remove Los Angeles County** from all public scope statements. The
+  site previously made no LA-County-specific claim in committed content,
+  so this is a forward-looking exclusion, not a retraction of a
+  published claim - see the test suite's explicit LA County absence
+  guard.
+- Centralize the city list in one typed source, `src/data/cities.ts` -
+  every city-dependent feature (navigation, quote form, service-area
+  pages, sitemap, structured data, footer, internal links) derives from
+  it. No second, separately-typed city list exists anywhere in the app.
+- Centralize the service list in `src/data/services.ts` (real pages) and
+  `src/data/quote-form-service-options.ts` (the superset of selectable
+  quote-form options, since some multi-family/HOA sub-requests map to a
+  shared page rather than each getting a near-duplicate page).
+
+**Why city pages are not automatically indexable**: The approved city
+list defines coverage, not automatic SEO publication. No real
+per-city project reference, local proof, or verified geographic/
+regulatory detail exists for any of the 80 approved cities. Every
+`CityRecord` therefore starts `publishStatus: 'draft'` / `indexable:
+false`, and the dynamic `/service-areas/[city]` route renders every city
+page but marks each `noindex` and excludes it from `sitemap.xml.ts`
+until a future stage adds genuine, unique, owner-verified content per
+city (see `.claude/rules/websites.md`'s verified-content requirement).
+The three county pages (`/service-areas/{county}`) and the
+`/service-areas` index remain indexable: their content (a factual
+coverage list, a disclaimer, and links to real service pages) does not
+depend on unverified per-city claims.
+
+**Why the reference website is not copied**: `washedoutpressurewashing.com`
+was inspected only to verify a reasonable service-category structure and
+city-coverage pattern for a Southern California pressure-washing
+business. No wording, branding, logo, images, reviews, ratings,
+statistics, licenses, pricing, or company identity from that site was
+reproduced - all GreenCal copy in the new pages is original, and every
+claim is either omitted or written in the safe, factual register already
+established for this site (no "top rated," no guarantee language, no
+unverified license/insurance claims - see `.claude/rules/websites.md`).
+
+**How future city or service additions require owner approval**: Any
+city outside the 80-entry list, any county outside San Diego/Orange/
+Riverside, or any service outside the approved categories requires a
+separate, explicit owner-approved scope update (a new ADR or an amendment
+to this one) - this repository's automated tests (see
+`tests/scope-exclusions.spec.ts`) fail the build if an excluded service,
+an unapproved city, or Los Angeles County appears in navigation, the
+quote form, structured data, or generated pages.
+
+**Excluded services** (see BUSINESS_FACTS.md for the full list): auto/
+mobile detailing, car/fleet washing, pool cleaning/maintenance/repair,
+carpet/upholstery cleaning, paver/concrete/driveway/brick/stone sealing,
+holiday/permanent lighting, landscaping, painting, roofing/gutter/solar
+installation or repair, janitorial/maid service. A concrete pool deck may
+still be cleaned as a concrete surface - this is explicitly not "pool
+cleaning."
+
+**Alternatives considered**: Publishing all 80 city pages as indexable
+immediately (rejected - would mean either fabricating local
+content/proof or publishing thin, duplicative pages, both prohibited by
+`.claude/rules/websites.md`). Maintaining separate city lists per feature
+(rejected - directly contradicts the owner's explicit centralization
+requirement and risks silent drift).
+
+**Trade-offs**: The reusable city-page system exists and is fully built
+(all 80 pages render correctly), but most city pages carry no SEO value
+until real content is added - a deliberate, disclosed trade-off favoring
+honesty over premature indexing.
+
+**Consequences**: `src/data/cities.ts`, `src/data/services.ts`,
+`src/data/quote-form-service-options.ts`, navigation, the quote form,
+`sitemap.xml.ts`, structured data, and the full test suite were updated
+
+- see the Stage report for the complete file list. `/roof`,
+  `/residential-services`, and `/restoration/house-washing` now redirect
+  (301) to their replacements rather than remaining live pages.
+
+**Reversible**: Yes - service/city scope is data-driven; reverting or
+amending the approved lists does not require a structural rewrite.
+
+**Owner approval required for future changes**: Yes - any addition to
+the approved service or city scope.
+
+**Related**: BUSINESS_FACTS.md, [ADR-0004](#adr-0004-dedicated-appsgreencal-website-for-greencal-pressure-washing-designated-phase-2a),
+`.claude/rules/websites.md`, `apps/greencal-website/src/data/cities.ts`,
+`apps/greencal-website/src/data/services.ts`
+
+---
+
 ## Proposed decisions (not yet made)
 
 - Database engine and ORM for `packages/db` — **Proposed / TBD**.
