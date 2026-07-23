@@ -38,33 +38,45 @@ export default defineConfig({
   // pointer events and breaks click-based tests. A human running
   // `pnpm run dev` normally still gets the toolbar.
   devToolbar: { enabled: !process.env.PLAYWRIGHT_TEST },
-  // Production runtime fix (2026-07-23): the deployed /api/quote-submit
-  // function crashed with "Cannot find module 'tslib'" - the require
-  // originated inside @supabase/functions-js (a transitive dependency of
-  // @supabase/supabase-js). Local inspection confirmed tslib is correctly
-  // declared and locally resolves via pnpm's per-package symlinks, and a
-  // local production build's packaged Vercel function does contain tslib
-  // in every required location - so this is not a missing/misclassified
-  // dependency. The local verification ran on Windows, though, and cannot
-  // rule out a build-environment-specific (Windows vs. Vercel's Linux
-  // build machine) difference in how pnpm's symlinked node_modules tree
-  // gets traced/packaged for the deployed function. Rather than continue
-  // diagnosing an environment this repository cannot directly inspect,
-  // `noExternal` makes Vite bundle @supabase/supabase-js's actual source
-  // directly into the compiled server output at build time. `tslib` must
-  // be listed explicitly too - verified directly that bundling only
-  // `@supabase/supabase-js` still left a separate, external
-  // `import { __awaiter, __rest } from "tslib"` in the compiled chunk
-  // (Rollup's standard helper-import convention), which would have left
-  // the exact same runtime resolution risk in place. With both packages
-  // listed, the compiled output contains no external reference to either
-  // package - eliminating the runtime filesystem lookup entirely,
-  // regardless of pnpm hoisting mode, symlink type, or the tracer's
-  // behavior. Resend has no runtime dependencies of its own (confirmed
-  // directly) and is not affected by this class of failure.
+  // Production runtime fix, revised (2026-07-23): the deployed
+  // /api/quote-submit function originally crashed with "Cannot find
+  // module 'tslib'" (require originating inside @supabase/functions-js,
+  // a transitive dependency of @supabase/supabase-js). A first attempt
+  // added both `@supabase/supabase-js` AND `tslib` to `noExternal`, which
+  // built successfully in every local test (including a from-scratch
+  // `pnpm install --frozen-lockfile` clean-room reinstall) but failed on
+  // Vercel's own build with "Rollup failed to resolve import 'tslib'" -
+  // a build-time failure, confirmed via Vercel's Build Logs, worse than
+  // the original single-endpoint runtime failure because it blocks the
+  // entire deployment. This local repository has no Linux/container
+  // environment available to reproduce that exact failure directly - it
+  // could not be reproduced here under any local configuration tried.
+  //
+  // Revised fix: only `@supabase/supabase-js` is listed in `noExternal`.
+  // This still inlines @supabase/supabase-js's (and therefore
+  // @supabase/functions-js's) actual source directly into the compiled
+  // server chunk - verified directly that @supabase/functions-js no
+  // longer exists as a separate file in the packaged function output at
+  // all, so its original `require('tslib')` call (the literal crash
+  // site) cannot occur anymore. `tslib` itself is deliberately left
+  // external: Rollup consolidates the bundled code's internal
+  // tslib-helper calls into one clean top-level `import { __awaiter,
+  // __rest } from "tslib"` in our own compiled chunk (verified directly)
+  // rather than inlining tslib's own source - forcing Rollup to also
+  // inline `tslib` is what produced the confirmed Vercel build failure.
+  // This remaining external `tslib` import must still resolve at
+  // runtime, but from a materially shorter, simpler path than the
+  // original bug: `tslib` is a direct, top-level dependency of this
+  // package (see package.json), not a dependency reached only through
+  // @supabase/functions-js's own deeply-nested pnpm resolution scope.
+  // Whether this fully resolves the original Production error cannot be
+  // confirmed from this repository alone - see
+  // src/lib/quote-form/README.md's real end-to-end test procedure.
+  // Resend has no runtime dependencies of its own (confirmed directly)
+  // and is not affected by this class of failure.
   vite: {
     ssr: {
-      noExternal: ['@supabase/supabase-js', 'tslib'],
+      noExternal: ['@supabase/supabase-js'],
     },
   },
 });

@@ -1,7 +1,25 @@
 import { test, expect } from '@playwright/test';
-import { existsSync, readFileSync, readdirSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
+
+function walkForPath(
+  dir: string,
+  matches: (path: string) => boolean,
+  found: string[] = [],
+): string[] {
+  for (const entry of readdirSync(dir)) {
+    const full = join(dir, entry);
+    if (matches(full)) {
+      found.push(full);
+      continue; // don't descend into a matched directory - existence is enough
+    }
+    if (statSync(full).isDirectory()) {
+      walkForPath(full, matches, found);
+    }
+  }
+  return found;
+}
 
 // Regression coverage for the 2026-07-23 Production incident: the deployed
 // /api/quote-submit function crashed with "Cannot find module 'tslib'"
@@ -12,6 +30,21 @@ import { pathToFileURL } from 'node:url';
 // production build to have been run first (`pnpm run build`) - it inspects
 // generated build artifacts (.vercel/output), not source, and does not run
 // under `astro dev`.
+//
+// Revised 2026-07-23: an earlier fix attempt also added `tslib` to
+// astro.config.mjs's `vite.ssr.noExternal`, which built successfully in
+// every local configuration (including a from-scratch
+// `pnpm install --frozen-lockfile` reinstall) but failed on Vercel's own
+// build with "Rollup failed to resolve import 'tslib'" (confirmed via
+// Vercel's Build Logs) - a build-time failure that could not be
+// reproduced locally under any configuration available in this
+// repository (no Linux/container environment was available to test
+// against). The current fix keeps only `@supabase/supabase-js` in
+// `noExternal` and leaves `tslib` external on purpose - see the
+// assertions below, which check for the actually-relevant property
+// (the crash-site file no longer exists in the packaged function) rather
+// than asserting `tslib` is never externally referenced, which is no
+// longer the intended state.
 
 const FUNCTION_ROOT = join(__dirname, '..', '.vercel', 'output', 'functions', '_render.func');
 const ENTRY = join(FUNCTION_ROOT, 'apps', 'greencal-website', 'dist', 'server', 'entry.mjs');
@@ -35,22 +68,27 @@ test.describe('Vercel serverless function packaging (tslib production-incident r
     await expect(import(pathToFileURL(ENTRY).href)).resolves.toBeTruthy();
   });
 
-  test('no packaged server chunk externally imports @supabase/supabase-js or tslib as a bare specifier', () => {
+  test('no packaged server chunk externally imports @supabase/supabase-js as a bare specifier', () => {
     test.skip(!existsSync(CHUNKS_DIR), BUILD_MISSING_MESSAGE);
     const files = [ENTRY, ...readdirSync(CHUNKS_DIR).map((f) => join(CHUNKS_DIR, f))].filter((f) =>
       f.endsWith('.mjs'),
     );
     expect(files.length).toBeGreaterThan(0);
 
-    // Verified directly (both with and without the `noExternal` fix in
-    // astro.config.mjs) that this specific check correctly distinguishes
-    // the two states: without `noExternal`, the compiled chunk contains a
-    // live `from "@supabase/supabase-js"` bare-specifier import (Vite left
-    // the package external, so @supabase/functions-js's own
-    // require('tslib') call is resolved at runtime from node_modules -
-    // the exact failure mode observed in Production); with `noExternal`,
-    // that bare import disappears entirely because the package's source is
-    // inlined into the chunk instead.
+    // Verified directly (with `noExternal` unset vs. set to
+    // `['@supabase/supabase-js']`) that this specific check correctly
+    // distinguishes the two states: without `noExternal`, the compiled
+    // chunk contains a live `from "@supabase/supabase-js"` bare-specifier
+    // import; with it, that bare import disappears entirely because the
+    // package's source is inlined into the chunk instead.
+    //
+    // Deliberately does NOT assert `tslib` is never externally imported -
+    // it is now intentionally left external (see astro.config.mjs) after
+    // forcing it into `noExternal` caused a confirmed Vercel build
+    // failure ("Rollup failed to resolve import 'tslib'"). The next test
+    // checks the property that actually matters instead: the file that
+    // contained the original crash-causing `require('tslib')` call no
+    // longer exists in the packaged function at all.
     //
     // Comments are stripped before matching. @supabase/functions-js's own
     // bundled source contains JSDoc examples like
@@ -68,13 +106,21 @@ test.describe('Vercel serverless function packaging (tslib production-incident r
       expect(stripped, `${file} must not externally import "@supabase/supabase-js"`).not.toMatch(
         /from\s*["']@supabase\/supabase-js["']/,
       );
-      expect(stripped, `${file} must not externally import "tslib"`).not.toMatch(
-        /from\s*["']tslib["']/,
-      );
-      expect(stripped, `${file} must not contain require("tslib")`).not.toMatch(
-        /require\(["']tslib["']\)/,
-      );
     }
+  });
+
+  test('the original crash-site file (@supabase/functions-js, which called require("tslib")) is no longer packaged as a separate module', () => {
+    test.skip(!existsSync(FUNCTION_ROOT), BUILD_MISSING_MESSAGE);
+    // Filesystem-existence check, not a text match - cannot produce a
+    // comment/JSDoc false positive. The original Production crash
+    // ("Cannot find module 'tslib'") originated inside this exact file
+    // (node_modules/@supabase/functions-js/.../helper.js, per the Vercel
+    // Runtime Log). Because @supabase/supabase-js is now inlined
+    // (noExternal), @supabase/functions-js's source is compiled directly
+    // into our own chunk and this file should no longer be packaged as a
+    // standalone module at all.
+    const found = walkForPath(FUNCTION_ROOT, (p) => p.includes(join('@supabase', 'functions-js')));
+    expect(found, 'Found @supabase/functions-js still packaged as a separate module').toEqual([]);
   });
 
   test('the deployment manifest points at the expected handler', () => {
