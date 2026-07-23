@@ -38,4 +38,33 @@ export default defineConfig({
   // pointer events and breaks click-based tests. A human running
   // `pnpm run dev` normally still gets the toolbar.
   devToolbar: { enabled: !process.env.PLAYWRIGHT_TEST },
+  // Production runtime fix (2026-07-23): the deployed /api/quote-submit
+  // function crashed with "Cannot find module 'tslib'" - the require
+  // originated inside @supabase/functions-js (a transitive dependency of
+  // @supabase/supabase-js). Local inspection confirmed tslib is correctly
+  // declared and locally resolves via pnpm's per-package symlinks, and a
+  // local production build's packaged Vercel function does contain tslib
+  // in every required location - so this is not a missing/misclassified
+  // dependency. The local verification ran on Windows, though, and cannot
+  // rule out a build-environment-specific (Windows vs. Vercel's Linux
+  // build machine) difference in how pnpm's symlinked node_modules tree
+  // gets traced/packaged for the deployed function. Rather than continue
+  // diagnosing an environment this repository cannot directly inspect,
+  // `noExternal` makes Vite bundle @supabase/supabase-js's actual source
+  // directly into the compiled server output at build time. `tslib` must
+  // be listed explicitly too - verified directly that bundling only
+  // `@supabase/supabase-js` still left a separate, external
+  // `import { __awaiter, __rest } from "tslib"` in the compiled chunk
+  // (Rollup's standard helper-import convention), which would have left
+  // the exact same runtime resolution risk in place. With both packages
+  // listed, the compiled output contains no external reference to either
+  // package - eliminating the runtime filesystem lookup entirely,
+  // regardless of pnpm hoisting mode, symlink type, or the tracer's
+  // behavior. Resend has no runtime dependencies of its own (confirmed
+  // directly) and is not affected by this class of failure.
+  vite: {
+    ssr: {
+      noExternal: ['@supabase/supabase-js', 'tslib'],
+    },
+  },
 });
