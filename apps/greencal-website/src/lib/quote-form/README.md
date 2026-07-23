@@ -237,6 +237,117 @@ in Vercel's project settings (and, for local testing, an untracked
 speculative, vendor-specific variable was added for any provider not
 approved in ADR-0006.
 
+### Required Vercel environment scope
+
+Every Stage 4A variable must be set for **both Preview and Production**
+(this repository has no branch-specific override) so that a controlled
+preview deployment can exercise the same configuration production will
+use. None are needed in Development scope unless someone chooses to run
+`vercel dev` locally instead of `astro dev`.
+
+| Variable                       | Development | Preview  | Production | Redeploy required after change? |
+| ------------------------------ | ----------- | -------- | ---------- | ------------------------------- |
+| `PUBLIC_GTM_CONTAINER_ID`      | Optional    | Optional | Optional   | Yes                             |
+| `SUPABASE_URL`                 | Not needed  | Required | Required   | Yes                             |
+| `SUPABASE_SERVICE_ROLE_KEY`    | Not needed  | Required | Required   | Yes                             |
+| `RESEND_API_KEY`               | Not needed  | Required | Required   | Yes                             |
+| `RESEND_FROM_ADDRESS`          | Not needed  | Required | Required   | Yes                             |
+| `NOTIFICATION_RECIPIENT_EMAIL` | Not needed  | Required | Required   | Yes                             |
+
+Vercel bakes environment variables into a deployment at build/runtime
+start - saving a new value in Project Settings does **not** change any
+deployment that is already running. A deployment created before the
+variable was added or changed will keep using the old value (or keep
+falling back to `pending_configuration` if the variable was previously
+absent) until either a fresh deployment is triggered (e.g. a new push to
+the branch) or an existing deployment is explicitly redeployed from the
+Vercel dashboard.
+
+## Vercel project configuration (Git linkage and production branch)
+
+This repository contains no `vercel.json` and no committed `.vercel/`
+project-link metadata (`.vercel/` is gitignored - see `.gitignore` and
+`.prettierignore`). Vercel's GitHub integration does not require any
+in-repo file - the repository-to-project link, the production branch,
+the root directory, and the build/output commands are all configured
+entirely in the Vercel dashboard. **None of that configuration can be
+confirmed from this repository alone.** The owner must confirm the
+following in Vercel before a controlled preview test is attempted:
+
+**Vercel dashboard -> [project] -> Settings -> Git:**
+
+1. **Connected Git repository** - must be this GitHub repository
+   (whichever org/repo `feat/greencal-revenue-launch` is pushed to).
+2. **Production branch** - expected to be `main` (this repository's
+   default branch per root `CLAUDE.md`), not `feat/greencal-revenue-launch`.
+   Confirm this explicitly; do not assume. A controlled preview test must
+   never run against a deployment built from the Production Branch
+   setting.
+3. **Root directory** - must be `apps/greencal-website` (this is a pnpm
+   monorepo; a root directory of `.` would build the wrong app or fail).
+4. **Build command / Output directory / Install command** - Astro with
+   `@astrojs/vercel` normally auto-detects these
+   (`pnpm install` / `astro build` / framework-managed output via
+   `.vercel/output`); confirm no manual override contradicts that,
+   especially any override left over from before the adapter was added.
+5. **Ignored Build Step** - confirm nothing here would skip building this
+   app on pushes to `feat/greencal-revenue-launch`.
+6. **Automatic deployments / Preview Deployments** - confirm Preview
+   Deployments are enabled for this branch (or for all non-production
+   branches), so pushing to `feat/greencal-revenue-launch` actually
+   produces a preview URL.
+
+**Vercel dashboard -> [project] -> Settings -> Environment Variables:**
+
+1. Confirm each of the five Stage 4A variables (table above) exists with
+   **Preview** scope checked (and Production, separately, for eventual
+   launch) - not Development-only.
+2. Confirm no branch-specific override for `feat/greencal-revenue-launch`
+   silently contradicts the shared Preview values.
+3. After adding/changing any variable, trigger a new deployment (push, or
+   the dashboard's "Redeploy" action on the latest preview) and confirm
+   the **new** deployment - not a cached older one - is what gets tested.
+
+This repository's own CI (`.github/workflows/ci.yml`) only runs lint,
+typecheck, build, and Playwright tests on push/PR to `main`/`develop` - it
+does not deploy anywhere. `.github/workflows/deploy.yml` is an explicit,
+unimplemented placeholder (`workflow_dispatch` only, echoes a placeholder
+line). Neither workflow provides evidence of, or performs, any Vercel
+deployment - deployment is entirely the Vercel GitHub integration's
+responsibility, configured in the dashboard.
+
+## Controlled preview verification procedure (Stage 4B activation)
+
+Once the Vercel Git/environment-variable configuration above is
+owner-confirmed and a fresh preview deployment exists for
+`feat/greencal-revenue-launch` with all five variables set:
+
+1. Open the preview URL Vercel generated for this branch (found on the
+   Vercel dashboard's Deployments list, not guessed or constructed).
+2. Submit exactly one test lead through `/contact-us` using clearly
+   fake, non-production data, e.g. full name
+   `GREENCAL PREVIEW TEST — DO NOT CONTACT`, a non-working phone number,
+   and a test email address the owner controls.
+3. Record only non-sensitive evidence: the preview URL, submission
+   timestamp, HTTP status, the `status` field from the JSON response, and
+   (if visible in Resend's dashboard) the provider request id - never the
+   full email body or any real customer data.
+4. Confirm in Supabase that exactly one `quote_leads` row was created
+   with `lead_storage_status: 'stored'` and `notification_status: 'sent'`.
+5. Confirm exactly one notification email arrived at
+   `greencaliforniacorporation@gmail.com`.
+6. Resubmit the identical test data once and confirm no second Supabase
+   row and no second email were created (idempotent replay - see
+   "Idempotency and duplicate protection" above).
+7. Only after all of the above are independently confirmed should this
+   stage's delivery be described as verified - a successful HTTP response
+   alone is not sufficient evidence.
+
+This procedure was **not** performed as part of any automated stage in
+this repository - it requires real, owner-provisioned Supabase/Resend
+credentials and a real Vercel preview deployment, none of which exist in
+this local development environment.
+
 ## Secrets handling
 
 - No real credential value exists anywhere in this repository - only
