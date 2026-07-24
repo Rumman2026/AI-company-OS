@@ -1,0 +1,15 @@
+node_modules
+dist
+build
+coverage
+pnpm-lock.yaml
+
+# Vendored, third-party runtime files copied byte-for-byte from an
+# officially published npm package - must never be reformatted. See
+# apps/greencal-website/vendor/tslib/README.md. Reformatting these
+# breaks both upstream byte-for-byte fidelity and the SHA-256 hashes
+# recorded in that directory's integrity.json - confirmed directly that
+# lint-staged's repo-wide `prettier --write` on staged *.{js,json,md}
+# files silently corrupted these files during a commit before this
+# ignore rule existed.
+apps/greencal-website/vendor/**
