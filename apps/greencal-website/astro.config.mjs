@@ -7,9 +7,26 @@ import { pathToFileURL } from 'node:url';
 // Resolved via Node's own resolver (not a hardcoded pnpm store path like
 // `node_modules/.pnpm/tslib@2.8.1/...`) so this stays correct regardless of
 // which machine runs the build or what tslib patch/minor version is
-// installed - see the Attempt 4 comment below for why this exists.
+// installed - see the Attempt 4/5 comments below for why this exists.
+//
+// Deliberately resolves the bare `tslib` specifier, not the `tslib/
+// package.json` subpath: Vercel's build for commit d931b5a failed while
+// *evaluating this file*, before Astro/Rolldown/the adapter ever ran,
+// with "Cannot find module 'tslib/package.json'" - Node's classic
+// MODULE_NOT_FOUND wording (a "Require stack" trace), not the distinct
+// ERR_PACKAGE_PATH_NOT_EXPORTED wording Node uses when an exports map
+// deliberately rejects a subpath. tslib's own package.json exports map
+// does define a `"./*": "./*"` wildcard that covers `./package.json`,
+// and `require.resolve('tslib/package.json')` succeeds in every local
+// reproduction attempted (plain Node, and through Astro's actual
+// config-loading pipeline) - so this could not be forced to fail
+// locally. The bare `tslib` specifier only needs the exports map's
+// simple `"default": "./tslib.js"` target, not wildcard subpath
+// matching, so resolving it instead removes one entire, real category of
+// difference between this local environment and Vercel's build machine,
+// without needing to identify exactly which one caused the failure.
 const require = createRequire(import.meta.url);
-const tslibDir = dirname(require.resolve('tslib/package.json'));
+const tslibDir = dirname(require.resolve('tslib'));
 const tslibIncludeFiles = [
   'package.json',
   'tslib.js',
@@ -73,10 +90,14 @@ export default defineConfig({
     // keeps working across any future tslib version bump or differently
     // shaped store layout.
     //
-    // Not yet confirmed against a real Vercel deployment - no build/
-    // runtime log access exists in this repository. See
-    // src/lib/quote-form/README.md for the real end-to-end test
-    // procedure.
+    // Attempt 5 (2026-07-24): commit d931b5a's Vercel Build Log showed
+    // Attempt 4 never actually ran - the build failed even earlier, while
+    // evaluating this config file itself, before Astro/Rolldown/this
+    // adapter's packaging step. See the `require.resolve('tslib')` (not
+    // `'tslib/package.json'`) comment above for the fix and reasoning.
+    // `includeFiles` itself is otherwise unchanged from Attempt 4 and
+    // remains unvalidated against a real Vercel deployment - only the
+    // config-time path used to compute it changed.
     includeFiles: tslibIncludeFiles,
   }),
   server: {
