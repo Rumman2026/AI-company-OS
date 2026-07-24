@@ -1,5 +1,21 @@
 import { defineConfig } from 'astro/config';
 import vercel from '@astrojs/vercel';
+import { createRequire } from 'node:module';
+import { dirname, join } from 'node:path';
+import { pathToFileURL } from 'node:url';
+
+// Resolved via Node's own resolver (not a hardcoded pnpm store path like
+// `node_modules/.pnpm/tslib@2.8.1/...`) so this stays correct regardless of
+// which machine runs the build or what tslib patch/minor version is
+// installed - see the Attempt 4 comment below for why this exists.
+const require = createRequire(import.meta.url);
+const tslibDir = dirname(require.resolve('tslib/package.json'));
+const tslibIncludeFiles = [
+  'package.json',
+  'tslib.js',
+  join('modules', 'index.js'),
+  join('modules', 'package.json'),
+].map((relative) => pathToFileURL(join(tslibDir, relative)).href);
 
 // Static-first output — see DECISIONS.md ADR-0004. `output` remains
 // 'static': every existing page stays prerendered by default. The Vercel
@@ -16,7 +32,53 @@ import vercel from '@astrojs/vercel';
 export default defineConfig({
   site: 'https://www.greencalpressurewashing.com',
   output: 'static',
-  adapter: vercel(),
+  adapter: vercel({
+    // Attempt 4 (2026-07-24) - see the extensive vite.build.rolldownOptions
+    // comment below for Attempts 1-3. Vercel Runtime Log evidence for
+    // commit 2c9c6d6 confirmed the build now succeeds and tslib survives
+    // as an external runtime import in the generated chunk, but the
+    // deployed function still crashed: "Error [ERR_MODULE_NOT_FOUND]:
+    // Cannot find package 'tslib' imported from
+    // .../dist/server/chunks/quote-submit_*.mjs".
+    //
+    // Root cause, confirmed by reading @astrojs/vercel's own packaging
+    // code (dist/lib/nft.js): the deployed function's file set is
+    // whatever @vercel/nft's static trace discovers from entry.mjs, plus
+    // `includeFiles` below. For a symlinked pnpm package, the packaging
+    // step (@astrojs/internal-helpers's copyFilesToFolder) copies only a
+    // *relative symlink* into the function output - the real file bytes
+    // land in the package only if NFT's trace *separately* discovers the
+    // real (non-symlinked) target too. Confirmed directly in a local
+    // build that this happened correctly here (both the symlink and its
+    // real target under node_modules/.pnpm/tslib@.../ were present and
+    // self-contained inside .vercel/output/functions/_render.func) - but
+    // that only proves my local (Windows) NFT trace succeeded. Vercel's
+    // build reruns astro build and its own NFT trace fresh, from scratch,
+    // on its own Linux machine - it does not reuse this local output, so
+    // a locally-complete trace is not evidence Vercel's trace is also
+    // complete (this is the same local/Vercel gap documented in every
+    // prior attempt below).
+    //
+    // Also confirmed directly: a bare `import ... from "tslib"` resolves,
+    // per tslib's own package.json "exports" field, to
+    // `tslib/modules/index.js` (not `tslib.js`, which is the CJS
+    // "require"/"default" target) - and modules/index.js needs its
+    // sibling modules/package.json (`{"type":"module"}`) alongside it for
+    // Node to parse it as ESM. All four files are listed explicitly below
+    // so the deployed function no longer depends on NFT successfully
+    // tracing a bare external specifier through a symlinked pnpm
+    // directory - `includeFiles` bypasses that trace entirely for this
+    // dependency. Paths are resolved via Node's own `require.resolve`
+    // rather than a hardcoded `.pnpm/tslib@2.8.1/...` string so this
+    // keeps working across any future tslib version bump or differently
+    // shaped store layout.
+    //
+    // Not yet confirmed against a real Vercel deployment - no build/
+    // runtime log access exists in this repository. See
+    // src/lib/quote-form/README.md for the real end-to-end test
+    // procedure.
+    includeFiles: tslibIncludeFiles,
+  }),
   server: {
     port: 4321,
   },

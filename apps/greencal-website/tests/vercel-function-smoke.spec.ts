@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
+import { existsSync, lstatSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
@@ -53,23 +53,45 @@ function walkForPath(
 // configuration - no Linux/container environment was available in this
 // repository to test against).
 //
-// Attempt 3 (current): `noExternal: ['@supabase/supabase-js']` plus
+// Attempt 3: `noExternal: ['@supabase/supabase-js']` plus
 // `build.rolldownOptions.external: ['tslib']` - Rolldown's own native,
 // pre-resolution `external` filter, a different code path than Vite's
 // implicit heuristic. Verified directly (via a temporary diagnostic Vite
 // plugin) that this option is actually received by Rolldown at every
 // build phase, including the real SSR/@astrojs/vercel entrypoint build -
-// not silently dropped by Astro's config merging.
+// not silently dropped by Astro's config merging. Build succeeded on
+// Vercel (confirmed via Vercel Build Logs for commit 2c9c6d6), but the
+// deployed function then crashed at runtime: "Error
+// [ERR_MODULE_NOT_FOUND]: Cannot find package 'tslib' imported from
+// .../dist/server/chunks/quote-submit_*.mjs" (confirmed via Vercel
+// Runtime Logs, correlated to a controlled safe probe).
 //
-// The assertions below check the properties that actually matter rather
-// than re-asserting `tslib` is never externally referenced (it is now
-// intentionally external): that none of the five @supabase/* sub-packages
-// known to import `tslib` remain packaged as separate modules, and that
-// the resulting bare `tslib` import has the shortest possible resolution
-// path from the packaged entry point (a direct, standard two-levels-up
-// node_modules walk to a package.json-declared direct dependency, not a
-// deep .pnpm-store path reached only through a third-party sub-package's
-// own resolution scope).
+// Attempt 4 (current): added `includeFiles` to the @astrojs/vercel
+// adapter config (astro.config.mjs), forcing four specific tslib files in
+// directly rather than relying on @vercel/nft's static trace to discover
+// them. Root-caused by reading @astrojs/vercel's own packaging code
+// (dist/lib/nft.js + @astrojs/internal-helpers's copyFilesToFolder): for
+// a symlinked pnpm package, the packaging step copies only a *relative
+// symlink* into the function output - the real file bytes land in the
+// package only if NFT's trace *separately* discovers the real
+// (non-symlinked) target too. A local trace succeeding is not evidence
+// Vercel's own from-scratch Linux trace will also succeed - the same
+// local/Vercel gap present in every prior attempt. Also confirmed
+// directly via tslib's own package.json "exports" field that a bare
+// `import ... from "tslib"` resolves to `tslib/modules/index.js` (not
+// `tslib.js`, the CJS/"default" target), and that file needs its sibling
+// `modules/package.json` (`{"type":"module"}`) for Node to parse it as
+// ESM - a distinction the Attempt 3 regression coverage below did not
+// check for.
+//
+// The assertions below check the properties that actually matter: that
+// none of the five @supabase/* sub-packages known to import `tslib`
+// remain packaged as separate modules, and that all four files needed to
+// resolve `tslib` as a real Node ESM import are present as genuine files
+// (not symlinks whose target may not exist in an isolated deployment) -
+// checked using only paths inside the packaged function output itself,
+// not the surrounding local repository, so this can't pass merely because
+// the rest of the monorepo's node_modules happens to still be on disk.
 
 const FUNCTION_ROOT = join(__dirname, '..', '.vercel', 'output', 'functions', '_render.func');
 const ENTRY = join(FUNCTION_ROOT, 'apps', 'greencal-website', 'dist', 'server', 'entry.mjs');
@@ -158,17 +180,16 @@ test.describe('Vercel serverless function packaging (tslib production-incident r
     }
   });
 
-  test('the runtime-external tslib import resolves via the shortest possible path from the packaged entry point', () => {
+  test('the runtime-external tslib import resolves via a real (non-symlink) node_modules/tslib entry', () => {
     test.skip(!existsSync(ENTRY), BUILD_MISSING_MESSAGE);
     // `tslib` is deliberately left external (see astro.config.mjs) - this
-    // confirms the resulting bare `import "tslib"` has the shortest,
-    // most standard resolution path available: a direct
-    // `<entry-dir>/../../node_modules/tslib` walk (two levels up from
-    // dist/server/, matching Node's own module-resolution algorithm),
-    // landing on `tslib` as a package.json-declared direct dependency of
-    // this app - not a path reachable only through a third-party
-    // sub-package's own deeply-nested pnpm resolution scope, which is
-    // what the original incident's crash sites required.
+    // confirms the resulting bare `import "tslib"` has a valid resolution
+    // path: a direct `<entry-dir>/../../node_modules/tslib` walk (two
+    // levels up from dist/server/, matching Node's own module-resolution
+    // algorithm). Does not assert this is a real file vs. a symlink - see
+    // the dedicated test below for that, which is the actual Attempt-4
+    // production incident regression coverage (a symlink here can still
+    // point at a target the isolated deployed package never received).
     const appNodeModules = join(FUNCTION_ROOT, 'apps', 'greencal-website', 'node_modules', 'tslib');
     expect(existsSync(appNodeModules), `${appNodeModules} does not exist`).toBe(true);
     const tslibEntry = join(appNodeModules, 'tslib.js');
@@ -176,6 +197,50 @@ test.describe('Vercel serverless function packaging (tslib production-incident r
       true,
     );
     expect(statSync(tslibEntry).size).toBeGreaterThan(0);
+  });
+
+  test('all four files needed to resolve tslib as a real Node ESM import are genuine files inside the packaged function, not dangling-risk symlinks', () => {
+    test.skip(!existsSync(FUNCTION_ROOT), BUILD_MISSING_MESSAGE);
+    // Regression coverage for the confirmed 2026-07-24 Production runtime
+    // incident: commit 2c9c6d6's build succeeded and a `node_modules/tslib`
+    // symlink was present, but the deployed function still crashed with
+    // "Error [ERR_MODULE_NOT_FOUND]: Cannot find package 'tslib'" - because
+    // the packaging step (@astrojs/internal-helpers's copyFilesToFolder)
+    // copies only a *relative symlink* for a symlinked pnpm package; the
+    // real file bytes land in the deployed package only if @vercel/nft's
+    // trace *separately* discovers the real target too, which is not
+    // guaranteed (see astro.config.mjs's `includeFiles` comment). A local
+    // build succeeding is not sufficient evidence here - Vercel reruns its
+    // own trace from scratch on a different machine.
+    //
+    // Per tslib's own package.json "exports" field, a bare
+    // `import ... from "tslib"` resolves to tslib/modules/index.js (the
+    // "import"+"node" condition), not tslib.js (the "default"/CJS
+    // fallback) - and modules/index.js needs its sibling
+    // modules/package.json (`{"type":"module"}`) for Node to parse it as
+    // ESM rather than throw a SyntaxError. This test walks the packaged
+    // output (not the surrounding repository) for any path ending in each
+    // of the four required files and asserts each match is a genuine file
+    // (lstat, not stat, so a symlink is correctly identified as such
+    // rather than silently followed) with real byte content - so this
+    // fails the same way the original incident did if `includeFiles` is
+    // ever removed and NFT's trace alone becomes incomplete again.
+    const requiredRelativePaths = [
+      join('tslib', 'package.json'),
+      join('tslib', 'tslib.js'),
+      join('tslib', 'modules', 'index.js'),
+      join('tslib', 'modules', 'package.json'),
+    ];
+    for (const relativePath of requiredRelativePaths) {
+      const matches = walkForPath(FUNCTION_ROOT, (p) => p.endsWith(relativePath));
+      expect(matches.length, `No packaged file found ending in ${relativePath}`).toBeGreaterThan(0);
+      for (const match of matches) {
+        expect(lstatSync(match).isSymbolicLink(), `${match} is a symlink, not a real file`).toBe(
+          false,
+        );
+        expect(statSync(match).size, `${match} is empty`).toBeGreaterThan(0);
+      }
+    }
   });
 
   test('the deployment manifest points at the expected handler', () => {
