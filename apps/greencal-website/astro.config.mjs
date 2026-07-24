@@ -2,61 +2,20 @@ import { defineConfig } from 'astro/config';
 import vercel from '@astrojs/vercel';
 
 // Static, non-dynamic tslib file list for the Vercel adapter's
-// `includeFiles` (see the adapter comment below for full Attempt 4-6
-// history). No require.resolve/createRequire/import.meta.resolve here -
-// both dynamic-resolution attempts (Attempts 4 and 5) failed while
-// Vercel evaluated this exact config file, before Astro/Rolldown/the
-// adapter ever ran.
-//
-// Two distinct sets of paths are required, proven by directly inspecting
-// generated build output (not assumed):
-//
-// 1. The app-level symlink itself
-//    (apps/greencal-website/node_modules/tslib), included via its
-//    through-the-symlink path. This is the only location Node's own
-//    bare-specifier resolution walk will actually check when resolving
-//    `import ... from "tslib"` from
-//    dist/server/chunks/quote-submit_*.mjs (Node walks up from the
-//    requiring file's directory checking literal `node_modules/tslib` at
-//    each ancestor level - it does not know to look inside a `.pnpm`
-//    store on its own). Confirmed directly that including only this
-//    path recreates just another *symlink* at the destination (via
-//    @astrojs/internal-helpers's copyFilesToFolder, which detects
-//    `fs.realpath(origin) !== origin` for any path traversing a
-//    symlinked directory and always emits a symlink, never a byte copy,
-//    for such a path) - this alone does not guarantee the symlink's
-//    target contains real bytes; it only guarantees a pointer exists.
-//
-// 2. The real, non-symlinked pnpm-store files
-//    (node_modules/.pnpm/tslib@2.8.1/node_modules/tslib/...), included
-//    directly. Confirmed directly these are NOT reached through any
-//    symlinked path segment, so copyFilesToFolder's realpath check finds
-//    `origin === realpath` and performs an actual `fs.copyFile` - a real
-//    byte copy, independent of whether @vercel/nft's own trace also
-//    happens to find them (which is the exact dependency this fix
-//    removes; see the adapter comment below for why that dependency was
-//    unsafe).
-//
-// Together, both sets make the deployed function self-contained for
-// tslib resolution without depending on NFT's trace for either the
-// pointer or its target. The pnpm store path is version-pinned
-// (tslib@2.8.1, matching the exact locked version in pnpm-lock.yaml) -
-// intentionally not resolved dynamically per the explicit requirement to
-// remove all Node package resolution from config-eval time. A future
-// tslib version bump requires updating this literal string; the build
-// fails loudly (missing file) rather than silently deploying a broken
-// runtime import if it's forgotten - see the regression test in
-// tests/vercel-function-smoke.spec.ts asserting the pinned version
-// matches pnpm-lock.yaml.
+// `includeFiles` (see the adapter comment below for full attempt
+// history). These paths only work because package.json's "prebuild"
+// script (scripts/stage-tslib.mjs) runs before "astro build" and
+// guarantees a REAL (non-symlink) node_modules/tslib directory exists
+// here first - see that script's own extensive comment for why. Without
+// it, Vercel's Build Log for commit aeda3ce proved this exact path does
+// not reliably exist in Vercel's installed workspace layout at all
+// ("ENOENT: no such file or directory, realpath '.../apps/
+// greencal-website/node_modules/tslib/package.json'").
 const tslibIncludeFiles = [
   './node_modules/tslib/package.json',
   './node_modules/tslib/tslib.js',
   './node_modules/tslib/modules/index.js',
   './node_modules/tslib/modules/package.json',
-  '../../node_modules/.pnpm/tslib@2.8.1/node_modules/tslib/package.json',
-  '../../node_modules/.pnpm/tslib@2.8.1/node_modules/tslib/tslib.js',
-  '../../node_modules/.pnpm/tslib@2.8.1/node_modules/tslib/modules/index.js',
-  '../../node_modules/.pnpm/tslib@2.8.1/node_modules/tslib/modules/package.json',
 ];
 
 // Static-first output — see DECISIONS.md ADR-0004. `output` remains
@@ -115,73 +74,58 @@ export default defineConfig({
     // keeps working across any future tslib version bump or differently
     // shaped store layout.
     //
-    // Attempt 5 (2026-07-24): commit d931b5a's Vercel Build Log showed
-    // Attempt 4 never actually ran - the build failed even earlier, while
-    // evaluating this config file itself, before Astro/Rolldown/this
-    // adapter's packaging step, with "Cannot find module
-    // 'tslib/package.json'". Switched to `require.resolve('tslib')`
-    // (the bare specifier, needing only the exports map's simple
-    // "default" target, not wildcard subpath matching).
+    // Attempt 5: commit d931b5a's Vercel Build Log showed Attempt 4 never
+    // actually ran - the build failed even earlier, while evaluating this
+    // config file itself, with "Cannot find module 'tslib/package.json'".
+    // Switched to `require.resolve('tslib')` (the bare specifier).
     //
-    // Attempt 6 (2026-07-24): commit 74bb277's Vercel Build Log showed
-    // Attempt 5 ALSO failed at the same config-eval point, now with
-    // "Cannot find module 'tslib'" - the bare specifier itself. Both
-    // dynamic-resolution mechanisms (require.resolve('tslib/
-    // package.json') and require.resolve('tslib')) fail during Vercel's
-    // config load, despite every local reproduction attempted succeeding
-    // for both (plain Node, and through Astro's actual config-loading
-    // pipeline, confirmed via temporary diagnostics removed before
-    // finalizing) - the same irreducible local/Vercel gap present in
-    // every attempt this session, now affecting config-eval time itself
-    // rather than build or runtime.
+    // Attempt 6: commit 74bb277's Vercel Build Log showed Attempt 5 ALSO
+    // failed at the same config-eval point, now with "Cannot find module
+    // 'tslib'" - the bare specifier itself. Both dynamic-resolution
+    // mechanisms failed during Vercel's config load despite succeeding in
+    // every local reproduction attempted (plain Node, and through
+    // Astro's actual config-loading pipeline) - removed all dynamic
+    // resolution from this file per explicit direction; `includeFiles`
+    // became a static list of string literals covering both the
+    // app-level symlink path and a version-pinned real pnpm-store path.
+    // Empirically confirmed (by building locally and inspecting
+    // .vercel/output/functions/_render.func) that a path traversing the
+    // app-level symlink alone only recreates another symlink at the
+    // destination (via @astrojs/internal-helpers's copyFilesToFolder,
+    // which detects `fs.realpath(origin) !== origin` for any symlinked
+    // path and always emits a symlink, never a byte copy) - the
+    // non-symlinked pnpm-store path was needed alongside it to guarantee
+    // real bytes independent of @vercel/nft's own trace.
     //
-    // Per explicit direction, all dynamic tslib resolution (require.
-    // resolve, createRequire, import.meta.resolve, bare-specifier
-    // resolution of any kind) is removed from this file. tslibIncludeFiles
-    // above is now a static list of string literals only.
+    // Attempt 7 (current): commit aeda3ce's Vercel Build Log showed
+    // Attempt 6's config now loads successfully and the build reaches
+    // the @astrojs/vercel function-packaging stage - but packaging then
+    // fails: "ENOENT: no such file or directory, realpath '.../apps/
+    // greencal-website/node_modules/tslib/package.json'", from
+    // @astrojs/vercel/dist/lib/nft.js's copyDependenciesToFunction. This
+    // proves the app-level `node_modules/tslib` pnpm symlink - present
+    // and reliable in every local Windows build this session - does not
+    // exist at all in Vercel's installed workspace layout at packaging
+    // time (copyFilesToFolder's `fs.realpath()` call throws ENOENT for a
+    // path that doesn't exist, distinct from the "symlink exists but its
+    // target might be missing" risk every prior attempt was addressing).
     //
-    // Empirically tested (not assumed) two candidate path styles by
-    // building locally and inspecting .vercel/output/functions/
-    // _render.func directly:
-    //
-    // - Paths through the app-level symlink alone
-    //   (./node_modules/tslib/...) only recreate another *symlink* in the
-    //   output (confirmed via @astrojs/internal-helpers's
-    //   copyFilesToFolder: any path whose realpath differs from the
-    //   literal path - true for anything traversing a symlinked
-    //   directory - always produces a recreated symlink, never a byte
-    //   copy). This alone does not guarantee the symlink's target
-    //   contains real bytes independent of @vercel/nft's own trace - the
-    //   exact dependency this fix exists to remove.
-    //
-    // - The real, non-symlinked pnpm-store paths
-    //   (../../node_modules/.pnpm/tslib@2.8.1/node_modules/tslib/...)
-    //   are not reached through any symlinked segment, so
-    //   copyFilesToFolder's realpath check finds origin === realpath and
-    //   performs a genuine fs.copyFile - independent of NFT.
-    //
-    // Both sets are included together: the symlink path so Node's own
-    // bare-specifier resolution walk (which only checks literal
-    // `node_modules/tslib` at each ancestor directory of the requiring
-    // chunk file - it has no special knowledge of a `.pnpm` store) finds
-    // a pointer at the one location it will actually look, and the real
-    // pnpm-store path so that pointer's target is guaranteed to contain
-    // real bytes. Verified locally by copying the packaged
-    // _render.func directory to a location outside this repository
-    // entirely and running the same module-load smoke test from there -
-    // confirming resolution succeeds without any dependency on the rest
-    // of the monorepo still being present on disk, not just within it.
-    //
-    // The pnpm-store path is version-pinned to tslib@2.8.1 (matching
-    // pnpm-lock.yaml exactly) rather than dynamically resolved, per the
-    // explicit requirement to remove all Node package resolution from
-    // config-eval time. This is intentionally fragile to a future tslib
-    // version bump - the build will fail loudly (file not found) rather
-    // than silently deploy a broken runtime import if this string is not
-    // updated alongside a version bump. See
-    // tests/vercel-function-smoke.spec.ts for a regression test that
-    // fails locally, at test time, if this pinned version ever drifts
-    // from pnpm-lock.yaml's actual resolved tslib version.
+    // Rather than reference that unreliable path at all, package.json's
+    // "prebuild" script (scripts/stage-tslib.mjs, which pnpm's lifecycle
+    // automatically runs before "build" - i.e. before "astro build" -
+    // whenever Vercel's observed build command "pnpm run build" is
+    // invoked) now creates a REAL (non-symlink) node_modules/tslib
+    // directory in the app before Astro ever evaluates this config file,
+    // copying only the four required files by bytes from wherever the
+    // installed tslib package actually resolves (see that script for its
+    // own resolution/verification/idempotency logic - it runs as a plain
+    // Node process, not through Astro/Vite's config loader, which is the
+    // mechanism that failed in Attempts 4-5). Because the staged files
+    // are real, non-symlinked copies, `includeFiles` no longer needs a
+    // separate pnpm-store fallback path - copyFilesToFolder finds
+    // `origin === realpath` for a real file and performs a genuine
+    // fs.copyFile, the same guarantee Attempt 6 needed two path sets to
+    // achieve.
     //
     // Not yet confirmed against a real Vercel deployment - no build/
     // runtime log access exists in this repository.

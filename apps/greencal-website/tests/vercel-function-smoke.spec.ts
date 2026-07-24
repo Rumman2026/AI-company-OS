@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { spawnSync } from 'node:child_process';
 import { existsSync, lstatSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -268,47 +269,80 @@ test.describe('Vercel serverless function packaging (tslib production-incident r
     }
   });
 
-  test('the pnpm-store path hardcoded in astro.config.mjs matches the actually-locked tslib version', () => {
-    // Regression coverage for Attempt 6 (2026-07-24): astro.config.mjs's
-    // `includeFiles` now references a version-pinned pnpm-store path
-    // (node_modules/.pnpm/tslib@2.8.1/...) as a plain string literal,
-    // deliberately not resolved dynamically - Vercel's build for commits
-    // d931b5a and 74bb277 both failed while *evaluating astro.config.mjs
-    // itself*, before Astro/Rolldown/the adapter ever ran, using
-    // require.resolve('tslib/package.json') and then require.resolve('tslib')
-    // respectively - neither could be reproduced as a failure locally
-    // (both succeed here, including through Astro's actual config-loading
-    // pipeline), so no dynamic resolution mechanism can be trusted here
-    // for now. A hardcoded version string silently goes stale on a future
-    // tslib version bump - normally not caught until Vercel's build fails
-    // with a missing-file error days or weeks later. This test instead
-    // fails immediately, locally, the moment pnpm-lock.yaml's locked
-    // tslib version drifts from the string hardcoded in astro.config.mjs,
-    // so updating the pin is a required, visible step of any future tslib
-    // version bump rather than a silent trap.
-    const configSource = readFileSync(join(__dirname, '..', 'astro.config.mjs'), 'utf-8');
-    const pinnedVersionMatch = configSource.match(/\.pnpm[\\/]tslib@([\d.]+)[\\/]/);
+  test('the app-level node_modules/tslib entry, both staged locally and packaged inside _render.func, is a real directory - not a symlink', () => {
+    test.skip(!existsSync(FUNCTION_ROOT), BUILD_MISSING_MESSAGE);
+    // Regression coverage for the confirmed Attempt 7 (2026-07-24)
+    // Production incident: Vercel's Build Log for commit aeda3ce (Attempt
+    // 6) showed the build reached the @astrojs/vercel packaging stage and
+    // then failed there: "ENOENT: no such file or directory, realpath
+    // '.../apps/greencal-website/node_modules/tslib/package.json'" - the
+    // app-level pnpm symlink at that exact path, present and reliable in
+    // every local Windows build this session, did not exist at all in
+    // Vercel's installed workspace layout at packaging time. This is a
+    // stronger failure mode than "symlink exists but its target might be
+    // missing" (every prior attempt's concern) - the pointer itself was
+    // absent, so @vercel/nft's copyFilesToFolder's own `fs.realpath()`
+    // call threw before any copy/symlink decision could even be made.
+    //
+    // package.json's "prebuild" script (scripts/stage-tslib.mjs) now
+    // creates a REAL (non-symlink) node_modules/tslib directory before
+    // Astro ever runs, specifically so this path is never a pnpm symlink
+    // dependent on Vercel's install layout at all. Checked both before
+    // packaging (the staged source) and after (the copied destination
+    // inside _render.func) - a symlink at either point would reintroduce
+    // exactly the class of failure this attempt exists to eliminate.
+    const stagedTslib = join(__dirname, '..', 'node_modules', 'tslib');
     expect(
-      pinnedVersionMatch,
-      'astro.config.mjs does not contain a .pnpm/tslib@<version>/ path',
-    ).not.toBeNull();
-    const pinnedVersion = pinnedVersionMatch![1];
+      existsSync(stagedTslib),
+      `${stagedTslib} does not exist - did the prebuild script run?`,
+    ).toBe(true);
+    expect(
+      lstatSync(stagedTslib).isSymbolicLink(),
+      `${stagedTslib} is a symlink - the prebuild staging script should have replaced it with a real directory`,
+    ).toBe(false);
 
-    const lockfileSource = readFileSync(
-      join(__dirname, '..', '..', '..', 'pnpm-lock.yaml'),
-      'utf-8',
+    const packagedTslib = join(FUNCTION_ROOT, 'apps', 'greencal-website', 'node_modules', 'tslib');
+    expect(existsSync(packagedTslib), `${packagedTslib} does not exist`).toBe(true);
+    expect(
+      lstatSync(packagedTslib).isSymbolicLink(),
+      `${packagedTslib} is a symlink inside the packaged function - this is exactly the path Vercel's Build Log showed failing with ENOENT on realpath for commit aeda3ce`,
+    ).toBe(false);
+  });
+
+  test('the prebuild staging script (scripts/stage-tslib.mjs) runs standalone, verifies its own output, and is idempotent', () => {
+    // Runs the actual script used by package.json's "prebuild" hook
+    // directly (not just relying on it having already run as part of
+    // "pnpm run build" before this suite) - twice in a row, to verify
+    // the idempotency the script is explicitly required to have: running
+    // it against its own previously-staged output must not corrupt or
+    // fail, since Vercel's build and any local re-run both invoke it
+    // unconditionally every time.
+    const scriptPath = join(__dirname, '..', 'scripts', 'stage-tslib.mjs');
+    expect(existsSync(scriptPath), `${scriptPath} does not exist`).toBe(true);
+
+    for (let run = 1; run <= 2; run++) {
+      const result = spawnSync(process.execPath, [scriptPath], {
+        cwd: join(__dirname, '..'),
+        encoding: 'utf-8',
+      });
+      expect(
+        result.status,
+        `stage-tslib.mjs run ${run} exited nonzero. stderr:\n${result.stderr}`,
+      ).toBe(0);
+      expect(result.stderr, `run ${run} did not print its success message`).toContain(
+        '[stage-tslib] OK:',
+      );
+    }
+
+    const stagedDir = join(__dirname, '..', 'node_modules', 'tslib');
+    expect(lstatSync(stagedDir).isSymbolicLink(), `${stagedDir} is a symlink after staging`).toBe(
+      false,
     );
-    const lockedVersionMatch = lockfileSource.match(/^ {2}tslib@([\d.]+):$/m);
-    expect(
-      lockedVersionMatch,
-      'pnpm-lock.yaml does not contain a top-level tslib@<version>: entry',
-    ).not.toBeNull();
-    const lockedVersion = lockedVersionMatch![1];
-
-    expect(
-      pinnedVersion,
-      `astro.config.mjs hardcodes tslib@${pinnedVersion} but pnpm-lock.yaml has tslib@${lockedVersion} locked - update the includeFiles path in astro.config.mjs to match`,
-    ).toBe(lockedVersion);
+    for (const relative of ['package.json', join('modules', 'index.js')]) {
+      const filePath = join(stagedDir, relative);
+      expect(existsSync(filePath), `${filePath} missing after staging`).toBe(true);
+      expect(statSync(filePath).size, `${filePath} is empty after staging`).toBeGreaterThan(0);
+    }
   });
 
   test('the deployment manifest points at the expected handler', () => {
