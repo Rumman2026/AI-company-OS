@@ -1,38 +1,41 @@
 #!/usr/bin/env node
-// Prebuild staging script - Attempt 7 (2026-07-24) of the ongoing tslib
+// Prebuild staging script - Attempt 8 (2026-07-24) of the ongoing tslib
 // Vercel deployment fix. See astro.config.mjs for the full attempt
 // history. Runs as a plain, standalone Node process (via package.json's
 // "prebuild" script, invoked automatically by "pnpm run build" - Vercel's
-// observed build command) - NOT through Astro/Vite's config loader,
-// which is where Attempts 4-6 failed.
+// observed build command), before Astro ever starts.
 //
-// Vercel's Build Log for commit aeda3ce (Attempt 6) proved the
-// app-level `apps/greencal-website/node_modules/tslib` pnpm symlink -
-// present and reliable in every local Windows build this session - does
-// not exist in Vercel's installed workspace layout at Astro's
-// "astro:build:done" packaging hook: "ENOENT: no such file or
-// directory, realpath '.../apps/greencal-website/node_modules/tslib/
-// package.json'". Astro config's `includeFiles` (a static list of
-// string literals as of Attempt 6, per explicit direction to remove all
-// dynamic resolution from astro.config.mjs) cannot fix a source path
-// that does not exist at all.
+// Attempt 7 tried two dependency-install-derived sources in order:
+// require.resolve('tslib') (a plain Node process, not Astro/Vite's
+// config loader) and a deterministic pnpm virtual-store path built from
+// pnpm-lock.yaml's locked version. Vercel's Build Log for commit
+// 3b02f81 proved BOTH fail on Vercel - `require.resolve('tslib')` threw
+// MODULE_NOT_FOUND, and
+// /vercel/path0/node_modules/.pnpm/tslib@2.8.1/node_modules/tslib does
+// not exist either - despite `tslib` being a correctly declared direct
+// dependency in package.json and pnpm-lock.yaml. Vercel's installed
+// workspace layout for this package cannot be relied on at build time by
+// any method tried so far.
 //
-// This script creates a REAL (non-symlink) `node_modules/tslib`
-// directory inside the app, containing only the four files the runtime
-// bare `import ... from "tslib"` actually needs, copied by bytes - so
-// astro.config.mjs's `includeFiles` entries for
-// `./node_modules/tslib/...` always find real, physical files
-// regardless of whether pnpm/Vercel materializes its own symlink there.
+// This script no longer searches Vercel's (or any) installed
+// node_modules layout at all. Its only source is
+// apps/greencal-website/vendor/tslib/ - five files (four tslib runtime
+// files plus LICENSE.txt) vendored directly into this repository,
+// copied byte-for-byte from the officially installed tslib@2.8.1
+// package and never modified (see vendor/tslib/README.md for the full
+// provenance, license, and update procedure). Every file is verified
+// against vendor/tslib/integrity.json's recorded SHA-256 hash before
+// being copied anywhere - a hash mismatch (a corrupted checkout, a
+// tampered file, or the vendor directory and integrity.json drifting
+// out of sync) fails the build loudly rather than silently deploying
+// unverified code.
 //
-// Deliberately does NOT depend on Astro/Vite config-time resolution
-// (the mechanism that failed twice - Attempts 4 and 5). Resolution here
-// runs as a plain Node process, verified working in this exact form
-// through local reproduction; the pnpm-lock.yaml-derived fallback below
-// exists specifically so this script does not share a single point of
-// failure with require.resolve, in case that also proves unreliable in
-// Vercel's build environment for a reason not yet identified.
+// Because the source is now a plain, repository-tracked directory - not
+// an installed npm package reached through pnpm's own resolution or
+// store layout - there is nothing left for Vercel's install step to get
+// differently right or wrong.
 
-import { createRequire } from 'node:module';
+import { createHash } from 'node:crypto';
 import {
   copyFileSync,
   existsSync,
@@ -46,12 +49,17 @@ import {
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const REQUIRED_FILES = [
-  'package.json',
-  'tslib.js',
-  join('modules', 'index.js'),
-  join('modules', 'package.json'),
-];
+// Forward-slash form, matching vendor/tslib/integrity.json's "files"
+// keys exactly (JSON/npm convention - not OS-specific). Use toPath()
+// below to convert to a real filesystem path; joining these directly
+// with path.join() would silently break the integrity.json lookup on
+// Windows, where join('modules', 'index.js') produces a backslash that
+// does not match the manifest's forward-slash key.
+const REQUIRED_FILES = ['package.json', 'tslib.js', 'modules/index.js', 'modules/package.json'];
+
+function toPath(...segments) {
+  return join(...segments.flatMap((segment) => segment.split('/')));
+}
 
 function fail(message) {
   console.error(`[stage-tslib] FAILED: ${message}`);
@@ -62,21 +70,24 @@ function readJson(path) {
   return JSON.parse(readFileSync(path, 'utf-8'));
 }
 
+function sha256(path) {
+  return createHash('sha256').update(readFileSync(path)).digest('hex');
+}
+
 // Determined from this script's own location, not process.cwd() - safe
 // regardless of the directory pnpm/Vercel invokes the build command
 // from.
 const appRoot = dirname(dirname(fileURLToPath(import.meta.url)));
-const repoRoot = join(appRoot, '..', '..');
+const vendorDir = join(appRoot, 'vendor', 'tslib');
 
 function lockfileTslibVersion() {
-  const lockfilePath = join(repoRoot, 'pnpm-lock.yaml');
+  const lockfilePath = join(appRoot, '..', '..', 'pnpm-lock.yaml');
   if (!existsSync(lockfilePath)) {
     fail(`pnpm-lock.yaml not found at ${lockfilePath}`);
   }
   const lockfile = readFileSync(lockfilePath, 'utf-8');
   // Scoped specifically to the GreenCal app's own importer block (not
-  // any other workspace package, and not the root package.json) - see
-  // the exact structure this matches in pnpm-lock.yaml.
+  // any other workspace package, and not the root package.json).
   const importerMatch = lockfile.match(
     /apps\/greencal-website:\s*\n\s*dependencies:[\s\S]*?tslib:\s*\n\s*specifier:[^\n]*\n\s*version:\s*([\d.]+)/,
   );
@@ -88,77 +99,69 @@ function lockfileTslibVersion() {
   return importerMatch[1];
 }
 
-function findSourceDir(expectedVersion) {
-  // Method 1: standalone Node resolution. This runs as a plain process,
-  // not through Astro/Vite's config loader (the mechanism that failed
-  // twice on Vercel for this exact package) - verified working locally
-  // in this exact standalone form.
-  try {
-    const require = createRequire(import.meta.url);
-    const resolved = dirname(require.resolve('tslib'));
-    console.error(`[stage-tslib] require.resolve('tslib') succeeded: ${resolved}`);
-    return resolved;
-  } catch (err) {
-    console.error(
-      `[stage-tslib] require.resolve('tslib') failed (${err.code ?? err.message}) - falling back to a deterministic pnpm-store path derived from pnpm-lock.yaml.`,
-    );
+function verifyVendorSource(expectedVersion) {
+  if (!existsSync(vendorDir)) {
+    fail(`vendor source directory missing: ${vendorDir}`);
   }
 
-  // Method 3 (method 2's glob search collapses to this, since the exact
-  // version is already known from the lockfile - searching for a glob
-  // and then having to cross-check it against the lockfile version
-  // anyway is strictly more work for the same result): construct the
-  // pnpm virtual-store path directly from the version pnpm-lock.yaml
-  // says this app actually depends on.
-  const candidate = join(
-    repoRoot,
-    'node_modules',
-    '.pnpm',
-    `tslib@${expectedVersion}`,
-    'node_modules',
-    'tslib',
-  );
-  if (!existsSync(candidate)) {
+  const manifestPath = join(vendorDir, 'integrity.json');
+  if (!existsSync(manifestPath)) {
+    fail(`integrity manifest missing: ${manifestPath}`);
+  }
+  const manifest = readJson(manifestPath);
+  if (manifest.name !== 'tslib') {
+    fail(`${manifestPath} has name "${manifest.name}", expected "tslib"`);
+  }
+  if (manifest.algorithm !== 'sha256') {
+    fail(`${manifestPath} uses algorithm "${manifest.algorithm}", expected "sha256"`);
+  }
+  if (manifest.version !== expectedVersion) {
     fail(
-      `neither require.resolve('tslib') nor the deterministic pnpm-store path (${candidate}) could locate the installed tslib@${expectedVersion} package.`,
+      `${manifestPath} records tslib@${manifest.version}, but pnpm-lock.yaml locks apps/greencal-website to tslib@${expectedVersion} - the vendor directory is out of sync with the declared dependency version (see vendor/tslib/README.md's update procedure)`,
     );
   }
-  console.error(`[stage-tslib] using deterministic pnpm-store path: ${candidate}`);
-  return candidate;
-}
 
-function verifySource(sourceDir, expectedVersion) {
-  const pkgJsonPath = join(sourceDir, 'package.json');
-  if (!existsSync(pkgJsonPath)) {
-    fail(`source package.json missing at ${pkgJsonPath}`);
-  }
-  const pkg = readJson(pkgJsonPath);
+  const pkg = readJson(join(vendorDir, 'package.json'));
   if (pkg.name !== 'tslib') {
-    fail(`source package at ${sourceDir} has name "${pkg.name}", expected "tslib"`);
+    fail(`vendored package.json has name "${pkg.name}", expected "tslib"`);
   }
   if (pkg.version !== expectedVersion) {
     fail(
-      `source package at ${sourceDir} is tslib@${pkg.version}, but pnpm-lock.yaml locks apps/greencal-website to tslib@${expectedVersion} - refusing to stage a version mismatch`,
+      `vendored package.json is tslib@${pkg.version}, but pnpm-lock.yaml locks apps/greencal-website to tslib@${expectedVersion} - refusing to stage a version mismatch`,
     );
   }
-  for (const relative of REQUIRED_FILES) {
-    const filePath = join(sourceDir, relative);
+
+  // Hash every manifest-listed file (LICENSE.txt included, even though
+  // it is not one of the four files staged into node_modules/tslib
+  // below) - this is the integrity check the manifest exists for, and
+  // skipping LICENSE.txt here would leave license-notice tampering
+  // undetected.
+  for (const [relative, expectedHash] of Object.entries(manifest.files)) {
+    const filePath = toPath(vendorDir, relative);
     if (!existsSync(filePath)) {
-      fail(`required source file missing: ${filePath}`);
+      fail(`${manifestPath} lists "${relative}" but the file is missing at ${filePath}`);
     }
-    let stats;
-    try {
-      stats = statSync(filePath);
-    } catch (err) {
-      fail(`required source file unreadable: ${filePath} (${err.message})`);
+    const actualHash = sha256(filePath);
+    if (actualHash !== expectedHash) {
+      fail(
+        `${filePath} does not match its recorded hash in integrity.json (expected ${expectedHash}, got ${actualHash}) - the vendored file may be corrupted or was edited without updating the manifest`,
+      );
     }
+  }
+
+  for (const relative of REQUIRED_FILES) {
+    if (!(relative in manifest.files)) {
+      fail(`${manifestPath} does not list required runtime file "${relative}"`);
+    }
+    const filePath = toPath(vendorDir, relative);
+    const stats = statSync(filePath);
     if (stats.size === 0) {
-      fail(`required source file is empty: ${filePath}`);
+      fail(`vendored file is empty: ${filePath}`);
     }
   }
 }
 
-function stage(sourceDir) {
+function stage() {
   const destDir = join(appRoot, 'node_modules', 'tslib');
   const tmpDir = join(appRoot, 'node_modules', `.tslib-staging-tmp-${process.pid}-${Date.now()}`);
 
@@ -166,22 +169,25 @@ function stage(sourceDir) {
   mkdirSync(join(tmpDir, 'modules'), { recursive: true });
 
   for (const relative of REQUIRED_FILES) {
-    copyFileSync(join(sourceDir, relative), join(tmpDir, relative));
+    copyFileSync(toPath(vendorDir, relative), toPath(tmpDir, relative));
   }
 
   // Verify the staged copy before it ever becomes visible at the real
   // destination path - a failure here leaves only the discarded tmp
   // directory behind, never a partially-staged destination.
   for (const relative of REQUIRED_FILES) {
-    const stagedPath = join(tmpDir, relative);
+    const stagedPath = toPath(tmpDir, relative);
     if (lstatSync(stagedPath).isSymbolicLink()) {
       fail(`staged file is a symlink, not a real copy: ${stagedPath}`);
     }
     if (statSync(stagedPath).size === 0) {
       fail(`staged file is empty: ${stagedPath}`);
     }
+    if (sha256(stagedPath) !== sha256(toPath(vendorDir, relative))) {
+      fail(`staged file ${stagedPath} does not match its vendor source after copying`);
+    }
   }
-  const stagedPkg = readJson(join(tmpDir, 'package.json'));
+  const stagedPkg = readJson(toPath(tmpDir, 'package.json'));
   if (stagedPkg.name !== 'tslib') {
     fail(`staged package.json has name "${stagedPkg.name}", expected "tslib"`);
   }
@@ -200,11 +206,11 @@ console.error(
   `[stage-tslib] apps/greencal-website depends on tslib@${expectedVersion} (per pnpm-lock.yaml)`,
 );
 
-const sourceDir = findSourceDir(expectedVersion);
-verifySource(sourceDir, expectedVersion);
+verifyVendorSource(expectedVersion);
+console.error(`[stage-tslib] vendor source verified against integrity.json: ${vendorDir}`);
 
-const { destDir, version } = stage(sourceDir);
+const { destDir, version } = stage();
 
 console.error(
-  `[stage-tslib] OK: staged tslib@${version} as real files at ${destDir} (package.json, tslib.js, modules/index.js, modules/package.json)`,
+  `[stage-tslib] OK: staged tslib@${version} as real, hash-verified files at ${destDir} (package.json, tslib.js, modules/index.js, modules/package.json)`,
 );

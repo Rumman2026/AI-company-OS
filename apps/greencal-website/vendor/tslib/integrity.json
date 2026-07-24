@@ -1,0 +1,12 @@
+{
+  "name": "tslib",
+  "version": "2.8.1",
+  "algorithm": "sha256",
+  "files": {
+    "LICENSE.txt": "210b19e543130388c68654b7497e967119ce17145f66ab7d85688fbd70f08751",
+    "package.json": "f02b4851df316f29bdfcd404aa1eb41e4e216b5859015f81fcd3e91caf8be931",
+    "tslib.js": "8855865a058bc0a6df8f5db45347be041a2d6bbe1654216c51a805648c1b6e8a",
+    "modules/index.js": "b3a4765da2bc019c79f2c2c12b36f860e946119d976897f1ce945caf227d0468",
+    "modules/package.json": "f2a77d1fa2e7ee710b2835b2933d75d9c7f5dad4f1bab69e1679876e32b5e9eb"
+  }
+}

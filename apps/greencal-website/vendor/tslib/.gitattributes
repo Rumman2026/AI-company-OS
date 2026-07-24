@@ -1,0 +1,9 @@
+# These files are vendored verbatim from the officially published
+# tslib@2.8.1 npm package (see README.md and integrity.json) and must
+# remain byte-for-byte identical to that package, including its own
+# (inconsistent - some CRLF, some LF) line endings. `-text` disables
+# Git's line-ending normalization and text-based diff/merge handling for
+# every file in this directory, so a checkout on any platform never
+# silently rewrites bytes that integrity.json's SHA-256 hashes were
+# computed against.
+* -text

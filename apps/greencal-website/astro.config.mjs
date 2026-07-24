@@ -6,11 +6,15 @@ import vercel from '@astrojs/vercel';
 // history). These paths only work because package.json's "prebuild"
 // script (scripts/stage-tslib.mjs) runs before "astro build" and
 // guarantees a REAL (non-symlink) node_modules/tslib directory exists
-// here first - see that script's own extensive comment for why. Without
-// it, Vercel's Build Log for commit aeda3ce proved this exact path does
-// not reliably exist in Vercel's installed workspace layout at all
-// ("ENOENT: no such file or directory, realpath '.../apps/
-// greencal-website/node_modules/tslib/package.json'").
+// here first, staged from the repository-vendored, hash-verified source
+// at apps/greencal-website/vendor/tslib/ (see that script's and
+// vendor/tslib/README.md's own extensive comments for why). Without it,
+// Vercel's Build Log for commit aeda3ce proved this exact path does not
+// reliably exist in Vercel's installed workspace layout at all ("ENOENT:
+// no such file or directory, realpath '.../apps/greencal-website/
+// node_modules/tslib/package.json'"), and commit 3b02f81's Build Log
+// further proved neither require.resolve('tslib') nor a deterministic
+// pnpm-store path can locate the installed package on Vercel either.
 const tslibIncludeFiles = [
   './node_modules/tslib/package.json',
   './node_modules/tslib/tslib.js',
@@ -97,35 +101,50 @@ export default defineConfig({
     // non-symlinked pnpm-store path was needed alongside it to guarantee
     // real bytes independent of @vercel/nft's own trace.
     //
-    // Attempt 7 (current): commit aeda3ce's Vercel Build Log showed
-    // Attempt 6's config now loads successfully and the build reaches
-    // the @astrojs/vercel function-packaging stage - but packaging then
-    // fails: "ENOENT: no such file or directory, realpath '.../apps/
+    // Attempt 7: commit aeda3ce's Vercel Build Log showed Attempt 6's
+    // config now loads successfully and the build reaches the
+    // @astrojs/vercel function-packaging stage - but packaging then
+    // failed: "ENOENT: no such file or directory, realpath '.../apps/
     // greencal-website/node_modules/tslib/package.json'", from
     // @astrojs/vercel/dist/lib/nft.js's copyDependenciesToFunction. This
-    // proves the app-level `node_modules/tslib` pnpm symlink - present
+    // proved the app-level `node_modules/tslib` pnpm symlink - present
     // and reliable in every local Windows build this session - does not
     // exist at all in Vercel's installed workspace layout at packaging
-    // time (copyFilesToFolder's `fs.realpath()` call throws ENOENT for a
-    // path that doesn't exist, distinct from the "symlink exists but its
-    // target might be missing" risk every prior attempt was addressing).
+    // time. Added package.json's "prebuild" script
+    // (scripts/stage-tslib.mjs, run automatically before "astro build"
+    // whenever "pnpm run build" is invoked) to create a REAL
+    // (non-symlink) node_modules/tslib directory before Astro ever
+    // evaluates this config file, copying the four required files by
+    // bytes from wherever the installed tslib package resolved - tried
+    // `require.resolve('tslib')` first (a plain Node process, not
+    // Astro/Vite's config loader), falling back to a deterministic pnpm
+    // virtual-store path derived from pnpm-lock.yaml's locked version.
     //
-    // Rather than reference that unreliable path at all, package.json's
-    // "prebuild" script (scripts/stage-tslib.mjs, which pnpm's lifecycle
-    // automatically runs before "build" - i.e. before "astro build" -
-    // whenever Vercel's observed build command "pnpm run build" is
-    // invoked) now creates a REAL (non-symlink) node_modules/tslib
-    // directory in the app before Astro ever evaluates this config file,
-    // copying only the four required files by bytes from wherever the
-    // installed tslib package actually resolves (see that script for its
-    // own resolution/verification/idempotency logic - it runs as a plain
-    // Node process, not through Astro/Vite's config loader, which is the
-    // mechanism that failed in Attempts 4-5). Because the staged files
-    // are real, non-symlinked copies, `includeFiles` no longer needs a
-    // separate pnpm-store fallback path - copyFilesToFolder finds
-    // `origin === realpath` for a real file and performs a genuine
-    // fs.copyFile, the same guarantee Attempt 6 needed two path sets to
-    // achieve.
+    // Vercel's Build Log for commit 3b02f81 proved BOTH of those sources
+    // fail on Vercel too: `require.resolve('tslib')` threw
+    // MODULE_NOT_FOUND, and the deterministic pnpm-store path
+    // (node_modules/.pnpm/tslib@2.8.1/node_modules/tslib) does not exist
+    // either - despite `tslib` being a correctly declared direct
+    // dependency in package.json and pnpm-lock.yaml, confirmed
+    // repeatedly throughout this investigation. Vercel's installed
+    // dependency layout for this specific package cannot be relied on at
+    // build time by any method tried so far - the prebuild script logged
+    // the exact failure and stopped before Astro ever started, so no
+    // build-time risk was introduced by the failed attempt.
+    //
+    // Attempt 8 (current): rather than search any installed
+    // node_modules layout at all, the four tslib runtime files (plus
+    // LICENSE.txt) are now vendored directly into this repository at
+    // apps/greencal-website/vendor/tslib/ - copied byte-for-byte from
+    // the officially installed tslib@2.8.1 package, never modified (see
+    // vendor/tslib/README.md for full provenance and update procedure).
+    // scripts/stage-tslib.mjs's only source is now that directory; every
+    // file is verified against vendor/tslib/integrity.json's recorded
+    // SHA-256 hash before being staged. Because the source is a plain,
+    // repository-tracked directory rather than an installed package
+    // reached through pnpm's own resolution or store layout, there is
+    // nothing left for Vercel's install step to get differently right or
+    // wrong.
     //
     // Not yet confirmed against a real Vercel deployment - no build/
     // runtime log access exists in this repository.

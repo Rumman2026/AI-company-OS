@@ -1,6 +1,7 @@
 import { test, expect } from '@playwright/test';
 import { spawnSync } from 'node:child_process';
-import { existsSync, lstatSync, readFileSync, readdirSync, statSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+import { existsSync, lstatSync, readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
@@ -92,23 +93,37 @@ function walkForPath(
 // 'tslib/package.json'". Switched to `require.resolve('tslib')` (the
 // bare specifier).
 //
-// Attempt 6 (current): commit 74bb277's Vercel Build Log showed Attempt
-// 5 ALSO failed at the same config-eval point, now with "Cannot find
-// module 'tslib'" - the bare specifier itself. Both dynamic-resolution
-// mechanisms fail during Vercel's config load despite succeeding in
-// every local reproduction attempted (plain Node, and through Astro's
-// actual config-loading pipeline) - the same irreducible local/Vercel
-// gap present throughout this investigation, now affecting config-eval
-// time. All dynamic tslib resolution is removed from astro.config.mjs;
-// `includeFiles` is now a static list of string literals: the app-level
-// symlink path (the only location Node's own bare-specifier resolution
-// walk will check from the crashing chunk file) plus the real,
-// version-pinned pnpm-store path (tslib@2.8.1, matching pnpm-lock.yaml -
-// see the dedicated version-pin regression test below), confirmed by
-// direct inspection of generated build output to be the only
-// combination that produces a genuine byte copy independent of NFT's
-// own trace, rather than a symlink whose target may not exist in an
-// isolated deployment.
+// Attempt 6: commit 74bb277's Vercel Build Log showed Attempt 5 ALSO
+// failed at the same config-eval point, now with "Cannot find module
+// 'tslib'" - the bare specifier itself. Removed all dynamic resolution
+// from astro.config.mjs; `includeFiles` became a static list of string
+// literals covering both the app-level symlink path and a version-pinned
+// real pnpm-store path.
+//
+// Attempt 7: commit aeda3ce's Vercel Build Log showed the config now
+// loads and the build reaches @astrojs/vercel's packaging stage, but
+// packaging then failed: "ENOENT: no such file or directory, realpath
+// '.../apps/greencal-website/node_modules/tslib/package.json'" - the
+// app-level pnpm symlink does not exist at all in Vercel's installed
+// layout. Added a "prebuild" script (scripts/stage-tslib.mjs) creating a
+// REAL node_modules/tslib directory before Astro runs, sourced from
+// require.resolve('tslib') falling back to a deterministic pnpm-store
+// path. Commit 3b02f81's Vercel Build Log then proved BOTH of those
+// sources also fail on Vercel - require.resolve('tslib') threw
+// MODULE_NOT_FOUND, and the pnpm-store path does not exist there either.
+//
+// Attempt 8 (current): rather than search any installed node_modules
+// layout at all, the four tslib runtime files plus LICENSE.txt are now
+// vendored directly into this repository at
+// apps/greencal-website/vendor/tslib/ - copied byte-for-byte from the
+// officially installed tslib@2.8.1 package, never modified (see
+// vendor/tslib/README.md). scripts/stage-tslib.mjs's only source is that
+// directory; every file is verified against vendor/tslib/integrity.json's
+// recorded SHA-256 hash before being staged - a hash mismatch fails the
+// build loudly. Because the source is a plain, repository-tracked
+// directory rather than an installed package reached through pnpm's own
+// resolution or store layout, there is nothing left for Vercel's install
+// step to get differently right or wrong.
 //
 // The assertions below check the properties that actually matter: that
 // none of the five @supabase/* sub-packages known to import `tslib`
@@ -309,39 +324,152 @@ test.describe('Vercel serverless function packaging (tslib production-incident r
     ).toBe(false);
   });
 
-  test('the prebuild staging script (scripts/stage-tslib.mjs) runs standalone, verifies its own output, and is idempotent', () => {
-    // Runs the actual script used by package.json's "prebuild" hook
-    // directly (not just relying on it having already run as part of
-    // "pnpm run build" before this suite) - twice in a row, to verify
-    // the idempotency the script is explicitly required to have: running
-    // it against its own previously-staged output must not corrupt or
-    // fail, since Vercel's build and any local re-run both invoke it
-    // unconditionally every time.
-    const scriptPath = join(__dirname, '..', 'scripts', 'stage-tslib.mjs');
-    expect(existsSync(scriptPath), `${scriptPath} does not exist`).toBe(true);
+  // Serialized (not the default parallel-across-workers mode): both
+  // tests below invoke scripts/stage-tslib.mjs as a real subprocess,
+  // which overwrites the shared node_modules/tslib destination, and the
+  // tamper-detection test additionally mutates the shared
+  // vendor/tslib/tslib.js source file (restored in a finally block).
+  // Running them concurrently in different workers raced in practice -
+  // confirmed directly: the idempotency test passed reliably in
+  // isolation but failed intermittently as part of the full suite before
+  // this was added.
+  test.describe
+    .serial('prebuild staging script - mutates shared node_modules/tslib and vendor state', () => {
+    test('scripts/stage-tslib.mjs runs standalone, verifies its own output, and is idempotent', () => {
+      // Runs the actual script used by package.json's "prebuild" hook
+      // directly (not just relying on it having already run as part of
+      // "pnpm run build" before this suite) - twice in a row, to verify
+      // the idempotency the script is explicitly required to have:
+      // running it against its own previously-staged output must not
+      // corrupt or fail, since Vercel's build and any local re-run both
+      // invoke it unconditionally every time.
+      const scriptPath = join(__dirname, '..', 'scripts', 'stage-tslib.mjs');
+      expect(existsSync(scriptPath), `${scriptPath} does not exist`).toBe(true);
 
-    for (let run = 1; run <= 2; run++) {
-      const result = spawnSync(process.execPath, [scriptPath], {
+      for (let run = 1; run <= 2; run++) {
+        const result = spawnSync(process.execPath, [scriptPath], {
+          cwd: join(__dirname, '..'),
+          encoding: 'utf-8',
+        });
+        expect(
+          result.status,
+          `stage-tslib.mjs run ${run} exited nonzero. stderr:\n${result.stderr}`,
+        ).toBe(0);
+        expect(result.stderr, `run ${run} did not print its success message`).toContain(
+          '[stage-tslib] OK:',
+        );
+      }
+
+      const stagedDir = join(__dirname, '..', 'node_modules', 'tslib');
+      expect(lstatSync(stagedDir).isSymbolicLink(), `${stagedDir} is a symlink after staging`).toBe(
+        false,
+      );
+      for (const relative of ['package.json', join('modules', 'index.js')]) {
+        const filePath = join(stagedDir, relative);
+        expect(existsSync(filePath), `${filePath} missing after staging`).toBe(true);
+        expect(statSync(filePath).size, `${filePath} is empty after staging`).toBeGreaterThan(0);
+      }
+    });
+
+    test('the staging script rejects a tampered vendor file instead of staging it', () => {
+      // Regression coverage for the integrity-verification requirement
+      // itself: corrupts a byte in the vendored tslib.js, confirms the
+      // staging script fails loudly (nonzero exit, no silent fallback)
+      // and does NOT overwrite the already-staged node_modules/tslib
+      // with the corrupted content, then restores the original vendored
+      // file byte-for-byte and confirms staging succeeds again. Runs
+      // against a real subprocess, not a unit-level mock, since the
+      // actual protection this exists for is "the build fails" rather
+      // than a function returning false.
+      const vendorFile = join(__dirname, '..', 'vendor', 'tslib', 'tslib.js');
+      const original = readFileSync(vendorFile);
+      const stagedFile = join(__dirname, '..', 'node_modules', 'tslib', 'tslib.js');
+      const stagedBefore = existsSync(stagedFile) ? readFileSync(stagedFile) : null;
+
+      try {
+        writeFileSync(
+          vendorFile,
+          Buffer.concat([original, Buffer.from('\n// tampered for a test\n')]),
+        );
+
+        const scriptPath = join(__dirname, '..', 'scripts', 'stage-tslib.mjs');
+        const result = spawnSync(process.execPath, [scriptPath], {
+          cwd: join(__dirname, '..'),
+          encoding: 'utf-8',
+        });
+
+        expect(result.status, 'staging script must exit nonzero on a hash mismatch').not.toBe(0);
+        expect(result.stderr).toContain('does not match its recorded hash in integrity.json');
+
+        if (stagedBefore !== null) {
+          expect(
+            readFileSync(stagedFile).equals(stagedBefore),
+            'the already-staged file must be left untouched when a later staging attempt fails',
+          ).toBe(true);
+        }
+      } finally {
+        writeFileSync(vendorFile, original);
+      }
+
+      const scriptPath = join(__dirname, '..', 'scripts', 'stage-tslib.mjs');
+      const restoredResult = spawnSync(process.execPath, [scriptPath], {
         cwd: join(__dirname, '..'),
         encoding: 'utf-8',
       });
       expect(
-        result.status,
-        `stage-tslib.mjs run ${run} exited nonzero. stderr:\n${result.stderr}`,
+        restoredResult.status,
+        `staging script must succeed again once the vendor file is restored. stderr:\n${restoredResult.stderr}`,
       ).toBe(0);
-      expect(result.stderr, `run ${run} did not print its success message`).toContain(
-        '[stage-tslib] OK:',
+    });
+  });
+
+  test('the vendored tslib source (apps/greencal-website/vendor/tslib) matches its own integrity.json at rest', () => {
+    // Static check, independent of running the staging script - catches
+    // the vendor directory and its manifest drifting apart (a file
+    // edited without regenerating integrity.json, or vice versa) as a
+    // committed-state problem, not just a build-time one. See
+    // vendor/tslib/README.md for the update procedure this enforces.
+    const vendorDir = join(__dirname, '..', 'vendor', 'tslib');
+    const manifestPath = join(vendorDir, 'integrity.json');
+    expect(existsSync(manifestPath), `${manifestPath} does not exist`).toBe(true);
+
+    const manifest = JSON.parse(readFileSync(manifestPath, 'utf-8'));
+    expect(manifest.name).toBe('tslib');
+    expect(manifest.algorithm).toBe('sha256');
+    expect(typeof manifest.version).toBe('string');
+    expect(manifest.version.length).toBeGreaterThan(0);
+
+    const vendoredPkg = JSON.parse(readFileSync(join(vendorDir, 'package.json'), 'utf-8'));
+    expect(
+      vendoredPkg.version,
+      'vendor/tslib/package.json version does not match integrity.json version',
+    ).toBe(manifest.version);
+
+    // Plain `in` checks, not toHaveProperty - toHaveProperty treats a
+    // string argument as a dot-separated path, which misinterprets keys
+    // like "package.json" or "modules/index.js" as nested lookups rather
+    // than literal object keys.
+    const requiredKeys = ['package.json', 'tslib.js', 'modules/index.js', 'modules/package.json'];
+    for (const key of requiredKeys) {
+      expect(key in manifest.files, `integrity.json does not list required file "${key}"`).toBe(
+        true,
       );
     }
+    // LICENSE.txt is required for compliance (see vendor/tslib/README.md)
+    // even though it is not one of the four runtime files staged into
+    // node_modules/tslib.
+    expect('LICENSE.txt' in manifest.files).toBe(true);
 
-    const stagedDir = join(__dirname, '..', 'node_modules', 'tslib');
-    expect(lstatSync(stagedDir).isSymbolicLink(), `${stagedDir} is a symlink after staging`).toBe(
-      false,
-    );
-    for (const relative of ['package.json', join('modules', 'index.js')]) {
-      const filePath = join(stagedDir, relative);
-      expect(existsSync(filePath), `${filePath} missing after staging`).toBe(true);
-      expect(statSync(filePath).size, `${filePath} is empty after staging`).toBeGreaterThan(0);
+    for (const [relative, expectedHash] of Object.entries(manifest.files) as [string, string][]) {
+      const filePath = join(vendorDir, ...relative.split('/'));
+      expect(existsSync(filePath), `${filePath} listed in integrity.json but missing on disk`).toBe(
+        true,
+      );
+      const actualHash = createHash('sha256').update(readFileSync(filePath)).digest('hex');
+      expect(
+        actualHash,
+        `${filePath} does not match its recorded hash in integrity.json - the vendor directory has drifted from its manifest`,
+      ).toBe(expectedHash);
     }
   });
 
