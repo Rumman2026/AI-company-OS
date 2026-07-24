@@ -1,38 +1,63 @@
 import { defineConfig } from 'astro/config';
 import vercel from '@astrojs/vercel';
-import { createRequire } from 'node:module';
-import { dirname, join } from 'node:path';
-import { pathToFileURL } from 'node:url';
 
-// Resolved via Node's own resolver (not a hardcoded pnpm store path like
-// `node_modules/.pnpm/tslib@2.8.1/...`) so this stays correct regardless of
-// which machine runs the build or what tslib patch/minor version is
-// installed - see the Attempt 4/5 comments below for why this exists.
+// Static, non-dynamic tslib file list for the Vercel adapter's
+// `includeFiles` (see the adapter comment below for full Attempt 4-6
+// history). No require.resolve/createRequire/import.meta.resolve here -
+// both dynamic-resolution attempts (Attempts 4 and 5) failed while
+// Vercel evaluated this exact config file, before Astro/Rolldown/the
+// adapter ever ran.
 //
-// Deliberately resolves the bare `tslib` specifier, not the `tslib/
-// package.json` subpath: Vercel's build for commit d931b5a failed while
-// *evaluating this file*, before Astro/Rolldown/the adapter ever ran,
-// with "Cannot find module 'tslib/package.json'" - Node's classic
-// MODULE_NOT_FOUND wording (a "Require stack" trace), not the distinct
-// ERR_PACKAGE_PATH_NOT_EXPORTED wording Node uses when an exports map
-// deliberately rejects a subpath. tslib's own package.json exports map
-// does define a `"./*": "./*"` wildcard that covers `./package.json`,
-// and `require.resolve('tslib/package.json')` succeeds in every local
-// reproduction attempted (plain Node, and through Astro's actual
-// config-loading pipeline) - so this could not be forced to fail
-// locally. The bare `tslib` specifier only needs the exports map's
-// simple `"default": "./tslib.js"` target, not wildcard subpath
-// matching, so resolving it instead removes one entire, real category of
-// difference between this local environment and Vercel's build machine,
-// without needing to identify exactly which one caused the failure.
-const require = createRequire(import.meta.url);
-const tslibDir = dirname(require.resolve('tslib'));
+// Two distinct sets of paths are required, proven by directly inspecting
+// generated build output (not assumed):
+//
+// 1. The app-level symlink itself
+//    (apps/greencal-website/node_modules/tslib), included via its
+//    through-the-symlink path. This is the only location Node's own
+//    bare-specifier resolution walk will actually check when resolving
+//    `import ... from "tslib"` from
+//    dist/server/chunks/quote-submit_*.mjs (Node walks up from the
+//    requiring file's directory checking literal `node_modules/tslib` at
+//    each ancestor level - it does not know to look inside a `.pnpm`
+//    store on its own). Confirmed directly that including only this
+//    path recreates just another *symlink* at the destination (via
+//    @astrojs/internal-helpers's copyFilesToFolder, which detects
+//    `fs.realpath(origin) !== origin` for any path traversing a
+//    symlinked directory and always emits a symlink, never a byte copy,
+//    for such a path) - this alone does not guarantee the symlink's
+//    target contains real bytes; it only guarantees a pointer exists.
+//
+// 2. The real, non-symlinked pnpm-store files
+//    (node_modules/.pnpm/tslib@2.8.1/node_modules/tslib/...), included
+//    directly. Confirmed directly these are NOT reached through any
+//    symlinked path segment, so copyFilesToFolder's realpath check finds
+//    `origin === realpath` and performs an actual `fs.copyFile` - a real
+//    byte copy, independent of whether @vercel/nft's own trace also
+//    happens to find them (which is the exact dependency this fix
+//    removes; see the adapter comment below for why that dependency was
+//    unsafe).
+//
+// Together, both sets make the deployed function self-contained for
+// tslib resolution without depending on NFT's trace for either the
+// pointer or its target. The pnpm store path is version-pinned
+// (tslib@2.8.1, matching the exact locked version in pnpm-lock.yaml) -
+// intentionally not resolved dynamically per the explicit requirement to
+// remove all Node package resolution from config-eval time. A future
+// tslib version bump requires updating this literal string; the build
+// fails loudly (missing file) rather than silently deploying a broken
+// runtime import if it's forgotten - see the regression test in
+// tests/vercel-function-smoke.spec.ts asserting the pinned version
+// matches pnpm-lock.yaml.
 const tslibIncludeFiles = [
-  'package.json',
-  'tslib.js',
-  join('modules', 'index.js'),
-  join('modules', 'package.json'),
-].map((relative) => pathToFileURL(join(tslibDir, relative)).href);
+  './node_modules/tslib/package.json',
+  './node_modules/tslib/tslib.js',
+  './node_modules/tslib/modules/index.js',
+  './node_modules/tslib/modules/package.json',
+  '../../node_modules/.pnpm/tslib@2.8.1/node_modules/tslib/package.json',
+  '../../node_modules/.pnpm/tslib@2.8.1/node_modules/tslib/tslib.js',
+  '../../node_modules/.pnpm/tslib@2.8.1/node_modules/tslib/modules/index.js',
+  '../../node_modules/.pnpm/tslib@2.8.1/node_modules/tslib/modules/package.json',
+];
 
 // Static-first output — see DECISIONS.md ADR-0004. `output` remains
 // 'static': every existing page stays prerendered by default. The Vercel
@@ -93,11 +118,73 @@ export default defineConfig({
     // Attempt 5 (2026-07-24): commit d931b5a's Vercel Build Log showed
     // Attempt 4 never actually ran - the build failed even earlier, while
     // evaluating this config file itself, before Astro/Rolldown/this
-    // adapter's packaging step. See the `require.resolve('tslib')` (not
-    // `'tslib/package.json'`) comment above for the fix and reasoning.
-    // `includeFiles` itself is otherwise unchanged from Attempt 4 and
-    // remains unvalidated against a real Vercel deployment - only the
-    // config-time path used to compute it changed.
+    // adapter's packaging step, with "Cannot find module
+    // 'tslib/package.json'". Switched to `require.resolve('tslib')`
+    // (the bare specifier, needing only the exports map's simple
+    // "default" target, not wildcard subpath matching).
+    //
+    // Attempt 6 (2026-07-24): commit 74bb277's Vercel Build Log showed
+    // Attempt 5 ALSO failed at the same config-eval point, now with
+    // "Cannot find module 'tslib'" - the bare specifier itself. Both
+    // dynamic-resolution mechanisms (require.resolve('tslib/
+    // package.json') and require.resolve('tslib')) fail during Vercel's
+    // config load, despite every local reproduction attempted succeeding
+    // for both (plain Node, and through Astro's actual config-loading
+    // pipeline, confirmed via temporary diagnostics removed before
+    // finalizing) - the same irreducible local/Vercel gap present in
+    // every attempt this session, now affecting config-eval time itself
+    // rather than build or runtime.
+    //
+    // Per explicit direction, all dynamic tslib resolution (require.
+    // resolve, createRequire, import.meta.resolve, bare-specifier
+    // resolution of any kind) is removed from this file. tslibIncludeFiles
+    // above is now a static list of string literals only.
+    //
+    // Empirically tested (not assumed) two candidate path styles by
+    // building locally and inspecting .vercel/output/functions/
+    // _render.func directly:
+    //
+    // - Paths through the app-level symlink alone
+    //   (./node_modules/tslib/...) only recreate another *symlink* in the
+    //   output (confirmed via @astrojs/internal-helpers's
+    //   copyFilesToFolder: any path whose realpath differs from the
+    //   literal path - true for anything traversing a symlinked
+    //   directory - always produces a recreated symlink, never a byte
+    //   copy). This alone does not guarantee the symlink's target
+    //   contains real bytes independent of @vercel/nft's own trace - the
+    //   exact dependency this fix exists to remove.
+    //
+    // - The real, non-symlinked pnpm-store paths
+    //   (../../node_modules/.pnpm/tslib@2.8.1/node_modules/tslib/...)
+    //   are not reached through any symlinked segment, so
+    //   copyFilesToFolder's realpath check finds origin === realpath and
+    //   performs a genuine fs.copyFile - independent of NFT.
+    //
+    // Both sets are included together: the symlink path so Node's own
+    // bare-specifier resolution walk (which only checks literal
+    // `node_modules/tslib` at each ancestor directory of the requiring
+    // chunk file - it has no special knowledge of a `.pnpm` store) finds
+    // a pointer at the one location it will actually look, and the real
+    // pnpm-store path so that pointer's target is guaranteed to contain
+    // real bytes. Verified locally by copying the packaged
+    // _render.func directory to a location outside this repository
+    // entirely and running the same module-load smoke test from there -
+    // confirming resolution succeeds without any dependency on the rest
+    // of the monorepo still being present on disk, not just within it.
+    //
+    // The pnpm-store path is version-pinned to tslib@2.8.1 (matching
+    // pnpm-lock.yaml exactly) rather than dynamically resolved, per the
+    // explicit requirement to remove all Node package resolution from
+    // config-eval time. This is intentionally fragile to a future tslib
+    // version bump - the build will fail loudly (file not found) rather
+    // than silently deploy a broken runtime import if this string is not
+    // updated alongside a version bump. See
+    // tests/vercel-function-smoke.spec.ts for a regression test that
+    // fails locally, at test time, if this pinned version ever drifts
+    // from pnpm-lock.yaml's actual resolved tslib version.
+    //
+    // Not yet confirmed against a real Vercel deployment - no build/
+    // runtime log access exists in this repository.
     includeFiles: tslibIncludeFiles,
   }),
   server: {

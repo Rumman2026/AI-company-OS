@@ -66,12 +66,12 @@ function walkForPath(
 // .../dist/server/chunks/quote-submit_*.mjs" (confirmed via Vercel
 // Runtime Logs, correlated to a controlled safe probe).
 //
-// Attempt 4 (current): added `includeFiles` to the @astrojs/vercel
-// adapter config (astro.config.mjs), forcing four specific tslib files in
-// directly rather than relying on @vercel/nft's static trace to discover
-// them. Root-caused by reading @astrojs/vercel's own packaging code
-// (dist/lib/nft.js + @astrojs/internal-helpers's copyFilesToFolder): for
-// a symlinked pnpm package, the packaging step copies only a *relative
+// Attempt 4: added `includeFiles` to the @astrojs/vercel adapter config
+// (astro.config.mjs), forcing four specific tslib files in directly
+// rather than relying on @vercel/nft's static trace to discover them.
+// Root-caused by reading @astrojs/vercel's own packaging code (dist/lib/
+// nft.js + @astrojs/internal-helpers's copyFilesToFolder): for a
+// symlinked pnpm package, the packaging step copies only a *relative
 // symlink* into the function output - the real file bytes land in the
 // package only if NFT's trace *separately* discovers the real
 // (non-symlinked) target too. A local trace succeeding is not evidence
@@ -82,7 +82,32 @@ function walkForPath(
 // `tslib.js`, the CJS/"default" target), and that file needs its sibling
 // `modules/package.json` (`{"type":"module"}`) for Node to parse it as
 // ESM - a distinction the Attempt 3 regression coverage below did not
-// check for.
+// check for. The include-file paths were computed dynamically via
+// `require.resolve('tslib/package.json')`.
+//
+// Attempt 5: commit d931b5a's Vercel Build Log showed Attempt 4 never
+// actually ran - Vercel failed while *evaluating astro.config.mjs
+// itself*, before Astro/Rolldown/the adapter, with "Cannot find module
+// 'tslib/package.json'". Switched to `require.resolve('tslib')` (the
+// bare specifier).
+//
+// Attempt 6 (current): commit 74bb277's Vercel Build Log showed Attempt
+// 5 ALSO failed at the same config-eval point, now with "Cannot find
+// module 'tslib'" - the bare specifier itself. Both dynamic-resolution
+// mechanisms fail during Vercel's config load despite succeeding in
+// every local reproduction attempted (plain Node, and through Astro's
+// actual config-loading pipeline) - the same irreducible local/Vercel
+// gap present throughout this investigation, now affecting config-eval
+// time. All dynamic tslib resolution is removed from astro.config.mjs;
+// `includeFiles` is now a static list of string literals: the app-level
+// symlink path (the only location Node's own bare-specifier resolution
+// walk will check from the crashing chunk file) plus the real,
+// version-pinned pnpm-store path (tslib@2.8.1, matching pnpm-lock.yaml -
+// see the dedicated version-pin regression test below), confirmed by
+// direct inspection of generated build output to be the only
+// combination that produces a genuine byte copy independent of NFT's
+// own trace, rather than a symlink whose target may not exist in an
+// isolated deployment.
 //
 // The assertions below check the properties that actually matter: that
 // none of the five @supabase/* sub-packages known to import `tslib`
@@ -241,6 +266,49 @@ test.describe('Vercel serverless function packaging (tslib production-incident r
         expect(statSync(match).size, `${match} is empty`).toBeGreaterThan(0);
       }
     }
+  });
+
+  test('the pnpm-store path hardcoded in astro.config.mjs matches the actually-locked tslib version', () => {
+    // Regression coverage for Attempt 6 (2026-07-24): astro.config.mjs's
+    // `includeFiles` now references a version-pinned pnpm-store path
+    // (node_modules/.pnpm/tslib@2.8.1/...) as a plain string literal,
+    // deliberately not resolved dynamically - Vercel's build for commits
+    // d931b5a and 74bb277 both failed while *evaluating astro.config.mjs
+    // itself*, before Astro/Rolldown/the adapter ever ran, using
+    // require.resolve('tslib/package.json') and then require.resolve('tslib')
+    // respectively - neither could be reproduced as a failure locally
+    // (both succeed here, including through Astro's actual config-loading
+    // pipeline), so no dynamic resolution mechanism can be trusted here
+    // for now. A hardcoded version string silently goes stale on a future
+    // tslib version bump - normally not caught until Vercel's build fails
+    // with a missing-file error days or weeks later. This test instead
+    // fails immediately, locally, the moment pnpm-lock.yaml's locked
+    // tslib version drifts from the string hardcoded in astro.config.mjs,
+    // so updating the pin is a required, visible step of any future tslib
+    // version bump rather than a silent trap.
+    const configSource = readFileSync(join(__dirname, '..', 'astro.config.mjs'), 'utf-8');
+    const pinnedVersionMatch = configSource.match(/\.pnpm[\\/]tslib@([\d.]+)[\\/]/);
+    expect(
+      pinnedVersionMatch,
+      'astro.config.mjs does not contain a .pnpm/tslib@<version>/ path',
+    ).not.toBeNull();
+    const pinnedVersion = pinnedVersionMatch![1];
+
+    const lockfileSource = readFileSync(
+      join(__dirname, '..', '..', '..', 'pnpm-lock.yaml'),
+      'utf-8',
+    );
+    const lockedVersionMatch = lockfileSource.match(/^ {2}tslib@([\d.]+):$/m);
+    expect(
+      lockedVersionMatch,
+      'pnpm-lock.yaml does not contain a top-level tslib@<version>: entry',
+    ).not.toBeNull();
+    const lockedVersion = lockedVersionMatch![1];
+
+    expect(
+      pinnedVersion,
+      `astro.config.mjs hardcodes tslib@${pinnedVersion} but pnpm-lock.yaml has tslib@${lockedVersion} locked - update the includeFiles path in astro.config.mjs to match`,
+    ).toBe(lockedVersion);
   });
 
   test('the deployment manifest points at the expected handler', () => {
