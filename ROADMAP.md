@@ -30,28 +30,40 @@ complete. See [docs/INDEX.md](docs/INDEX.md) for routing.
 the present state; do not describe later phases as started without new
 repository evidence.
 
-**Phase 2A (in progress) — GreenCal Pressure Washing website, Checkpoint 2**
+**Phase 2A (in progress) — GreenCal Pressure Washing website, revenue-launch sprint**
 
-- Scope: technical foundation (Checkpoint 1) plus a first, residential-only
-  content slice (Checkpoint 2) for `apps/greencal-website` — homepage,
-  Residential Services overview, Roof Cleaning (`/roof`), House & Stucco
-  Washing (`/restoration/house-washing`), and Contact (`/contact-us`,
-  phone/email only). See [DECISIONS.md](DECISIONS.md) ADR-0004.
+- Scope: `apps/greencal-website`, an Astro site with one on-demand server
+  route. See [DECISIONS.md](DECISIONS.md) ADR-0004 (dedicated app),
+  ADR-0005 (production domain), ADR-0006 (Vercel/Supabase/Resend stack),
+  ADR-0007 (approved service/city scope).
 - Phase 2A is additive and independent of Phase 2 (shared platform
   primitives, below) — it does not depend on auth, a database, or core
   domain models, and its existence does not mean Phase 2 has started.
-- Phase 2A does not resolve Phase 3's "which business" designation for
+  Phase 2A does not resolve Phase 3's "which business" designation for
   GreenCal Mobile Detailing or Navarro Builders — those remain open.
-- Checkpoint 2 contains no unverified claims, no address, no working quote
-  form, no structured data, and no Commercial Services, About, Service
-  Areas, reviews, blog, project, or gallery content. `/roof` and
-  `/restoration/house-washing` intentionally preserve the live site's
-  existing slugs rather than a cleaner URL pattern — the resulting
-  inconsistent taxonomy is deferred to a later SEO migration/redirect
-  decision, not resolved here. Broader content migration and production
-  migration are separate, unscheduled, and require further approval — see
-  the Phase 2 plan, Architecture Addendum, and Checkpoint 2 planning
-  package for the full checkpoint sequence.
+- Implemented with repository evidence: the approved residential (3),
+  commercial (7), and multi-family/HOA (2) service pages; an 80-city
+  service-area directory (`/service-areas`, three indexable county pages;
+  individual city pages render but stay `noindex`/unpublished pending
+  real per-city content, per ADR-0007); an accessible `/contact-us` quote
+  form with a typed, provider-neutral submission boundary (Stage 3); and
+  a live server-side delivery path to Supabase (lead storage) and Resend
+  (owner notification) via the ADR-0006 stack, deployed on Vercel at
+  `https://www.greencalpressurewashing.com` (production deployment
+  `a6ff791`, verified `READY`, 2026-07-24).
+- **Not yet done**: Stage 4B credential activation. No real credential
+  value exists anywhere in this repository (`.env.example` holds
+  placeholder names only) — whether Vercel's own project settings
+  already hold real Supabase/Resend values has not been checked or
+  changed this session, since inspecting/setting production environment
+  variables is gated (see `apps/greencal-website/src/lib/quote-form/README.md`
+  for the required variables and the controlled preview verification
+  procedure that must precede calling live delivery "verified"). No
+  About, reviews, blog, or gallery content exists. Service pages carry
+  `Service`-type structured data (`ServiceStructuredData.astro`), scoped
+  to the approved service list only — no `LocalBusiness`/
+  `ProfessionalService` structured data exists, per the unresolved NAP
+  restriction in `.claude/rules/websites.md`.
 
 **Growth-system domain contracts (in progress) — `packages/core-models`**
 

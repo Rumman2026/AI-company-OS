@@ -143,6 +143,24 @@ function sha256(path) {
   return createHash('sha256').update(readFileSync(path)).digest('hex');
 }
 
+// Retries a rename past a transient lock instead of failing outright.
+// Observed locally on Windows: a running `astro dev` server (or the OS)
+// can briefly hold node_modules/tslib open, which surfaces as EPERM/EBUSY
+// on renameSync and clears within milliseconds once the lock releases.
+function renameWithRetry(from, to, attempts = 5, delayMs = 50) {
+  for (let attempt = 1; ; attempt++) {
+    try {
+      renameSync(from, to);
+      return;
+    } catch (err) {
+      if (!['EPERM', 'EBUSY'].includes(err.code) || attempt >= attempts) {
+        throw err;
+      }
+      Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, delayMs);
+    }
+  }
+}
+
 // Determined from this script's own location, not process.cwd() - safe
 // regardless of the directory pnpm/Vercel invokes the build command
 // from.
@@ -265,11 +283,30 @@ function stage() {
     fail(`staged package.json has name "${stagedPkg.name}", expected "tslib"`);
   }
 
-  // Idempotent: remove any stale destination (a prior run's output, a
-  // leftover symlink, or nothing at all) before making the freshly
-  // staged, verified copy visible in its place.
-  rmSync(destDir, { recursive: true, force: true });
-  renameSync(tmpDir, destDir);
+  // Idempotent: swap in the freshly staged, verified copy in place of any
+  // stale destination (a prior run's output, a leftover symlink, or
+  // nothing at all). The old destination is moved aside rather than
+  // deleted outright first, and restored if the final rename fails, so a
+  // transient rename failure can never leave destDir missing - it either
+  // ends up as the new staged copy or reverts to exactly what was there
+  // before this call.
+  const oldDir = join(appRoot, 'node_modules', `.tslib-staging-old-${process.pid}-${Date.now()}`);
+  const hadExisting = existsSync(destDir);
+  if (hadExisting) {
+    rmSync(oldDir, { recursive: true, force: true });
+    renameWithRetry(destDir, oldDir);
+  }
+  try {
+    renameWithRetry(tmpDir, destDir);
+  } catch (err) {
+    if (hadExisting) {
+      renameSync(oldDir, destDir);
+    }
+    throw err;
+  }
+  if (hadExisting) {
+    rmSync(oldDir, { recursive: true, force: true });
+  }
 
   return { destDir, version: stagedPkg.version };
 }
