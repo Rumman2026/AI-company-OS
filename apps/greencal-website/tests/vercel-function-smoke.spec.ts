@@ -473,6 +473,45 @@ test.describe('Vercel serverless function packaging (tslib production-incident r
     }
   });
 
+  test('the committed Git tree for vendor/tslib contains exactly the expected, exact-case paths', () => {
+    // Regression coverage for the 2026-07-24 Vercel Build Log incident on
+    // commit a77aab6: the staging script reported vendor/tslib/
+    // LICENSE.txt missing on Vercel's Linux checkout, even though
+    // exhaustive `git cat-file`/`git ls-tree` inspection of both local
+    // HEAD and the origin remote-tracking branch proved the file exists,
+    // correctly cased, with a matching blob hash, in the exact commit
+    // Vercel reported cloning - ruling out the repository itself as the
+    // cause. This test reads the actual committed Git tree (not the
+    // Windows working-tree filesystem, which cannot detect a case
+    // problem since NTFS is case-insensitive by default) via `git
+    // ls-tree`, so it would catch a real case-duplicate or missing-path
+    // regression the same way regardless of which OS runs it.
+    const result = spawnSync(
+      'git',
+      ['ls-tree', '-r', '--name-only', 'HEAD', '--', 'apps/greencal-website/vendor/tslib'],
+      { cwd: join(__dirname, '..', '..', '..'), encoding: 'utf-8' },
+    );
+    expect(result.status, `git ls-tree failed: ${result.stderr}`).toBe(0);
+
+    const actualPaths = result.stdout
+      .split('\n')
+      .map((line) => line.trim())
+      .filter(Boolean)
+      .sort();
+    const expectedPaths = [
+      'apps/greencal-website/vendor/tslib/.gitattributes',
+      'apps/greencal-website/vendor/tslib/LICENSE.txt',
+      'apps/greencal-website/vendor/tslib/README.md',
+      'apps/greencal-website/vendor/tslib/integrity.json',
+      'apps/greencal-website/vendor/tslib/modules/index.js',
+      'apps/greencal-website/vendor/tslib/modules/package.json',
+      'apps/greencal-website/vendor/tslib/package.json',
+      'apps/greencal-website/vendor/tslib/tslib.js',
+    ].sort();
+
+    expect(actualPaths).toEqual(expectedPaths);
+  });
+
   test('the deployment manifest points at the expected handler', () => {
     test.skip(!existsSync(VC_CONFIG), BUILD_MISSING_MESSAGE);
     const config = JSON.parse(readFileSync(VC_CONFIG, 'utf-8'));

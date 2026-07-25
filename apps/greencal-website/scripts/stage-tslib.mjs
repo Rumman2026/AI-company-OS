@@ -41,6 +41,7 @@ import {
   existsSync,
   lstatSync,
   mkdirSync,
+  readdirSync,
   readFileSync,
   renameSync,
   rmSync,
@@ -64,6 +65,42 @@ function toPath(...segments) {
 function fail(message) {
   console.error(`[stage-tslib] FAILED: ${message}`);
   process.exit(1);
+}
+
+// Diagnostic only - lists exactly what readdirSync sees, with each
+// entry's mode bits (lstatSync, not stat, so a broken/dangling symlink
+// shows as such rather than throwing). Added after a real incident
+// (Vercel Build Log for commit a77aab6) where integrity.json listed
+// "LICENSE.txt" as missing at an exact path that - per exhaustive local
+// `git cat-file`/`git ls-tree` inspection of both the local HEAD and the
+// origin remote-tracking branch - unambiguously exists, correctly cased,
+// with a matching blob hash, in the exact commit Vercel reported
+// cloning. That rules out the repository itself; this exists to capture
+// direct evidence of what Vercel's own checkout actually contains next
+// time, rather than continuing to infer it indirectly through which
+// specific fail() message fires.
+function listDirRecursive(dir, prefix = '') {
+  let entries;
+  try {
+    entries = readdirSync(dir, { withFileTypes: true });
+  } catch (err) {
+    console.error(`[stage-tslib]   (could not list ${dir}: ${err.code ?? err.message})`);
+    return;
+  }
+  for (const entry of entries.sort((a, b) => a.name.localeCompare(b.name))) {
+    const full = join(dir, entry.name);
+    let kind = 'file';
+    try {
+      const lst = lstatSync(full);
+      kind = lst.isSymbolicLink() ? 'symlink' : lst.isDirectory() ? 'dir' : `file (${lst.size}b)`;
+    } catch (err) {
+      kind = `unreadable (${err.code ?? err.message})`;
+    }
+    console.error(`[stage-tslib]   ${prefix}${entry.name} [${kind}]`);
+    if (entry.isDirectory()) {
+      listDirRecursive(full, `${prefix}${entry.name}/`);
+    }
+  }
 }
 
 function readJson(path) {
@@ -101,6 +138,8 @@ function lockfileTslibVersion() {
 
 function verifyVendorSource(expectedVersion) {
   if (!existsSync(vendorDir)) {
+    console.error(`[stage-tslib] diagnostic: listing ${appRoot} (vendor dir itself is missing)`);
+    listDirRecursive(appRoot);
     fail(`vendor source directory missing: ${vendorDir}`);
   }
 
@@ -139,6 +178,8 @@ function verifyVendorSource(expectedVersion) {
   for (const [relative, expectedHash] of Object.entries(manifest.files)) {
     const filePath = toPath(vendorDir, relative);
     if (!existsSync(filePath)) {
+      console.error(`[stage-tslib] diagnostic: actual contents of ${vendorDir} (recursive):`);
+      listDirRecursive(vendorDir);
       fail(`${manifestPath} lists "${relative}" but the file is missing at ${filePath}`);
     }
     const actualHash = sha256(filePath);
