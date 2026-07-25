@@ -47,24 +47,56 @@ import {
   rmSync,
   statSync,
 } from 'node:fs';
-import { dirname, join } from 'node:path';
+import { dirname, join, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 // Forward-slash form, matching vendor/tslib/integrity.json's "files"
-// keys exactly (JSON/npm convention - not OS-specific). Use toPath()
-// below to convert to a real filesystem path; joining these directly
-// with path.join() would silently break the integrity.json lookup on
-// Windows, where join('modules', 'index.js') produces a backslash that
-// does not match the manifest's forward-slash key.
+// keys exactly (JSON/npm convention - not OS-specific). Use
+// resolveManifestPath() below to convert one of these to a real
+// filesystem path.
 const REQUIRED_FILES = ['package.json', 'tslib.js', 'modules/index.js', 'modules/package.json'];
-
-function toPath(...segments) {
-  return join(...segments.flatMap((segment) => segment.split('/')));
-}
 
 function fail(message) {
   console.error(`[stage-tslib] FAILED: ${message}`);
   process.exit(1);
+}
+
+// Fixed 2026-07-25: this used to be a single variadic helper
+// (`toPath(...segments)`) that ran `.split('/')` over *every* argument,
+// including the absolute base directory itself. On POSIX (Vercel's
+// Linux build machine - never reproduced on Windows, where this
+// session's local testing happens, because Windows paths use backslash
+// separators with no '/' for split() to act on), splitting an absolute
+// path like "/vercel/path0/.../vendor/tslib" on "/" produces a leading
+// empty-string segment; `path.join()` then silently drops it, turning
+// an absolute path into a relative one. Confirmed directly: this
+// produced the exact malformed path
+// "vercel/path0/apps/greencal-website/vendor/tslib/LICENSE.txt" (no
+// leading slash) in Vercel's Build Log for commit 2de078d, causing
+// `existsSync()` to report a file that a diagnostic directory listing
+// in the same log proved was genuinely present - not a Vercel cache,
+// Git checkout, or repository-content problem, all of which were ruled
+// out first by inspecting the actual committed Git tree/blob hashes via
+// `git ls-tree`/`git cat-file`.
+//
+// Fix: only the relative manifest-key argument is ever split - the base
+// directory is passed to `join()` untouched, so an absolute POSIX path
+// keeps its leading separator (`join()` never strips a leading `/` that
+// was never split off of it in the first place). Also rejects unsafe
+// relative segments ("", ".", "..") so a manifest entry can never
+// resolve outside the base directory it was given.
+function resolveManifestPath(baseDir, relativePath) {
+  const segments = relativePath.split('/');
+  if (segments.some((segment) => segment.length === 0 || segment === '.' || segment === '..')) {
+    fail(
+      `unsafe relative path in manifest: "${relativePath}" (must not contain empty, "." or ".." segments)`,
+    );
+  }
+  const resolved = join(baseDir, ...segments);
+  if (resolved !== baseDir && !resolved.startsWith(baseDir + sep)) {
+    fail(`resolved path "${resolved}" escapes its base directory "${baseDir}"`);
+  }
+  return resolved;
 }
 
 // Diagnostic only - lists exactly what readdirSync sees, with each
@@ -176,7 +208,7 @@ function verifyVendorSource(expectedVersion) {
   // skipping LICENSE.txt here would leave license-notice tampering
   // undetected.
   for (const [relative, expectedHash] of Object.entries(manifest.files)) {
-    const filePath = toPath(vendorDir, relative);
+    const filePath = resolveManifestPath(vendorDir, relative);
     if (!existsSync(filePath)) {
       console.error(`[stage-tslib] diagnostic: actual contents of ${vendorDir} (recursive):`);
       listDirRecursive(vendorDir);
@@ -194,7 +226,7 @@ function verifyVendorSource(expectedVersion) {
     if (!(relative in manifest.files)) {
       fail(`${manifestPath} does not list required runtime file "${relative}"`);
     }
-    const filePath = toPath(vendorDir, relative);
+    const filePath = resolveManifestPath(vendorDir, relative);
     const stats = statSync(filePath);
     if (stats.size === 0) {
       fail(`vendored file is empty: ${filePath}`);
@@ -210,25 +242,25 @@ function stage() {
   mkdirSync(join(tmpDir, 'modules'), { recursive: true });
 
   for (const relative of REQUIRED_FILES) {
-    copyFileSync(toPath(vendorDir, relative), toPath(tmpDir, relative));
+    copyFileSync(resolveManifestPath(vendorDir, relative), resolveManifestPath(tmpDir, relative));
   }
 
   // Verify the staged copy before it ever becomes visible at the real
   // destination path - a failure here leaves only the discarded tmp
   // directory behind, never a partially-staged destination.
   for (const relative of REQUIRED_FILES) {
-    const stagedPath = toPath(tmpDir, relative);
+    const stagedPath = resolveManifestPath(tmpDir, relative);
     if (lstatSync(stagedPath).isSymbolicLink()) {
       fail(`staged file is a symlink, not a real copy: ${stagedPath}`);
     }
     if (statSync(stagedPath).size === 0) {
       fail(`staged file is empty: ${stagedPath}`);
     }
-    if (sha256(stagedPath) !== sha256(toPath(vendorDir, relative))) {
+    if (sha256(stagedPath) !== sha256(resolveManifestPath(vendorDir, relative))) {
       fail(`staged file ${stagedPath} does not match its vendor source after copying`);
     }
   }
-  const stagedPkg = readJson(toPath(tmpDir, 'package.json'));
+  const stagedPkg = readJson(resolveManifestPath(tmpDir, 'package.json'));
   if (stagedPkg.name !== 'tslib') {
     fail(`staged package.json has name "${stagedPkg.name}", expected "tslib"`);
   }
