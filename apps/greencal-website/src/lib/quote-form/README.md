@@ -398,7 +398,11 @@ service was added - none is approved.
 3. ~~Configure all five Stage 4A environment variables in a real Vercel
    project.~~ Done - all five configured in both Preview and Production
    scope; `main` is now Vercel's Production Branch (merged from
-   `feat/greencal-revenue-launch`).
+   `feat/greencal-revenue-launch`). A first live test caught
+   `SUPABASE_SERVICE_ROLE_KEY` initially holding the `anon`/public key
+   instead of the `service_role`/secret key (RLS - enabled with zero
+   permissive policies - correctly rejected the insert); corrected in
+   Vercel for both Preview and Production.
 4. Decide the operational review process for a lead whose
    `notification_status` is `failed` (the lead is safely stored but the
    email didn't go out - see "Approved delivery and success policy" #6).
