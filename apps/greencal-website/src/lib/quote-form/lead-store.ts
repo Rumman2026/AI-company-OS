@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import { createClient } from '@supabase/supabase-js';
 import { QUOTE_LEAD_SOURCE, type NormalizedQuoteInput } from './types';
 
@@ -36,6 +37,43 @@ export interface LeadStore {
 const POSTGRES_UNIQUE_VIOLATION = '23505';
 
 /**
+ * Strips anything email- or phone-shaped before a Postgrest error reaches
+ * the server logs. Postgrest error messages/hints describe schema
+ * elements (columns, constraints, tables), not submitted values, for
+ * every failure mode this store can hit (auth/permission, not-null,
+ * unique-violation) - this is defense-in-depth, not a fix for an observed
+ * leak.
+ */
+function sanitizeForLog(value: string | null | undefined): string | null {
+  if (!value) return null;
+  return value
+    .replace(/[^\s@]+@[^\s@]+\.[^\s@]+/gi, '[redacted-email]')
+    .replace(/\+?\d[\d\s().-]{7,}\d/g, '[redacted-phone]');
+}
+
+/**
+ * Logs exactly the fields needed to diagnose a rejected insert from
+ * Vercel's runtime logs, and nothing that could identify a customer or
+ * expose a credential: no request payload, no `error.details` (which can
+ * echo back the offending value for some Postgres errors), no URL, no
+ * key. `error.code`/`message`/`hint` describe the rejection itself, never
+ * submitted field values, for the failure modes this store can hit.
+ */
+function logRejectedInsert(
+  context: string,
+  status: number,
+  error: { code?: string; message?: string; hint?: string } | null,
+): void {
+  console.error('[lead-store] ' + context, {
+    correlationId: randomUUID(),
+    httpStatus: status,
+    code: error?.code ?? null,
+    message: sanitizeForLog(error?.message),
+    hint: sanitizeForLog(error?.hint),
+  });
+}
+
+/**
  * The real, GreenCal-owned Supabase implementation. Only ever constructed
  * from the trusted server route with the server-only service-role key -
  * never imported or instantiated from client-side code. See
@@ -72,7 +110,7 @@ export function createSupabaseLeadStore(url: string, serviceRoleKey: string): Le
         idempotency_key: row.idempotencyKey,
       };
 
-      const { data, error } = await client
+      const { data, error, status } = await client
         .from('quote_leads')
         .insert(insertPayload)
         .select('lead_id, created_at')
@@ -89,7 +127,11 @@ export function createSupabaseLeadStore(url: string, serviceRoleKey: string): Le
       if (error?.code === POSTGRES_UNIQUE_VIOLATION) {
         // Idempotent replay: the exact same request was already stored.
         // Look up the existing row rather than creating a duplicate.
-        const { data: existing, error: fetchError } = await client
+        const {
+          data: existing,
+          error: fetchError,
+          status: fetchStatus,
+        } = await client
           .from('quote_leads')
           .select('lead_id, created_at')
           .eq('idempotency_key', row.idempotencyKey)
@@ -105,9 +147,11 @@ export function createSupabaseLeadStore(url: string, serviceRoleKey: string): Le
             duplicate: true,
           };
         }
+        logRejectedInsert('idempotent-replay lookup rejected', fetchStatus, fetchError);
         return { ok: false, error: 'duplicate_lookup_failed' };
       }
 
+      logRejectedInsert('insert rejected', status, error);
       return { ok: false, error: error?.message ?? 'unknown_insert_error' };
     },
 
