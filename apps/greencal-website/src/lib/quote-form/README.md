@@ -387,16 +387,26 @@ service was added - none is approved.
 
 ## Remaining owner setup actions
 
-1. Provision/confirm the GreenCal-owned Supabase project and run
-   `supabase-schema.sql`.
-2. Provision/confirm the GreenCal-owned Resend account and verify a
-   sender domain/identity.
-3. Configure all five Stage 4A environment variables in a real Vercel
-   project (Stage 4B/5 - deployment itself is out of scope here).
+1. ~~Provision/confirm the GreenCal-owned Supabase project and run
+   `supabase-schema.sql`.~~ Done - project provisioned, schema executed,
+   and independently verified (table, RLS enabled, zero permissive
+   policies, expected columns/indexes/constraints all confirmed via a
+   read-only query against `information_schema`/`pg_catalog`).
+2. ~~Provision/confirm the GreenCal-owned Resend account and verify a
+   sender domain/identity.~~ Done - `greencalpressurewashing.com` verified
+   in Resend; a production, sending-only API key has been issued.
+3. ~~Configure all five Stage 4A environment variables in a real Vercel
+   project.~~ Done - all five configured in both Preview and Production
+   scope; `main` is now Vercel's Production Branch (merged from
+   `feat/greencal-revenue-launch`).
 4. Decide the operational review process for a lead whose
    `notification_status` is `failed` (the lead is safely stored but the
    email didn't go out - see "Approved delivery and success policy" #6).
 5. Decide a data-retention policy for `quote_leads`.
+
+Still pending: the one controlled end-to-end test below, which requires
+separate explicit owner approval before it runs (it sends one real email
+and stores one real row) - see "Real end-to-end test procedure."
 
 ## Real end-to-end test procedure (Stage 4B, not performed this session)
 
