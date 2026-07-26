@@ -408,23 +408,36 @@ service was added - none is approved.
    email didn't go out - see "Approved delivery and success policy" #6).
 5. Decide a data-retention policy for `quote_leads`.
 
-Still pending: the one controlled end-to-end test below, which requires
-separate explicit owner approval before it runs (it sends one real email
-and stores one real row) - see "Real end-to-end test procedure."
+## Production verification record (2026-07-26)
 
-## Real end-to-end test procedure (Stage 4B, not performed this session)
+A single controlled test lead was submitted directly to the live
+`https://www.greencalpressurewashing.com/api/quote-submit` endpoint
+(fake, clearly-marked data: full name "Production Test", phone
+555-555-5555, city `moreno-valley`, service `roof-cleaning`, a
+project description starting "PRODUCTION TEST SUBMISSION - DO NOT
+CONTACT"). This row is a deliberate verification record, not customer
+data - **do not delete it** without a separate decision; it is the only
+evidence this pipeline has ever been proven end-to-end in production.
 
-1. Configure all five environment variables with real values in a
-   Vercel preview deployment.
-2. Submit one controlled test lead through the real `/contact-us` form.
-3. Confirm the row appears in Supabase's `quote_leads` table with the
-   expected fields and `lead_storage_status: 'stored'`.
-4. Confirm the notification email arrives at
-   `greencaliforniacorporation@gmail.com` and `notification_status` is
-   `sent`.
-5. Confirm the UI displayed the honest `success` state.
-6. Resubmit the exact same test data and confirm no duplicate Supabase
-   row and no duplicate email were created (idempotent replay).
-7. Only after all of the above are verified should `quote_form_success`
-   be relied upon for any Google Ads/GA4 conversion reporting (Stage 4B
-   tracking activation).
+- **Result**: `{"status":"success","leadId":"9023f8eb-3106-475d-b1ae-ccdc02c82ee8","submittedAt":"2026-07-26T23:26:20.82+00:00"}`.
+  Per the coded success policy above, this status is only reachable
+  after a fresh store-and-notify both actually succeeded - so both the
+  Supabase insert and the Resend notification are confirmed by this
+  response, not assumed.
+- **Vercel runtime logs**: zero errors at the time of this request.
+- Three real misconfigurations were found and fixed by this test
+  campaign before it succeeded, each confirmed via the sanitized
+  diagnostic logging in `lead-store.ts`: (1) `SUPABASE_URL` initially
+  failed to resolve at the network level (`TypeError: fetch failed`) -
+  corrected; (2) the live `quote_leads` table was missing its `city`
+  column relative to `supabase-schema.sql` (`PGRST204`) - added via
+  `alter table ... add column if not exists city text;` plus a
+  PostgREST schema-cache reload; (3) the `service_role` role had no
+  table-level grants on `quote_leads` (`42501`) - fixed via `grant
+select, insert, update on public.quote_leads to service_role;`.
+- **Not yet independently verified**: an actual duplicate-submission
+  (idempotent-replay) test against the live table - only unit-tested
+  with fakes so far (see `tests/quote-delivery-unit.spec.ts`). No
+  second live submission has been made since it would require another
+  explicit approval; treat idempotency as unit-verified but not yet
+  live-confirmed in production.

@@ -51,17 +51,22 @@ repository evidence.
   (owner notification) via the ADR-0006 stack, deployed on Vercel at
   `https://www.greencalpressurewashing.com` (production deployment
   `a6ff791`, verified `READY`, 2026-07-24).
-- **Not yet done**: Stage 4B credential activation. No real credential
-  value exists anywhere in this repository (`.env.example` holds
-  placeholder names only) — whether Vercel's own project settings
-  already hold real Supabase/Resend values has not been checked or
-  changed this session, since inspecting/setting production environment
-  variables is gated (see `apps/greencal-website/src/lib/quote-form/README.md`
-  for the required variables and the controlled preview verification
-  procedure that must precede calling live delivery "verified"). No
-  About, reviews, blog, or gallery content exists. Service pages carry
-  `Service`-type structured data (`ServiceStructuredData.astro`), scoped
-  to the approved service list only — no `LocalBusiness`/
+- **Stage 4B credential activation is done and verified live**
+  (2026-07-26): real Supabase and Resend credentials are configured in
+  Vercel for both Preview and Production; `main` is Vercel's Production
+  Branch. A single controlled test lead reached
+  `https://www.greencalpressurewashing.com/api/quote-submit` and
+  returned the honest `success` state with a real Supabase row and a
+  real Resend notification confirmed — no fabricated result, no
+  runtime errors. See
+  `apps/greencal-website/src/lib/quote-form/README.md`'s "Production
+  verification record" for the lead id and the three configuration
+  defects (network, schema-cache, grants) found and fixed along the
+  way. Not yet independently verified: an actual live duplicate-
+  submission (idempotent-replay) test — unit-tested only so far.
+- No About, reviews, blog, or gallery content exists. Service pages
+  carry `Service`-type structured data (`ServiceStructuredData.astro`),
+  scoped to the approved service list only — no `LocalBusiness`/
   `ProfessionalService` structured data exists, per the unresolved NAP
   restriction in `.claude/rules/websites.md`.
 
