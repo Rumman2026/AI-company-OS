@@ -1,0 +1,57 @@
+---
+import CustomerSegmentCard from './CustomerSegmentCard.astro';
+---
+
+<section class="customer-segments" aria-labelledby="customer-segments-heading">
+  <div class="container-wide">
+    <h2 id="customer-segments-heading" class="section-heading">Who We Serve</h2>
+    <div class="customer-segments-grid">
+      <CustomerSegmentCard
+        title="Residential"
+        description="For homeowners needing roof, house, and concrete exterior cleaning."
+        examples={['Roof Cleaning', 'House Washing', 'Concrete, Driveway & Patio Cleaning']}
+        learnMoreHref="/residential"
+        estimateLabel="Request Estimate"
+        icon="roof"
+      />
+      <CustomerSegmentCard
+        title="Commercial"
+        description="For gas stations, shopping centers, storefronts, warehouses, restaurants, and other commercial properties needing recurring exterior maintenance."
+        examples={[
+          'Commercial Building Washing',
+          'Storefront Cleaning',
+          'Commercial Concrete, Dumpster Pad & Drive-Thru Cleaning',
+          'Recurring Maintenance Plans',
+        ]}
+        learnMoreHref="/commercial"
+        estimateLabel="Request Assessment"
+        icon="building"
+      />
+      <CustomerSegmentCard
+        title="Multi-Family & HOA"
+        description="For apartments, condominiums, and HOA communities needing building and shared common-area exterior cleaning."
+        examples={[
+          'Apartment & Condo Exterior Cleaning',
+          'HOA Common-Area Cleaning',
+          'Recurring Community Maintenance',
+        ]}
+        learnMoreHref="/multi-family-hoa"
+        estimateLabel="Request Proposal"
+        icon="community"
+      />
+    </div>
+  </div>
+</section>
+
+<style>
+  .customer-segments {
+    padding-block: var(--space-7);
+  }
+
+  .customer-segments-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(18rem, 1fr));
+    gap: var(--space-5);
+    margin-block-start: var(--space-5);
+  }
+</style>

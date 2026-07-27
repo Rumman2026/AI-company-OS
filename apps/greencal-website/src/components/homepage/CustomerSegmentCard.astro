@@ -1,0 +1,96 @@
+---
+import ResponsiveImage from '../ResponsiveImage.astro';
+
+export interface Props {
+  title: string;
+  description: string;
+  examples: string[];
+  learnMoreHref: string;
+  estimateLabel: string;
+  icon: 'roof' | 'wall' | 'concrete' | 'building' | 'community' | 'camera';
+}
+
+const { title, description, examples, learnMoreHref, estimateLabel, icon } = Astro.props;
+---
+
+<article class="segment-card">
+  <div class="segment-card-media">
+    <ResponsiveImage fallbackLabel={`Photo needed: ${title} customers`} ratio="4/3" icon={icon} />
+  </div>
+  <div class="segment-card-body">
+    <h3>{title}</h3>
+    <p class="segment-card-description">{description}</p>
+    <ul class="segment-card-examples">
+      {examples.map((example) => <li>{example}</li>)}
+    </ul>
+    <div class="segment-card-actions">
+      <a href={learnMoreHref} class="btn btn-secondary">Learn More</a>
+      <a href="/contact-us#quote-form" class="btn btn-primary">{estimateLabel}</a>
+    </div>
+  </div>
+</article>
+
+<style>
+  .segment-card {
+    display: flex;
+    flex-direction: column;
+    background-color: var(--color-white);
+    border: 1px solid var(--color-cream-100);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    box-shadow: var(--shadow-md);
+  }
+
+  .segment-card-body {
+    padding: var(--space-5);
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+  }
+
+  .segment-card-body h3 {
+    font-family: var(--font-family-display);
+    font-size: var(--font-size-xl);
+    color: var(--color-forest-900);
+    margin-block: 0 var(--space-2);
+  }
+
+  .segment-card-description {
+    color: var(--color-charcoal-600);
+    font-size: var(--font-size-lg);
+    margin-block-end: var(--space-3);
+  }
+
+  .segment-card-examples {
+    list-style: none;
+    margin: 0 0 var(--space-5);
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+    flex: 1;
+  }
+
+  .segment-card-examples li {
+    padding-inline-start: var(--space-4);
+    position: relative;
+    color: var(--color-charcoal-900);
+  }
+
+  .segment-card-examples li::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0.55em;
+    width: 0.4rem;
+    height: 0.4rem;
+    border-radius: 50%;
+    background-color: var(--color-gold-500);
+  }
+
+  .segment-card-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-3);
+  }
+</style>

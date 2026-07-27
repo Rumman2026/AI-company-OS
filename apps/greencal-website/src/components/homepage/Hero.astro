@@ -1,30 +1,46 @@
 ---
-// Homepage-only hero. No real hero photograph exists yet in this
-// repository - see the redesign report's "missing photography" list.
-// The dark overlay/gradient treatment is a genuine design choice (not a
-// stand-in for a broken image): it reads as intentional now and is
-// exactly where a real exterior-cleaning photo would be dropped in
-// later without changing this component's structure.
+// Split-layout, image-led hero (visual-refinement phase). No real hero
+// photo exists in this repository - see
+// docs/GREENCAL_OWNER_VERIFICATION_REQUIRED.md. ResponsiveImage renders
+// the honest dark-toned placeholder until one is approved; swapping in
+// a real photo later is a one-prop change (pass `media`), not a
+// markup change.
 import { siteInfo } from '../../data/site';
+import ResponsiveImage from '../ResponsiveImage.astro';
 ---
 
 <section class="hero full-bleed" aria-labelledby="hero-heading">
   <div class="hero-inner container-wide">
-    <p class="hero-eyebrow">Southern California Exterior Cleaning</p>
-    <h1 id="hero-heading">{siteInfo.businessName}</h1>
-    <p class="hero-subhead">
-      Premium residential, commercial, and multi-family exterior cleaning - serving approved
-      communities across San Diego, Orange, and Riverside Counties.
-    </p>
-    <div class="hero-actions">
-      <a href="/contact-us#quote-form" class="btn btn-primary btn-lg">Request a Quote</a>
-      <a href={siteInfo.phoneHref} class="btn btn-inverse btn-lg">Call Now: {siteInfo.phoneDisplay}</a>
+    <div class="hero-copy">
+      <p class="hero-eyebrow">Professional Exterior Cleaning in Southern California</p>
+      <h1 id="hero-heading">Restore Your Property Without Risking Damage</h1>
+      <p class="hero-subhead">
+        Professional roof washing, house washing, concrete cleaning, and commercial property
+        maintenance for homeowners, businesses, HOAs, and property managers across Southern
+        California.
+      </p>
+      <div class="hero-actions">
+        <a href="/contact-us#quote-form" class="btn btn-primary btn-lg">Get a Free Estimate</a>
+        <a href={siteInfo.phoneHref} class="btn btn-inverse btn-lg">Call {siteInfo.phoneDisplay}</a>
+      </div>
+      <p class="hero-secondary-link">
+        <a href="/contact-us#quote-form">Request a Commercial Assessment</a>
+      </p>
+      <ul class="hero-trust-indicators">
+        <li>Residential &amp; Commercial</li>
+        <li>Multi-Family &amp; HOA</li>
+        <li>Property-Conscious Methods</li>
+      </ul>
     </div>
-    <ul class="hero-trust-indicators">
-      <li>Residential &amp; Commercial</li>
-      <li>Multi-Family &amp; HOA</li>
-      <li>Property-Conscious Methods</li>
-    </ul>
+    <div class="hero-media">
+      <ResponsiveImage
+        fallbackLabel="Hero photo needed: technician performing exterior cleaning"
+        icon="building"
+        tone="dark"
+        fill
+        loading="eager"
+      />
+    </div>
   </div>
 </section>
 
@@ -32,11 +48,14 @@ import { siteInfo } from '../../data/site';
   .hero {
     background: linear-gradient(160deg, var(--color-forest-900) 0%, var(--color-forest-700) 100%);
     color: var(--color-white);
-    padding-block: var(--space-8) var(--space-7);
+    padding-block: var(--space-7);
   }
 
   .hero-inner {
-    max-width: 46rem;
+    display: grid;
+    grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
+    align-items: center;
+    gap: var(--space-6);
   }
 
   .hero-eyebrow {
@@ -51,14 +70,14 @@ import { siteInfo } from '../../data/site';
   .hero h1 {
     font-family: var(--font-family-display);
     font-size: var(--font-size-hero);
-    line-height: 1.08;
+    line-height: 1.05;
     margin-block: 0 var(--space-4);
   }
 
   .hero-subhead {
     font-size: var(--font-size-lg);
     color: rgba(255, 255, 255, 0.88);
-    max-width: 38rem;
+    max-width: 34rem;
     margin-block-end: var(--space-5);
   }
 
@@ -66,7 +85,18 @@ import { siteInfo } from '../../data/site';
     display: flex;
     flex-wrap: wrap;
     gap: var(--space-3);
-    margin-block-end: var(--space-5);
+    margin-block-end: var(--space-3);
+  }
+
+  .hero-secondary-link {
+    margin-block: 0 var(--space-5);
+  }
+
+  .hero-secondary-link a {
+    color: var(--color-white);
+    font-weight: 600;
+    text-decoration: underline;
+    text-underline-offset: 0.2em;
   }
 
   .hero-trust-indicators {
@@ -94,6 +124,27 @@ import { siteInfo } from '../../data/site';
     height: 0.5rem;
     border-radius: 50%;
     background-color: var(--color-gold-500);
+  }
+
+  .hero-media {
+    position: relative;
+    min-height: 20rem;
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    box-shadow: var(--shadow-lg);
+  }
+
+  /* ~48% of the desktop hero is visual (hero-media column plus its
+     share of the gap), per the phase's 45-55% requirement. */
+  @media (max-width: 900px) {
+    .hero-inner {
+      grid-template-columns: 1fr;
+    }
+
+    .hero-media {
+      min-height: 14rem;
+      order: -1;
+    }
   }
 
   @media (max-width: 640px) {
