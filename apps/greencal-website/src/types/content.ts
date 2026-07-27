@@ -98,6 +98,9 @@ export interface MediaRecord {
   mediaType: MediaType;
   thumbnailSrc: string;
   fullSrc: string;
+  /** Real source pixel dimensions - used as the rendered <img>'s width/height attributes so the browser can reserve layout space before the image loads (prevents cumulative layout shift), independent of the CSS aspect-ratio/object-fit used to actually display it. */
+  width: number;
+  height: number;
   /** For video only - a static poster frame; required whenever mediaType is 'video'. */
   posterSrc?: string;
   projectId?: string;

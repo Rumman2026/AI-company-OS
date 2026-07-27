@@ -1,13 +1,22 @@
 ---
-// Single seam between "no real photo exists" (today, always) and "a
-// real MediaRecord exists" (once photography is approved). Every
-// component that needs a photo slot should render through this
-// component, not ImagePlaceholder directly, so swapping in real media
-// later is a one-file change. Once real media exists, this should
-// render astro:assets' <Image> (already available in this Astro
-// version, currently unused because there is nothing to optimize) for
-// real width/height/lazy-loading/format handling - not implemented
-// yet since there is no real source to point it at.
+// Single seam between "no real photo exists" and "a real MediaRecord
+// exists." Every component that needs a photo slot renders through
+// this component, not ImagePlaceholder directly, so swapping media in
+// is a one-prop change, not a markup change. Images here live under
+// public/ (not src/), so astro:assets' <Image> component (which only
+// processes build-time-imported src/ assets) does not apply - explicit
+// width/height/sizes are set by hand instead, from MediaRecord's own
+// real pixel dimensions, which is equally correct for CLS prevention.
+// The rendered <img> needs an explicit CSS `width: 100%; height: auto;`
+// alongside `aspect-ratio` (not aspect-ratio alone) - confirmed directly
+// via computed-style inspection: the HTML width/height ATTRIBUTES (set
+// for CLS prevention above) resolve to a definite, non-auto CSS height
+// via presentational hints, and `aspect-ratio` only fills in a
+// dimension that is actually `auto` - with both width (capped by the
+// sitewide `img { max-width: 100% }` rule) and height (from the
+// attribute) already definite, `aspect-ratio` was silently ignored and
+// every card rendered at its own photo's native aspect ratio instead of
+// the requested one.
 import ImagePlaceholder from './ImagePlaceholder.astro';
 import type { MediaRecord } from '../types/content';
 
@@ -21,6 +30,10 @@ export interface Props {
   loading?: 'lazy' | 'eager';
   /** Visible "what goes here" caption on the placeholder - see ImagePlaceholder.astro. */
   categoryLabel?: string;
+  /** Overrides the placeholder's default "Photo Coming Soon" status text. */
+  statusLabel?: string;
+  /** Responsive `sizes` hint for the real <img>. Only meaningful once multiple source widths exist; documented as a real limitation until then - see docs/GREENCAL_OWNER_VERIFICATION_REQUIRED.md. */
+  sizes?: string;
 }
 
 const {
@@ -32,6 +45,8 @@ const {
   tone = 'light',
   loading = 'lazy',
   categoryLabel,
+  statusLabel,
+  sizes = '100vw',
 } = Astro.props;
 ---
 
@@ -40,10 +55,18 @@ const {
     <img
       src={media.fullSrc}
       alt={media.altText}
+      width={media.width}
+      height={media.height}
+      sizes={sizes}
       loading={loading}
+      fetchpriority={loading === 'eager' ? 'high' : 'auto'}
       decoding="async"
       class={fill ? 'responsive-image-fill' : undefined}
-      style={fill ? undefined : `aspect-ratio: ${ratio}; object-fit: cover;`}
+      style={
+        fill
+          ? undefined
+          : `width: 100%; height: auto; aspect-ratio: ${ratio}; object-fit: cover;`
+      }
     />
   ) : (
     <ImagePlaceholder
@@ -53,6 +76,7 @@ const {
       fill={fill}
       tone={tone}
       categoryLabel={categoryLabel}
+      statusLabel={statusLabel}
     />
   )
 }

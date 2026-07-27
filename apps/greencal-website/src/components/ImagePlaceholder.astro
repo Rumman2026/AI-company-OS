@@ -22,9 +22,19 @@ export interface Props {
    * very small slots where a caption wouldn't fit).
    */
   categoryLabel?: string;
+  /** Overrides the default "Photo Coming Soon" status text - e.g. "Commercial Project Media Coming Soon" so a commercial/HOA slot is never confused with the real residential photos used elsewhere on the page. */
+  statusLabel?: string;
 }
 
-const { label, ratio = '4/3', icon = 'camera', fill = false, tone = 'light', categoryLabel } = Astro.props;
+const {
+  label,
+  ratio = '4/3',
+  icon = 'camera',
+  fill = false,
+  tone = 'light',
+  categoryLabel,
+  statusLabel = 'Photo Coming Soon',
+} = Astro.props;
 
 const icons: Record<string, string> = {
   roof: 'M4 12L12 5l8 7M6 12v7h12v-7',
@@ -49,7 +59,7 @@ const icons: Record<string, string> = {
     categoryLabel && (
       <p class="image-placeholder-caption">
         <span class="image-placeholder-category">{categoryLabel}</span>
-        <span class="image-placeholder-status">Photo Coming Soon</span>
+        <span class="image-placeholder-status">{statusLabel}</span>
       </p>
     )
   }
