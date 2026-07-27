@@ -32,9 +32,10 @@ const groups = [
 
 <section class="service-area-section" aria-labelledby="service-area-heading">
   <div class="container-wide">
-    <h2 id="service-area-heading" class="section-heading">Service Areas</h2>
+    <h2 id="service-area-heading" class="section-heading">Proudly Serving Moreno Valley &amp; Beyond</h2>
     <p class="service-area-intro">
-      Serving approved communities across San Diego, Orange, and Riverside Counties.
+      Serving Moreno Valley and approved communities across San Diego, Orange, and Riverside
+      Counties.
     </p>
     <div class="service-area-groups">
       {groups.map((group) => <ServiceAreaGroup {...group} />)}
@@ -64,9 +65,9 @@ const groups = [
 
   .service-area-groups {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
-    gap: var(--space-4);
-    margin-block-end: var(--space-4);
+    grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
+    gap: var(--space-5);
+    margin-block-end: var(--space-5);
   }
 
   .service-area-capability-note {

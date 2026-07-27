@@ -10,20 +10,30 @@ const { countyName, countyHref, cities } = Astro.props;
 
 <div class="service-area-group">
   <h3><a href={countyHref}>{countyName}</a></h3>
-  <p class="service-area-cities">{cities.join(', ')}</p>
+  <p class="service-area-cities">
+    {
+      cities.map((city, index) => (
+        <>
+          {index > 0 && ', '}
+          {city === 'Moreno Valley' ? <strong class="service-area-priority-city">{city}</strong> : city}
+        </>
+      ))
+    }
+  </p>
 </div>
 
 <style>
   .service-area-group {
-    padding: var(--space-4);
+    padding: var(--space-5);
     background-color: var(--color-white);
     border: 1px solid var(--color-cream-100);
-    border-radius: var(--radius-md);
+    border-radius: var(--radius-lg);
   }
 
   .service-area-group h3 {
-    font-size: var(--font-size-lg);
-    margin-block: 0 var(--space-2);
+    font-size: var(--font-size-xl);
+    font-family: var(--font-family-display);
+    margin-block: 0 var(--space-3);
   }
 
   .service-area-group h3 a {
@@ -36,8 +46,12 @@ const { countyName, countyHref, cities } = Astro.props;
   }
 
   .service-area-cities {
-    font-size: var(--font-size-sm);
+    font-size: var(--font-size-base);
     color: var(--color-charcoal-600);
     margin: 0;
+  }
+
+  .service-area-priority-city {
+    color: var(--color-forest-700);
   }
 </style>
