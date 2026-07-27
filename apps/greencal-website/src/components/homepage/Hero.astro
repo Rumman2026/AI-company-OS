@@ -1,18 +1,18 @@
 ---
-// Split-layout, image-led hero. Real Photo Integration Pass
-// (2026-07-26): uses the real GreenCal concrete-cleaning "after" photo
-// - chosen over the roof-wash/house-wash after photos because it's
-// already landscape (1.83:1), the closest match to this panel's
-// 4:3/3:2 crop and the only one of the three that doesn't require a
-// severe crop to fit. The house-number visible in the original source
-// photo is blurred in the generated derivative - see
-// docs/GREENCAL_OWNER_VERIFICATION_REQUIRED.md. This is a residential
-// photo - the "REAL GREENCAL PROJECT" label makes no commercial claim.
+// Split-layout, image-led hero. Hero Correction Pass (2026-07-27):
+// swapped to the dedicated roof-wash-hero-after photo (1264x848,
+// landscape ~3:2) - a purpose-cropped landscape export supplied
+// specifically for this slot, replacing the earlier concrete-cleaning
+// photo. One source image is used at every breakpoint; only CSS
+// object-position changes responsively (see .hero-media img rules
+// below) - no separate mobile/tablet image exists or is needed. This
+// is a residential photo - the "REAL GREENCAL PROJECT" label makes no
+// commercial claim.
 import { siteInfo } from '../../data/site';
 import ResponsiveImage from '../ResponsiveImage.astro';
 import { getMediaById } from '../../data/media';
 
-const heroMedia = getMediaById('concrete-cleaning-01-after');
+const heroMedia = getMediaById('roof-wash-hero-after');
 ---
 
 <section class="hero full-bleed" aria-labelledby="hero-heading">
@@ -45,6 +45,7 @@ const heroMedia = getMediaById('concrete-cleaning-01-after');
         icon="building"
         tone="dark"
         categoryLabel="Exterior Cleaning Project"
+        sizes="(max-width: 900px) 100vw, 50vw"
         fill
         loading="eager"
       />
@@ -145,6 +146,23 @@ const heroMedia = getMediaById('concrete-cleaning-01-after');
     border-radius: var(--radius-lg);
     overflow: hidden;
     box-shadow: var(--shadow-lg);
+  }
+
+  /* One source photo (roof-wash-hero-after, ~3:2 landscape) at every
+     breakpoint - only object-position changes responsively to keep the
+     roof ridge/tile detail centered as the crop narrows from the wide
+     desktop panel down to the taller mobile one. Scoped to this
+     component's own image only (:global reaches into ResponsiveImage's
+     rendered <img>) - does not affect any other fill-mode image
+     elsewhere on the page. */
+  .hero-media :global(img) {
+    object-position: center center;
+  }
+
+  @media (max-width: 640px) {
+    .hero-media :global(img) {
+      object-position: 60% center;
+    }
   }
 
   .hero-media-badge {

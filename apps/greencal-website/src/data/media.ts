@@ -119,6 +119,23 @@ export const mediaLibrary: MediaRecord[] = [
     displayOrder: 6,
     approvalStatus: 'approved',
   },
+  {
+    mediaId: 'roof-wash-hero-after',
+    title: 'Roof Washing Hero - After',
+    altText:
+      'Aerial view of a concrete tile roof after cleaning, restored to its natural terracotta color',
+    serviceCategory: 'residential',
+    beforeAfterStatus: 'after',
+    mediaType: 'image',
+    thumbnailSrc: '/assets/greencal/generated/homepage/roof-wash-hero-after.webp',
+    fullSrc: '/assets/greencal/generated/homepage/roof-wash-hero-after.webp',
+    width: 1264,
+    height: 848,
+    projectId: 'roof-wash-hero',
+    featured: true,
+    displayOrder: 7,
+    approvalStatus: 'approved',
+  },
 ];
 
 export function featuredMedia(category?: MediaRecord['serviceCategory']): MediaRecord[] {
