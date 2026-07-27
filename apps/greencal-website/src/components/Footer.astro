@@ -1,11 +1,26 @@
 ---
 import { footerNav } from '../data/navigation';
+import { siteInfo } from '../data/site';
+import Wordmark from './Wordmark.astro';
 
 const year = new Date().getFullYear();
 ---
 
-<footer>
-  <nav aria-label="Footer">
+<footer class="site-footer">
+  <div class="site-footer-top">
+    <div class="site-footer-brand">
+      <Wordmark variant="inverse" />
+      <p class="site-footer-tagline">
+        Residential, commercial, and multi-family exterior cleaning across approved Southern
+        California communities.
+      </p>
+    </div>
+    <div class="site-footer-contact">
+      <a href={siteInfo.phoneHref}>{siteInfo.phoneDisplay}</a>
+      <a href={siteInfo.emailHref}>{siteInfo.emailDisplay}</a>
+    </div>
+  </div>
+  <nav aria-label="Footer" class="site-footer-nav">
     <ul>
       {
         footerNav.map((item) => (
@@ -16,6 +31,7 @@ const year = new Date().getFullYear();
       }
     </ul>
   </nav>
+  <hr class="divider" />
   <p>&copy; {year} GreenCal Pressure Washing</p>
   <details class="tracking-preferences">
     <summary>Tracking preferences</summary>
@@ -32,6 +48,58 @@ const year = new Date().getFullYear();
     </div>
   </details>
 </footer>
+
+<style>
+  .site-footer {
+    background-color: var(--color-forest-900);
+    color: rgba(255, 255, 255, 0.85);
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  }
+
+  .site-footer-top {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: var(--space-4);
+    padding-block-start: var(--space-5);
+  }
+
+  .site-footer-tagline {
+    max-width: 28rem;
+    margin-block-start: var(--space-3);
+    color: rgba(255, 255, 255, 0.75);
+  }
+
+  .site-footer-contact {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+  }
+
+  .site-footer-contact a {
+    color: var(--color-white);
+    font-weight: 700;
+  }
+
+  .site-footer-nav {
+    margin-block-start: var(--space-5);
+  }
+
+  .site-footer-nav a {
+    color: rgba(255, 255, 255, 0.85);
+  }
+
+  .site-footer .divider {
+    border-top-color: rgba(255, 255, 255, 0.25);
+  }
+
+  .site-footer .tracking-preferences-panel {
+    border-color: rgba(255, 255, 255, 0.25);
+    color: var(--color-charcoal-900);
+    background-color: var(--color-white);
+  }
+</style>
 
 <script>
   import { getConsentState, setConsentState } from '../lib/tracking/consent';
