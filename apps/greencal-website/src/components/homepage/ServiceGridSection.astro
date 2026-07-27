@@ -1,0 +1,63 @@
+---
+import PremiumServiceCard from './PremiumServiceCard.astro';
+import type { ServiceRecord } from '../../types/content';
+
+export interface Props {
+  id: string;
+  heading: string;
+  intro: string;
+  services: ServiceRecord[];
+  viewAllRoute: string;
+  viewAllLabel: string;
+  icon?: 'roof' | 'wall' | 'concrete' | 'building' | 'community' | 'camera';
+  tone?: 'default' | 'alt';
+}
+
+const { id, heading, intro, services, viewAllRoute, viewAllLabel, icon = 'camera', tone = 'default' } =
+  Astro.props;
+---
+
+<section class={`service-grid-section ${tone === 'alt' ? 'service-grid-section-alt' : ''}`} aria-labelledby={id}>
+  <div class="container-wide">
+    <div class="service-grid-heading">
+      <h2 id={id} class="section-heading">{heading}</h2>
+      <p>{intro}</p>
+    </div>
+    <div class="service-grid">
+      {services.map((service) => <PremiumServiceCard service={service} icon={icon} />)}
+    </div>
+    <p class="service-grid-view-all">
+      <a href={viewAllRoute} class="btn btn-secondary">{viewAllLabel}</a>
+    </p>
+  </div>
+</section>
+
+<style>
+  .service-grid-section {
+    padding-block: var(--space-7);
+  }
+
+  .service-grid-section-alt {
+    background-color: var(--color-cream-50);
+  }
+
+  .service-grid-heading {
+    max-width: 40rem;
+    margin-block-end: var(--space-5);
+  }
+
+  .service-grid-heading p {
+    color: var(--color-charcoal-600);
+    font-size: var(--font-size-lg);
+  }
+
+  .service-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
+    gap: var(--space-4);
+  }
+
+  .service-grid-view-all {
+    margin-block-start: var(--space-5);
+  }
+</style>

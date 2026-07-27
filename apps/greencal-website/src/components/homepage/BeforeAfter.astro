@@ -1,0 +1,60 @@
+---
+// Reusable before/after comparison component. No real completed-job
+// photos exist in this repository yet, so this renders an honest,
+// clearly-unpaired placeholder state rather than fabricating or
+// stock-photo-substituting a "before" and "after" of a job that never
+// happened. Once real, owner-approved job photos exist, pass them via
+// `beforeLabel`/`afterLabel` (and swap ImagePlaceholder for a real
+// <img> at each slot) without changing this component's structure.
+import ImagePlaceholder from '../ImagePlaceholder.astro';
+---
+
+<section class="before-after" aria-labelledby="before-after-heading">
+  <div class="container-wide">
+    <h2 id="before-after-heading" class="section-heading">Real Results</h2>
+    <p class="before-after-intro">
+      Before-and-after photography from real GreenCal jobs will appear here as it becomes
+      available.
+    </p>
+    <div class="before-after-grid">
+      <figure>
+        <ImagePlaceholder label="Before photo needed" ratio="4/3" icon="wall" />
+        <figcaption>Before</figcaption>
+      </figure>
+      <figure>
+        <ImagePlaceholder label="After photo needed" ratio="4/3" icon="wall" />
+        <figcaption>After</figcaption>
+      </figure>
+    </div>
+  </div>
+</section>
+
+<style>
+  .before-after {
+    padding-block: var(--space-7);
+  }
+
+  .before-after-intro {
+    max-width: 40rem;
+    color: var(--color-charcoal-600);
+    font-size: var(--font-size-lg);
+    margin-block-end: var(--space-5);
+  }
+
+  .before-after-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+    gap: var(--space-4);
+  }
+
+  .before-after-grid figure {
+    margin: 0;
+  }
+
+  .before-after-grid figcaption {
+    margin-block-start: var(--space-2);
+    font-weight: 700;
+    text-align: center;
+    color: var(--color-forest-900);
+  }
+</style>

@@ -1,0 +1,69 @@
+---
+// Only claims already supported by this site's existing, owner-approved
+// copy (see src/data/services.ts) - no equipment, certification, or
+// guarantee language invented for this section.
+const reasons = [
+  {
+    title: 'Property-Conscious Methods',
+    body: 'Surface-appropriate cleaning approaches, chosen based on the material being cleaned.',
+  },
+  {
+    title: 'Residential & Commercial Capability',
+    body: 'One provider for homes, businesses, and multi-family communities across the approved service area.',
+  },
+  {
+    title: 'Clear Communication',
+    body: 'Project scope, access, and scheduling are discussed up front as part of every quote.',
+  },
+  {
+    title: 'Individually Evaluated Projects',
+    body: 'Every property and surface is assessed on its own before work begins - no one-size-fits-all approach.',
+  },
+];
+---
+
+<section class="why-choose" aria-labelledby="why-choose-heading">
+  <div class="container-wide">
+    <h2 id="why-choose-heading" class="section-heading">Why Choose GreenCal</h2>
+    <div class="why-choose-grid">
+      {
+        reasons.map((reason) => (
+          <div class="why-choose-item">
+            <h3>{reason.title}</h3>
+            <p>{reason.body}</p>
+          </div>
+        ))
+      }
+    </div>
+  </div>
+</section>
+
+<style>
+  .why-choose {
+    padding-block: var(--space-7);
+    background-color: var(--color-forest-900);
+    color: var(--color-white);
+  }
+
+  .why-choose-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+    gap: var(--space-5);
+    margin-block-start: var(--space-5);
+  }
+
+  .why-choose-item h3 {
+    font-family: var(--font-family-display);
+    font-size: var(--font-size-lg);
+    color: var(--color-gold-500);
+    margin-block: 0 var(--space-2);
+  }
+
+  .why-choose-item p {
+    color: rgba(255, 255, 255, 0.8);
+  }
+
+  .why-choose .section-heading {
+    color: var(--color-white);
+  }
+</style>

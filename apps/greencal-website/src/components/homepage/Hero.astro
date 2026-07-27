@@ -1,0 +1,108 @@
+---
+// Homepage-only hero. No real hero photograph exists yet in this
+// repository - see the redesign report's "missing photography" list.
+// The dark overlay/gradient treatment is a genuine design choice (not a
+// stand-in for a broken image): it reads as intentional now and is
+// exactly where a real exterior-cleaning photo would be dropped in
+// later without changing this component's structure.
+import { siteInfo } from '../../data/site';
+---
+
+<section class="hero full-bleed" aria-labelledby="hero-heading">
+  <div class="hero-inner container-wide">
+    <p class="hero-eyebrow">Southern California Exterior Cleaning</p>
+    <h1 id="hero-heading">{siteInfo.businessName}</h1>
+    <p class="hero-subhead">
+      Premium residential, commercial, and multi-family exterior cleaning - serving approved
+      communities across San Diego, Orange, and Riverside Counties.
+    </p>
+    <div class="hero-actions">
+      <a href="/contact-us#quote-form" class="btn btn-primary btn-lg">Request a Quote</a>
+      <a href={siteInfo.phoneHref} class="btn btn-inverse btn-lg">Call Now: {siteInfo.phoneDisplay}</a>
+    </div>
+    <ul class="hero-trust-indicators">
+      <li>Residential &amp; Commercial</li>
+      <li>Multi-Family &amp; HOA</li>
+      <li>Property-Conscious Methods</li>
+    </ul>
+  </div>
+</section>
+
+<style>
+  .hero {
+    background: linear-gradient(160deg, var(--color-forest-900) 0%, var(--color-forest-700) 100%);
+    color: var(--color-white);
+    padding-block: var(--space-8) var(--space-7);
+  }
+
+  .hero-inner {
+    max-width: 46rem;
+  }
+
+  .hero-eyebrow {
+    font-size: var(--font-size-sm);
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--color-gold-500);
+    margin-block-end: var(--space-3);
+  }
+
+  .hero h1 {
+    font-family: var(--font-family-display);
+    font-size: var(--font-size-hero);
+    line-height: 1.08;
+    margin-block: 0 var(--space-4);
+  }
+
+  .hero-subhead {
+    font-size: var(--font-size-lg);
+    color: rgba(255, 255, 255, 0.88);
+    max-width: 38rem;
+    margin-block-end: var(--space-5);
+  }
+
+  .hero-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-3);
+    margin-block-end: var(--space-5);
+  }
+
+  .hero-trust-indicators {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-4);
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    font-size: var(--font-size-sm);
+    color: rgba(255, 255, 255, 0.7);
+  }
+
+  .hero-trust-indicators li {
+    padding-inline-start: var(--space-4);
+    position: relative;
+  }
+
+  .hero-trust-indicators li::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0.5em;
+    width: 0.5rem;
+    height: 0.5rem;
+    border-radius: 50%;
+    background-color: var(--color-gold-500);
+  }
+
+  @media (max-width: 640px) {
+    .hero {
+      padding-block: var(--space-6) var(--space-5);
+    }
+
+    .hero-actions .btn {
+      width: 100%;
+    }
+  }
+</style>

@@ -1,0 +1,98 @@
+---
+import ImagePlaceholder from '../ImagePlaceholder.astro';
+import type { ServiceRecord } from '../../types/content';
+
+export interface Props {
+  service: ServiceRecord;
+  icon?: 'roof' | 'wall' | 'concrete' | 'building' | 'community' | 'camera';
+}
+
+const { service, icon = 'camera' } = Astro.props;
+---
+
+<article class="premium-service-card">
+  <div class="premium-service-card-media">
+    <ImagePlaceholder label={`Photo needed: ${service.title}`} ratio="4/3" icon={icon} />
+  </div>
+  <div class="premium-service-card-body">
+    <h3><a href={service.route}>{service.title}</a></h3>
+    <p>{service.summary}</p>
+    <a href={service.route} class="premium-service-card-link">Learn More<span aria-hidden="true"> &rarr;</span></a>
+  </div>
+</article>
+
+<style>
+  .premium-service-card {
+    display: flex;
+    flex-direction: column;
+    background-color: var(--color-white);
+    border: 1px solid var(--color-cream-100);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    box-shadow: var(--shadow-sm);
+    transition:
+      box-shadow var(--motion-duration-base) ease,
+      transform var(--motion-duration-base) ease;
+  }
+
+  .premium-service-card:hover,
+  .premium-service-card:focus-within {
+    box-shadow: var(--shadow-lg);
+    transform: translateY(-2px);
+  }
+
+  .premium-service-card-media {
+    overflow: hidden;
+  }
+
+  .premium-service-card-media :global(.image-placeholder) {
+    border-radius: 0;
+    border-width: 0;
+    transition: transform var(--motion-duration-slow) ease;
+  }
+
+  .premium-service-card:hover .premium-service-card-media :global(.image-placeholder) {
+    transform: scale(1.04);
+  }
+
+  .premium-service-card-body {
+    padding: var(--space-4);
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+  }
+
+  .premium-service-card-body h3 {
+    font-family: var(--font-family-display);
+    font-size: var(--font-size-lg);
+    margin-block: 0 var(--space-2);
+  }
+
+  .premium-service-card-body h3 a {
+    color: var(--color-forest-900);
+    text-decoration: none;
+  }
+
+  .premium-service-card-body p {
+    color: var(--color-charcoal-600);
+    flex: 1;
+  }
+
+  .premium-service-card-link {
+    font-weight: 700;
+    color: var(--color-forest-700);
+    text-decoration: none;
+    margin-block-start: var(--space-2);
+  }
+
+  .premium-service-card-link:hover {
+    text-decoration: underline;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .premium-service-card,
+    .premium-service-card-media :global(.image-placeholder) {
+      transition: none;
+    }
+  }
+</style>

@@ -1,0 +1,69 @@
+---
+// Only the three owner-approved counties (DECISIONS.md ADR-0007 /
+// BUSINESS_FACTS.md) - San Bernardino County is deliberately excluded;
+// it is not part of the approved scope. Links point at the existing
+// /service-areas routes only - no new pages created here.
+const counties = [
+  { name: 'San Diego County', href: '/service-areas/san-diego-county' },
+  { name: 'Orange County', href: '/service-areas/orange-county' },
+  { name: 'Riverside County', href: '/service-areas/riverside-county' },
+];
+---
+
+<section class="service-area-section" aria-labelledby="service-area-heading">
+  <div class="container-wide">
+    <h2 id="service-area-heading" class="section-heading">Service Areas</h2>
+    <p class="service-area-intro">
+      Serving approved communities across San Diego, Orange, and Riverside Counties.
+    </p>
+    <ul class="service-area-list">
+      {
+        counties.map((county) => (
+          <li>
+            <a href={county.href}>{county.name}</a>
+          </li>
+        ))
+      }
+    </ul>
+    <p>
+      <a href="/service-areas" class="btn btn-secondary">View Full Service-Area List</a>
+    </p>
+  </div>
+</section>
+
+<style>
+  .service-area-section {
+    padding-block: var(--space-7);
+    background-color: var(--color-cream-50);
+  }
+
+  .service-area-intro {
+    color: var(--color-charcoal-600);
+    font-size: var(--font-size-lg);
+    max-width: 36rem;
+  }
+
+  .service-area-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-3);
+    list-style: none;
+    margin-block: var(--space-4);
+    padding: 0;
+  }
+
+  .service-area-list a {
+    display: inline-block;
+    padding: var(--space-2) var(--space-4);
+    font-weight: 600;
+    text-decoration: none;
+    color: var(--color-forest-900);
+    background-color: var(--color-white);
+    border: 1px solid var(--color-gold-500);
+    border-radius: var(--radius-full);
+  }
+
+  .service-area-list a:hover {
+    background-color: var(--color-cream-100);
+  }
+</style>

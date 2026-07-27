@@ -1,0 +1,58 @@
+---
+// Deliberately excludes any claim this repository has no evidence for -
+// "commercial-grade equipment," "hot-water cleaning," "water
+// reclamation," licensing/insurance status, certifications, guarantees,
+// and years-in-business are all omitted per .claude/rules/websites.md's
+// verified-content requirement and this stage's explicit instruction not
+// to state unverified claims. Only genuinely generic, non-specific
+// statements are used.
+const items = [
+  'Residential, commercial & multi-family experience',
+  'Property-conscious cleaning methods',
+  'Clear, professional communication',
+  'Serving approved San Diego, Orange & Riverside County communities',
+];
+---
+
+<section class="trust-strip" aria-label="Why property owners choose GreenCal">
+  <ul class="trust-strip-list">
+    {items.map((item) => <li>{item}</li>)}
+  </ul>
+</section>
+
+<style>
+  .trust-strip {
+    background-color: var(--color-cream-100);
+    padding-block: var(--space-4);
+  }
+
+  .trust-strip-list {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: var(--space-3) var(--space-6);
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    text-align: center;
+    font-size: var(--font-size-sm);
+    font-weight: 600;
+    color: var(--color-forest-900);
+  }
+
+  .trust-strip-list li {
+    padding-inline-start: var(--space-4);
+    position: relative;
+  }
+
+  .trust-strip-list li::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0.4em;
+    width: 0.5rem;
+    height: 0.5rem;
+    border-radius: 50%;
+    background-color: var(--color-gold-500);
+  }
+</style>

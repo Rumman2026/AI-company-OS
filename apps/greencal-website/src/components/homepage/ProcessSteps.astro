@@ -1,0 +1,79 @@
+---
+const steps = [
+  { title: 'Request an Estimate', body: 'Contact GreenCal by phone, email, or the online form.' },
+  { title: 'Property Review', body: 'Discuss your property, surfaces, and cleaning needs.' },
+  { title: 'Service Plan', body: 'Agree on scope, scheduling, and approach before work begins.' },
+  { title: 'Professional Cleaning', body: 'Surface-appropriate exterior cleaning is performed.' },
+  { title: 'Final Walkthrough', body: 'Review completed work together before wrapping up.' },
+];
+---
+
+<section class="process-steps" aria-labelledby="process-heading">
+  <div class="container-wide">
+    <h2 id="process-heading" class="section-heading">Our Process</h2>
+    <ol class="process-steps-list">
+      {
+        steps.map((step, index) => (
+          <li>
+            <span class="process-step-number" aria-hidden="true">
+              {index + 1}
+            </span>
+            <h3>{step.title}</h3>
+            <p>{step.body}</p>
+          </li>
+        ))
+      }
+    </ol>
+  </div>
+</section>
+
+<style>
+  .process-steps {
+    padding-block: var(--space-7);
+    background-color: var(--color-cream-50);
+  }
+
+  .process-steps-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
+    gap: var(--space-4);
+    list-style: none;
+    margin-block-start: var(--space-5);
+    padding: 0;
+    counter-reset: none;
+  }
+
+  .process-steps-list li {
+    position: relative;
+    padding: var(--space-4);
+    background-color: var(--color-white);
+    border: 1px solid var(--color-cream-100);
+    border-radius: var(--radius-md);
+  }
+
+  .process-step-number {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.25rem;
+    height: 2.25rem;
+    margin-block-end: var(--space-3);
+    font-family: var(--font-family-display);
+    font-weight: 700;
+    color: var(--color-white);
+    background-color: var(--color-forest-700);
+    border-radius: var(--radius-full);
+  }
+
+  .process-steps-list h3 {
+    font-size: var(--font-size-base);
+    margin-block: 0 var(--space-2);
+    color: var(--color-forest-900);
+  }
+
+  .process-steps-list p {
+    font-size: var(--font-size-sm);
+    color: var(--color-charcoal-600);
+    margin: 0;
+  }
+</style>

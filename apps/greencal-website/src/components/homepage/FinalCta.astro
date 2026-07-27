@@ -1,0 +1,58 @@
+---
+import { siteInfo } from '../../data/site';
+---
+
+<section class="final-cta full-bleed" aria-labelledby="final-cta-heading">
+  <div class="container-wide final-cta-inner">
+    <h2 id="final-cta-heading" class="section-heading">Ready to Get Started?</h2>
+    <p>Call, email, or request a quote online - GreenCal will follow up to discuss your property.</p>
+    <div class="final-cta-actions">
+      <a href="/contact-us#quote-form" class="btn btn-primary btn-lg">Request a Quote</a>
+      <a href={siteInfo.phoneHref} class="btn btn-inverse btn-lg">Call Now</a>
+    </div>
+    <p class="final-cta-email">
+      Or email <a href={siteInfo.emailHref}>{siteInfo.emailDisplay}</a>
+    </p>
+  </div>
+</section>
+
+<style>
+  .final-cta {
+    background: linear-gradient(160deg, var(--color-forest-700) 0%, var(--color-forest-900) 100%);
+    color: var(--color-white);
+    text-align: center;
+    padding-block: var(--space-8);
+  }
+
+  .final-cta-inner {
+    max-width: 36rem;
+  }
+
+  .final-cta .section-heading {
+    color: var(--color-white);
+  }
+
+  .final-cta p {
+    color: rgba(255, 255, 255, 0.85);
+    font-size: var(--font-size-lg);
+  }
+
+  .final-cta-actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: var(--space-3);
+    margin-block: var(--space-5);
+  }
+
+  .final-cta-email a {
+    color: var(--color-white);
+    font-weight: 700;
+  }
+
+  @media (max-width: 640px) {
+    .final-cta-actions .btn {
+      width: 100%;
+    }
+  }
+</style>
