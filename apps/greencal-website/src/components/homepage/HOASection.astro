@@ -18,7 +18,7 @@ import HOAServiceCard from './HOAServiceCard.astro';
       <HOAServiceCard
         title="Apartment Communities"
         description="Exterior building washing and common-area concrete for apartment properties."
-        examples={['Building exteriors', 'Breezeways', 'Parking areas']}
+        examples={['Building exteriors', 'Breezeways', 'Parking areas', 'Dumpster areas']}
         ctaLabel="Learn More"
         ctaHref="/multi-family-hoa/apartment-condo-cleaning"
         icon="building"
@@ -26,7 +26,7 @@ import HOAServiceCard from './HOAServiceCard.astro';
       <HOAServiceCard
         title="Condominium Communities"
         description="Exterior building washing and common-area concrete for condominium properties."
-        examples={['Building exteriors', 'Entrances', 'Shared walkways']}
+        examples={['Building exteriors', 'Entrances', 'Shared walkways', 'Pool decks (concrete surface)']}
         ctaLabel="Learn More"
         ctaHref="/multi-family-hoa/apartment-condo-cleaning"
         icon="wall"
@@ -34,7 +34,7 @@ import HOAServiceCard from './HOAServiceCard.astro';
       <HOAServiceCard
         title="HOA Common Areas"
         description="Exterior cleaning for HOA-managed community common areas and buildings, coordinated with HOA boards."
-        examples={['Sidewalks', 'Common-area concrete', 'Clubhouses']}
+        examples={['Sidewalks', 'Common-area concrete', 'Clubhouses', 'Community entrances']}
         ctaLabel="Learn More"
         ctaHref="/multi-family-hoa/hoa-pressure-washing"
         icon="community"
@@ -66,7 +66,16 @@ import HOAServiceCard from './HOAServiceCard.astro';
 
   .hoa-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
-    gap: var(--space-4);
+    /* Two columns max (not up to 4 on wide screens) - larger, fewer
+       blocks so this section reads as a major division, not a small
+       add-on grid (Phase 2 "HOA still feels secondary" complaint). */
+    grid-template-columns: 1fr;
+    gap: var(--space-5);
+  }
+
+  @media (min-width: 768px) {
+    .hoa-grid {
+      grid-template-columns: repeat(2, 1fr);
+    }
   }
 </style>
