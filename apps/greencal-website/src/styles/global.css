@@ -442,6 +442,7 @@ footer {
   font-size: var(--font-size-section-heading);
   color: var(--color-forest-900);
   line-height: 1.15;
+  margin-block: 0 var(--space-4);
 }
 
 @media (max-width: 700px) {

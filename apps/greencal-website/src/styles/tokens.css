@@ -43,9 +43,18 @@
   --font-family-base: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   --font-family-display: Georgia, 'Iowan Old Style', 'Palatino Linotype', Palatino, 'Book Antiqua',
     serif;
-  --font-size-xs: 0.8125rem;
-  --font-size-sm: 0.875rem;
+  /* Phase 2 visual-cleanup pass (2026-07-26): --font-size-xs/-sm nudged
+     up one step (13px->14px, 14px->15px) - too much of the site's body-
+     adjacent copy (card descriptions, footer links, review meta, utility
+     bar) read as "small text" at the old values. --font-size-base stays
+     the explicit 16px body-text floor per this phase's own requirement.
+     --font-size-nav is new: nav links/utility-bar actions are
+     interactive wayfinding, not body copy, and read too small at
+     --font-size-base alone. */
+  --font-size-xs: 0.875rem;
+  --font-size-sm: 0.9375rem;
   --font-size-base: 1rem;
+  --font-size-nav: 1.0625rem;
   --font-size-lg: 1.25rem;
   --font-size-xl: 1.75rem;
   --font-size-2xl: 2.5rem;
@@ -90,7 +99,11 @@
   --space-4: 1.5rem;
   --space-5: 2rem;
   --space-6: 3rem;
-  --space-7: 4.5rem;
+  /* Phase 2: section vertical rhythm increased (4.5rem -> 5.5rem) - the
+     brief's "increase section padding" / page-rhythm request. Every
+     homepage section uses this one token for padding-block, so this is
+     a single, consistent change rather than per-section one-offs. */
+  --space-7: 5.5rem;
   --space-8: 6rem;
 
   /* Container sizes */

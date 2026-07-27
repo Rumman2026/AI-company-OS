@@ -6,6 +6,8 @@
 // page already imports it from one place.
 export interface Props {
   variant?: 'default' | 'inverse';
+  /** 'large' is used for placements like the footer where the wordmark should read as a real logo, not a nav-bar mark. */
+  size?: 'default' | 'large';
   /**
    * Tests key off a single, unique `.brand` element (tab-order and
    * focus-visibility checks) - only the header's instance should set
@@ -14,12 +16,12 @@ export interface Props {
   isSiteBrand?: boolean;
 }
 
-const { variant = 'default', isSiteBrand = false } = Astro.props;
+const { variant = 'default', size = 'default', isSiteBrand = false } = Astro.props;
 ---
 
 <a
   href="/"
-  class={`wordmark wordmark-${variant} ${isSiteBrand ? 'brand' : ''}`}
+  class={`wordmark wordmark-${variant} wordmark-${size} ${isSiteBrand ? 'brand' : ''}`}
   aria-label="GreenCal Pressure Washing home">
   <span class="wordmark-monogram" aria-hidden="true">GC</span>
   <span class="wordmark-text">
@@ -89,5 +91,19 @@ const { variant = 'default', isSiteBrand = false } = Astro.props;
     .wordmark-tagline {
       display: none;
     }
+  }
+
+  .wordmark-large .wordmark-monogram {
+    width: 3.25rem;
+    height: 3.25rem;
+    font-size: 1.375rem;
+  }
+
+  .wordmark-large .wordmark-name {
+    font-size: 1.75rem;
+  }
+
+  .wordmark-large .wordmark-tagline {
+    font-size: var(--font-size-sm);
   }
 </style>
