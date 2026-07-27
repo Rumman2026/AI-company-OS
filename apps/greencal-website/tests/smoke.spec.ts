@@ -8,9 +8,12 @@ test.describe('Homepage', () => {
   });
 
   test('has exactly one primary heading', async ({ page }) => {
+    // Visual-refinement phase: the H1 is now the hero's benefit-focused
+    // headline rather than a repeat of the business name (which stays
+    // prominent via the header wordmark and the <title>/utility bar).
     await page.goto('/');
     await expect(page.locator('h1')).toHaveCount(1);
-    await expect(page.locator('h1')).toHaveText('GreenCal Pressure Washing');
+    await expect(page.locator('h1')).toHaveText('Restore Your Property Without Risking Damage');
   });
 
   test('has header, main, and footer landmarks', async ({ page }) => {
@@ -29,8 +32,13 @@ test.describe('Homepage', () => {
   });
 
   test('keyboard focus is visible on an interactive element', async ({ page }) => {
+    // Visual-refinement phase: the new utility bar adds two real,
+    // genuinely-earlier tab stops (call / request-estimate) before the
+    // brand link - correct tab order now follows visual order.
     await page.goto('/');
     await page.keyboard.press('Tab'); // skip link
+    await page.keyboard.press('Tab'); // utility bar: call
+    await page.keyboard.press('Tab'); // utility bar: request estimate
     await page.keyboard.press('Tab'); // brand link
     const brand = page.locator('.brand');
     await expect(brand).toBeFocused();

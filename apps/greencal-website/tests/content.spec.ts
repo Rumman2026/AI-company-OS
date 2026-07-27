@@ -32,7 +32,7 @@ const CATEGORY_INDEX_ROUTES = [
 ];
 
 const OTHER_ROUTES = [
-  { path: '/', heading: 'GreenCal Pressure Washing' },
+  { path: '/', heading: 'Restore Your Property Without Risking Damage' },
   { path: '/contact-us', heading: 'Contact' },
   { path: '/service-areas', heading: 'Service Areas' },
   { path: '/service-areas/san-diego-county', heading: 'San Diego County' },
@@ -111,13 +111,16 @@ test.describe('Header navigation', () => {
       'Residential',
       'Commercial',
       'Multi-Family & HOA',
+      // Visual-refinement phase: Reviews now links to the homepage's
+      // real (honestly-marked-placeholder) #reviews section.
+      'Reviews',
       'Service Areas',
       'Contact',
       'Request a Quote',
     ]) {
       await expect(header.getByText(label, { exact: true }).first()).toBeVisible();
     }
-    for (const excluded of ['About', 'Projects', 'Before & After', 'Reviews', 'Blog', 'Lighting']) {
+    for (const excluded of ['About', 'Projects', 'Before & After', 'Blog', 'Lighting']) {
       await expect(header.getByText(excluded, { exact: true })).toHaveCount(0);
     }
   });
@@ -135,9 +138,16 @@ test.describe('Header navigation', () => {
     expect(labels).toContain('Concrete Cleaning');
   });
 
-  test('brand link remains first focusable element after the skip link', async ({ page }) => {
+  test('brand link is focusable in the correct tab order after the skip link and utility bar', async ({
+    page,
+  }) => {
+    // Visual-refinement phase: the utility bar's two real links now
+    // correctly precede the brand link in tab order (they precede it
+    // visually too).
     await page.goto('/');
     await page.keyboard.press('Tab'); // skip link
+    await page.keyboard.press('Tab'); // utility bar: call
+    await page.keyboard.press('Tab'); // utility bar: request estimate
     await page.keyboard.press('Tab'); // brand
     await expect(page.locator('.brand')).toBeFocused();
   });
