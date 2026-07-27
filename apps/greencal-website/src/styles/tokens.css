@@ -49,10 +49,39 @@
   --font-size-lg: 1.25rem;
   --font-size-xl: 1.75rem;
   --font-size-2xl: 2.5rem;
+  --font-size-3xl: 3rem;
   /* Fluid sizes for the homepage's largest headings - scale smoothly
      between mobile and desktop instead of one oversized fixed size. */
-  --font-size-hero: clamp(2.25rem, 5vw + 1rem, 3.75rem);
-  --font-size-section-heading: clamp(1.75rem, 3vw + 1rem, 2.5rem);
+  --font-size-hero: clamp(2.5rem, 6vw + 1rem, 4.25rem);
+  --font-size-section-heading: clamp(1.875rem, 3vw + 1rem, 2.75rem);
+
+  /* Semantic status colors (forms/validation - not yet used for
+     success/warning anywhere, reserved for future use so components
+     don't invent ad hoc values). */
+  --color-success: #2e6b4a;
+  --color-warning: #9a6a1f;
+
+  /* Component sizing - fixed here so components don't hardcode
+     duplicate literal values. */
+  --button-height: 2.75rem;
+  --field-height: 2.75rem;
+  --header-height: 4.5rem;
+  --utility-bar-height: 2.25rem;
+  --mobile-bar-height: 3.75rem;
+
+  /*
+   * Breakpoints (documented, not consumed as CSS custom properties -
+   * media queries cannot reference custom properties in CSS). Every
+   * @media rule in this app uses these literal values; keep new rules
+   * consistent with this list rather than introducing new arbitrary
+   * widths.
+   * --breakpoint-mobile-sm: 375px
+   * --breakpoint-mobile: 480px
+   * --breakpoint-tablet-sm: 640px
+   * --breakpoint-tablet: 768px
+   * --breakpoint-tablet-lg: 1024px
+   * --breakpoint-desktop: 1280px
+   */
 
   /* Spacing */
   --space-1: 0.25rem;

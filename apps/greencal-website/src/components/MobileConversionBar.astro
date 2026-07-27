@@ -1,0 +1,50 @@
+---
+// Sitewide (not homepage-only) - mobile conversion is a stated
+// priority across the whole site, not just the homepage. `body` gets
+// matching bottom padding (see global.css) so this fixed bar can never
+// cover real footer content or the quote form's submit button - the
+// page simply has extra room reserved for it at the very bottom,
+// visible only below the tablet breakpoint.
+import { siteInfo } from '../data/site';
+---
+
+<div class="mobile-conversion-bar">
+  <a href={siteInfo.phoneHref} class="mobile-conversion-action">Call Now</a>
+  <a href="/contact-us#quote-form" class="mobile-conversion-action mobile-conversion-primary">Get Estimate</a>
+</div>
+
+<style>
+  .mobile-conversion-bar {
+    display: none;
+  }
+
+  @media (max-width: 768px) {
+    .mobile-conversion-bar {
+      display: flex;
+      position: fixed;
+      inset-block-end: 0;
+      inset-inline: 0;
+      z-index: 50;
+      height: var(--mobile-bar-height);
+      background-color: var(--color-white);
+      border-top: 1px solid var(--color-cream-100);
+      box-shadow: var(--shadow-lg);
+    }
+  }
+
+  .mobile-conversion-action {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 44px;
+    font-weight: 700;
+    text-decoration: none;
+    color: var(--color-forest-900);
+  }
+
+  .mobile-conversion-primary {
+    color: var(--color-white);
+    background-color: var(--color-forest-700);
+  }
+</style>

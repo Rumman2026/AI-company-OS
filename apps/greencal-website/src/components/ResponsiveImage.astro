@@ -1,0 +1,51 @@
+---
+// Single seam between "no real photo exists" (today, always) and "a
+// real MediaRecord exists" (once photography is approved). Every
+// component that needs a photo slot should render through this
+// component, not ImagePlaceholder directly, so swapping in real media
+// later is a one-file change. Once real media exists, this should
+// render astro:assets' <Image> (already available in this Astro
+// version, currently unused because there is nothing to optimize) for
+// real width/height/lazy-loading/format handling - not implemented
+// yet since there is no real source to point it at.
+import ImagePlaceholder from './ImagePlaceholder.astro';
+import type { MediaRecord } from '../types/content';
+
+export interface Props {
+  media?: MediaRecord;
+  fallbackLabel: string;
+  ratio?: '16/9' | '4/3' | '1/1' | '3/2';
+  icon?: 'roof' | 'wall' | 'concrete' | 'building' | 'community' | 'camera';
+  fill?: boolean;
+  tone?: 'light' | 'dark';
+  loading?: 'lazy' | 'eager';
+}
+
+const { media, fallbackLabel, ratio = '4/3', icon = 'camera', fill = false, tone = 'light', loading = 'lazy' } =
+  Astro.props;
+---
+
+{
+  media && media.approvalStatus === 'approved' ? (
+    <img
+      src={media.fullSrc}
+      alt={media.altText}
+      loading={loading}
+      decoding="async"
+      class={fill ? 'responsive-image-fill' : undefined}
+      style={fill ? undefined : `aspect-ratio: ${ratio}; object-fit: cover;`}
+    />
+  ) : (
+    <ImagePlaceholder label={fallbackLabel} ratio={ratio} icon={icon} fill={fill} tone={tone} />
+  )
+}
+
+<style>
+  .responsive-image-fill {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+</style>

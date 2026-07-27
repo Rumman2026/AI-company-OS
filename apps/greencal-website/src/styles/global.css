@@ -454,6 +454,15 @@ footer {
   }
 }
 
+/* Matches MobileConversionBar.astro's own breakpoint - reserves real
+   space at the bottom of every page so the fixed bar can never cover
+   genuine footer content or a form's submit button. */
+@media (max-width: 768px) {
+  body {
+    padding-block-end: var(--mobile-bar-height);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
