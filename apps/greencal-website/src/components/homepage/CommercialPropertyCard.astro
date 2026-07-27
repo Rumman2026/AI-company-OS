@@ -1,0 +1,65 @@
+---
+import ResponsiveImage from '../ResponsiveImage.astro';
+
+export interface Props {
+  title: string;
+  description: string;
+  icon: 'roof' | 'wall' | 'concrete' | 'building' | 'community' | 'camera';
+}
+
+const { title, description, icon } = Astro.props;
+---
+
+<article class="property-card">
+  <div class="property-card-media">
+    <ResponsiveImage fallbackLabel={`Photo needed: ${title}`} ratio="4/3" icon={icon} />
+  </div>
+  <div class="property-card-body">
+    <h3>{title}</h3>
+    <p>{description}</p>
+  </div>
+</article>
+
+<style>
+  .property-card {
+    display: flex;
+    flex-direction: column;
+    background-color: var(--color-white);
+    border: 1px solid var(--color-cream-100);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    box-shadow: var(--shadow-sm);
+    transition:
+      box-shadow var(--motion-duration-base) ease,
+      transform var(--motion-duration-base) ease;
+  }
+
+  .property-card:hover,
+  .property-card:focus-within {
+    box-shadow: var(--shadow-md);
+    transform: translateY(-2px);
+  }
+
+  .property-card-body {
+    padding: var(--space-4);
+  }
+
+  .property-card-body h3 {
+    font-size: var(--font-size-base);
+    font-weight: 700;
+    color: var(--color-forest-900);
+    margin-block: 0 var(--space-1);
+  }
+
+  .property-card-body p {
+    font-size: var(--font-size-sm);
+    color: var(--color-charcoal-600);
+    margin: 0;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .property-card {
+      transition: none;
+    }
+  }
+</style>

@@ -1,0 +1,31 @@
+---
+export interface Props {
+  label: string;
+}
+
+const { label } = Astro.props;
+---
+
+<li class="capability-item">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+    <path d="M5 12l4 4L19 6" stroke-linecap="round" stroke-linejoin="round"></path>
+  </svg>
+  <span>{label}</span>
+</li>
+
+<style>
+  .capability-item {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    font-weight: 600;
+    color: var(--color-forest-900);
+  }
+
+  .capability-item svg {
+    width: 1.25rem;
+    height: 1.25rem;
+    flex: none;
+    color: var(--color-gold-700);
+  }
+</style>

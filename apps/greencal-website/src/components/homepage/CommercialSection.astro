@@ -1,0 +1,150 @@
+---
+// Reorganized around property categories per the refinement brief,
+// without duplicating a second full grid of 7 more service cards on
+// top of the property cards (that would recreate the "too many small
+// cards" problem this phase is fixing) - the 7 approved services
+// (services.ts, ADR-0007) are named as a compact linked list instead.
+// Property types below (gas stations, shopping centers, warehouses,
+// restaurants) are the *customers* the existing approved services
+// serve, not new service categories - see
+// docs/GREENCAL_VISUAL_REFINEMENT_PLAN.md section 2. "Hot-water
+// cleaning," "wastewater recovery," and "commercial surface cleaners"
+// are excluded from the capability row - no evidence exists for them.
+import CommercialPropertyCard from './CommercialPropertyCard.astro';
+import CommercialCapabilityItem from './CommercialCapabilityItem.astro';
+import { servicesByCategory } from '../../data/services';
+import { siteInfo } from '../../data/site';
+
+const commercialServices = servicesByCategory('commercial');
+
+const propertyTypes = [
+  { title: 'Gas Stations', description: 'Fuel-island concrete, storefront, and building exteriors.', icon: 'building' },
+  { title: 'Shopping Centers', description: 'Storefronts, walkways, and shared concrete areas.', icon: 'building' },
+  { title: 'Storefronts', description: 'Entryways and business frontages customers see first.', icon: 'wall' },
+  { title: 'Warehouses', description: 'Building exteriors and loading-dock concrete.', icon: 'building' },
+  { title: 'Restaurants', description: 'Exterior surfaces, dumpster pads, and drive-thru lanes.', icon: 'concrete' },
+  {
+    title: 'Recurring Commercial Maintenance',
+    description: 'Scheduled maintenance plans for any commercial property type above.',
+    icon: 'building',
+  },
+] as const;
+
+const capabilities = [
+  'Gum & Stain Treatment',
+  'Off-Hours Scheduling',
+  'Photo Documentation',
+  'Multi-Location Service Potential',
+  'Recurring Maintenance Plans',
+];
+---
+
+<section class="commercial-section" aria-labelledby="commercial-heading" id="commercial">
+  <div class="container-wide">
+    <h2 id="commercial-heading" class="section-heading">Commercial Services</h2>
+    <p class="commercial-intro">
+      Credible, scheduling-conscious exterior cleaning for property managers, facility managers,
+      and business owners.
+    </p>
+
+    <div class="property-grid">
+      {propertyTypes.map((property) => <CommercialPropertyCard {...property} />)}
+    </div>
+
+    <div class="commercial-services-list">
+      <p class="commercial-services-label">Commercial services include:</p>
+      <ul>
+        {
+          commercialServices.map((service) => (
+            <li>
+              <a href={service.route}>{service.title}</a>
+            </li>
+          ))
+        }
+      </ul>
+    </div>
+
+    <ul class="capability-row">
+      {capabilities.map((label) => <CommercialCapabilityItem label={label} />)}
+    </ul>
+
+    <div class="commercial-cta">
+      <a href="/contact-us#quote-form" class="btn btn-primary btn-lg">Request a Commercial Site Assessment</a>
+      <a href={siteInfo.phoneHref} class="btn btn-secondary btn-lg">Call {siteInfo.phoneDisplay}</a>
+    </div>
+  </div>
+</section>
+
+<style>
+  .commercial-section {
+    padding-block: var(--space-7);
+    background-color: var(--color-cream-50);
+  }
+
+  .commercial-intro {
+    max-width: 40rem;
+    color: var(--color-charcoal-600);
+    font-size: var(--font-size-lg);
+    margin-block-end: var(--space-5);
+  }
+
+  .property-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr));
+    gap: var(--space-4);
+    margin-block-end: var(--space-5);
+  }
+
+  .commercial-services-list {
+    margin-block-end: var(--space-5);
+  }
+
+  .commercial-services-label {
+    font-weight: 700;
+    color: var(--color-forest-900);
+    margin-block-end: var(--space-2);
+  }
+
+  .commercial-services-list ul {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2) var(--space-3);
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+
+  .commercial-services-list a {
+    display: inline-block;
+    padding: var(--space-1) var(--space-3);
+    font-size: var(--font-size-sm);
+    font-weight: 600;
+    text-decoration: none;
+    color: var(--color-forest-900);
+    background-color: var(--color-white);
+    border: 1px solid var(--color-gold-500);
+    border-radius: var(--radius-full);
+  }
+
+  .commercial-services-list a:hover {
+    background-color: var(--color-cream-100);
+  }
+
+  .capability-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+    gap: var(--space-3);
+    list-style: none;
+    margin: 0 0 var(--space-6);
+    padding: var(--space-4);
+    background-color: var(--color-white);
+    border-radius: var(--radius-md);
+    border: 1px solid var(--color-cream-100);
+  }
+
+  .commercial-cta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-3);
+  }
+</style>
