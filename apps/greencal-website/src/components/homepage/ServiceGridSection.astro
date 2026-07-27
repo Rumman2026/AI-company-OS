@@ -11,10 +11,20 @@ export interface Props {
   viewAllLabel: string;
   icon?: 'roof' | 'wall' | 'concrete' | 'building' | 'community' | 'camera';
   tone?: 'default' | 'alt';
+  cardSize?: 'default' | 'featured';
 }
 
-const { id, heading, intro, services, viewAllRoute, viewAllLabel, icon = 'camera', tone = 'default' } =
-  Astro.props;
+const {
+  id,
+  heading,
+  intro,
+  services,
+  viewAllRoute,
+  viewAllLabel,
+  icon = 'camera',
+  tone = 'default',
+  cardSize = 'default',
+} = Astro.props;
 ---
 
 <section class={`service-grid-section ${tone === 'alt' ? 'service-grid-section-alt' : ''}`} aria-labelledby={id}>
@@ -23,8 +33,8 @@ const { id, heading, intro, services, viewAllRoute, viewAllLabel, icon = 'camera
       <h2 id={id} class="section-heading">{heading}</h2>
       <p>{intro}</p>
     </div>
-    <div class="service-grid">
-      {services.map((service) => <PremiumServiceCard service={service} icon={icon} />)}
+    <div class={`service-grid ${cardSize === 'featured' ? 'service-grid-featured' : ''}`}>
+      {services.map((service) => <PremiumServiceCard service={service} icon={icon} size={cardSize} />)}
     </div>
     <p class="service-grid-view-all">
       <a href={viewAllRoute} class="btn btn-secondary">{viewAllLabel}</a>
@@ -55,6 +65,16 @@ const { id, heading, intro, services, viewAllRoute, viewAllLabel, icon = 'camera
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
     gap: var(--space-4);
+  }
+
+  .service-grid-featured {
+    gap: var(--space-6);
+  }
+
+  @media (min-width: 640px) {
+    .service-grid-featured {
+      grid-template-columns: repeat(3, 1fr);
+    }
   }
 
   .service-grid-view-all {

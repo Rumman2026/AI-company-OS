@@ -50,8 +50,27 @@ import CustomerSegmentCard from './CustomerSegmentCard.astro';
 
   .customer-segments-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(18rem, 1fr));
-    gap: var(--space-5);
+    /* Fixed 1/2/3-column steps rather than auto-fit: auto-fit with this
+       card's real content width produced a 2-then-1 wrap at common
+       desktop widths (Residential + Commercial on one row, Multi-Family
+       & HOA alone below) - the exact "unbalanced customer-segment
+       section" complaint this phase reported. A fixed breakpoint makes
+       the three-equal-column layout deterministic instead of
+       content-dependent. */
+    grid-template-columns: 1fr;
+    gap: var(--space-6);
     margin-block-start: var(--space-5);
+  }
+
+  @media (min-width: 640px) {
+    .customer-segments-grid {
+      grid-template-columns: repeat(2, 1fr);
+    }
+  }
+
+  @media (min-width: 1024px) {
+    .customer-segments-grid {
+      grid-template-columns: repeat(3, 1fr);
+    }
   }
 </style>

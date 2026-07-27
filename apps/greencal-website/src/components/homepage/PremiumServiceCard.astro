@@ -5,19 +5,36 @@ import type { ServiceRecord } from '../../types/content';
 export interface Props {
   service: ServiceRecord;
   icon?: 'roof' | 'wall' | 'concrete' | 'building' | 'community' | 'camera';
+  /** 'featured' is used for the 3 primary residential services - larger media, heading, and a second CTA - so they visually dominate the section per the Phase 2 brief. */
+  size?: 'default' | 'featured';
 }
 
-const { service, icon = 'camera' } = Astro.props;
+const { service, icon = 'camera', size = 'default' } = Astro.props;
+const isFeatured = size === 'featured';
 ---
 
-<article class="premium-service-card">
+<article class={`premium-service-card ${isFeatured ? 'premium-service-card-featured' : ''}`}>
   <div class="premium-service-card-media">
-    <ImagePlaceholder label={`Photo needed: ${service.title}`} ratio="4/3" icon={icon} />
+    <ImagePlaceholder
+      label={`Photo needed: ${service.title}`}
+      ratio={isFeatured ? '3/2' : '4/3'}
+      icon={icon}
+      categoryLabel={service.title}
+    />
   </div>
   <div class="premium-service-card-body">
     <h3><a href={service.route}>{service.title}</a></h3>
     <p>{service.summary}</p>
-    <a href={service.route} class="premium-service-card-link">Learn More<span aria-hidden="true"> &rarr;</span></a>
+    <div class="premium-service-card-actions">
+      <a href={service.route} class="premium-service-card-link">Learn More<span aria-hidden="true"> &rarr;</span></a>
+      {
+        isFeatured && (
+          <a href="/contact-us#quote-form" class="btn btn-primary">
+            Request Estimate
+          </a>
+        )
+      }
+    </div>
   </div>
 </article>
 
@@ -75,18 +92,43 @@ const { service, icon = 'camera' } = Astro.props;
 
   .premium-service-card-body p {
     color: var(--color-charcoal-600);
+    font-size: var(--font-size-base);
     flex: 1;
+  }
+
+  .premium-service-card-actions {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: var(--space-3);
+    margin-block-start: var(--space-2);
   }
 
   .premium-service-card-link {
     font-weight: 700;
     color: var(--color-forest-700);
     text-decoration: none;
-    margin-block-start: var(--space-2);
   }
 
   .premium-service-card-link:hover {
     text-decoration: underline;
+  }
+
+  /* Featured (Residential's 3 primary services): larger heading/body
+     copy and body padding so these visually dominate the section, per
+     the Phase 2 "residential services do not have enough visual
+     importance" complaint. */
+  .premium-service-card-featured .premium-service-card-body {
+    padding: var(--space-5);
+  }
+
+  .premium-service-card-featured .premium-service-card-body h3 {
+    font-size: var(--font-size-xl);
+    margin-block-end: var(--space-3);
+  }
+
+  .premium-service-card-featured .premium-service-card-body p {
+    font-size: var(--font-size-lg);
   }
 
   @media (prefers-reduced-motion: reduce) {
