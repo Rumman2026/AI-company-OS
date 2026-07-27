@@ -2,6 +2,7 @@
 import { headerNav } from '../data/navigation';
 import { siteInfo } from '../data/site';
 import Wordmark from './Wordmark.astro';
+import UtilityBar from './UtilityBar.astro';
 
 // "Request a Quote" is the last headerNav entry (navigation.ts) - styled
 // as a button here rather than duplicated as separate data, so the link
@@ -10,62 +11,104 @@ const primaryNav = headerNav.filter((item) => item.label !== 'Request a Quote');
 const quoteCta = headerNav.find((item) => item.label === 'Request a Quote');
 ---
 
+<UtilityBar />
 <header class="site-header">
   <nav aria-label="Primary" class="site-nav">
     <Wordmark isSiteBrand />
-    <ul class="site-nav-list">
-      {
-        primaryNav.map((item) =>
-          item.children && item.children.length > 0 ? (
-            <li class="nav-has-children">
-              <details class="nav-dropdown">
-                <summary>{item.label}</summary>
-                <ul>
-                  <li>
-                    <a href={item.href}>All {item.label} Services</a>
-                  </li>
-                  {item.children.map((child) => (
+    <button
+      type="button"
+      class="mobile-nav-toggle"
+      aria-expanded="false"
+      aria-controls="mobile-nav-content"
+    >
+      <span class="hamburger-icon" aria-hidden="true"></span>
+      <span class="mobile-nav-toggle-label">Menu</span>
+    </button>
+    <div id="mobile-nav-content" class="mobile-nav-content">
+      <ul class="site-nav-list">
+        {
+          primaryNav.map((item) =>
+            item.children && item.children.length > 0 ? (
+              <li class="nav-has-children">
+                <details class="nav-dropdown">
+                  <summary>{item.label}</summary>
+                  <ul>
                     <li>
-                      <a href={child.href}>{child.label}</a>
+                      <a href={item.href}>All {item.label} Services</a>
                     </li>
-                  ))}
-                </ul>
-              </details>
-            </li>
-          ) : (
-            <li>
-              <a href={item.href}>{item.label}</a>
-            </li>
-          ),
-        )
-      }
-    </ul>
-    <div class="site-nav-actions">
-      <a href={siteInfo.phoneHref} class="site-nav-phone">{siteInfo.phoneDisplay}</a>
-      {quoteCta && (
-        <a href={quoteCta.href} class="btn btn-primary site-nav-cta">
-          {quoteCta.label}
-        </a>
-      )}
+                    {item.children.map((child) => (
+                      <li>
+                        <a href={child.href}>{child.label}</a>
+                      </li>
+                    ))}
+                  </ul>
+                </details>
+              </li>
+            ) : (
+              <li>
+                <a href={item.href}>{item.label}</a>
+              </li>
+            ),
+          )
+        }
+      </ul>
+      <div class="site-nav-actions">
+        <a href={siteInfo.phoneHref} class="site-nav-phone">{siteInfo.phoneDisplay}</a>
+        {quoteCta && (
+          <a href={quoteCta.href} class="btn btn-primary site-nav-cta">
+            {quoteCta.label}
+          </a>
+        )}
+      </div>
     </div>
   </nav>
 </header>
 
+<script>
+  // Mobile hamburger disclosure. Below 1024px, .mobile-nav-content starts
+  // CSS-hidden (see <style> below); this script only toggles it open/closed
+  // and keeps aria-expanded in sync. At/above 1024px the CSS forces
+  // .mobile-nav-content visible unconditionally (display: contents) and
+  // hides the toggle button entirely, so this script has no visible effect
+  // on desktop regardless of click state.
+  function initMobileNavToggle() {
+    const toggle = document.querySelector<HTMLButtonElement>('.mobile-nav-toggle');
+    const content = document.getElementById('mobile-nav-content');
+    if (!toggle || !content) return;
+    toggle.addEventListener('click', () => {
+      const isOpen = content.classList.toggle('is-open');
+      toggle.setAttribute('aria-expanded', String(isOpen));
+    });
+  }
+  initMobileNavToggle();
+</script>
+
 <style>
   .site-header {
+    position: sticky;
+    top: 0;
+    z-index: 40;
     background-color: var(--color-white);
     border-bottom: 1px solid var(--color-cream-100);
+    box-shadow: var(--shadow-sm);
   }
 
   .site-nav {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
-    gap: var(--space-3) var(--space-4);
+    gap: var(--space-3) var(--space-5);
+    min-height: var(--header-height);
   }
 
   .site-nav-list {
     flex: 1 1 auto;
+    font-size: var(--font-size-base);
+    font-weight: 600;
+  }
+
+  .site-nav-list :global(.nav-dropdown summary) {
+    padding-block: var(--space-2);
   }
 
   .site-nav-actions {
@@ -75,7 +118,116 @@ const quoteCta = headerNav.find((item) => item.label === 'Request a Quote');
     margin-inline-start: auto;
   }
 
+  /* Mobile hamburger disclosure. Below 1024px: .mobile-nav-content starts
+     hidden and the button toggles a .is-open class (see <script> above).
+     At/above 1024px: .mobile-nav-content is forced visible unconditionally
+     via `display: contents` (collapsing it into .site-nav's flex layout,
+     matching the original desktop markup) and the toggle button is hidden
+     and removed from tab order entirely. A plain <button>/<div> pair is
+     used rather than <details>/<summary> here because Chromium has a
+     known rendering bug where `display: contents` on a closed <details>
+     suppresses its content regardless of computed style - verified
+     directly by inspecting getBoundingClientRect() (collapsed to 0 width)
+     before switching to this approach. */
+  .mobile-nav-toggle {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    cursor: pointer;
+    font: inherit;
+    font-weight: 600;
+    font-size: var(--font-size-sm);
+    color: var(--color-forest-900);
+    background: none;
+    border: none;
+    padding: var(--space-2) var(--space-3);
+    margin-inline-start: auto;
+    border-radius: var(--radius-md);
+  }
+
+  .hamburger-icon,
+  .hamburger-icon::before,
+  .hamburger-icon::after {
+    display: block;
+    width: 1.5rem;
+    height: 2px;
+    background-color: var(--color-forest-900);
+    border-radius: var(--radius-full);
+  }
+
+  .hamburger-icon {
+    position: relative;
+  }
+
+  .hamburger-icon::before,
+  .hamburger-icon::after {
+    content: '';
+    position: absolute;
+    left: 0;
+  }
+
+  .hamburger-icon::before {
+    top: -6px;
+  }
+
+  .hamburger-icon::after {
+    top: 6px;
+  }
+
+  @media (max-width: 1023px) {
+    .mobile-nav-content {
+      display: none;
+    }
+
+    .mobile-nav-content.is-open {
+      position: absolute;
+      inset-inline: 0;
+      top: 100%;
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-4);
+      padding: var(--space-4) var(--space-4) var(--space-5);
+      background-color: var(--color-white);
+      border-bottom: 1px solid var(--color-cream-100);
+      box-shadow: var(--shadow-md);
+      max-height: calc(100vh - var(--header-height) - var(--utility-bar-height));
+      overflow-y: auto;
+    }
+
+    .site-nav-list {
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-1);
+    }
+
+    .site-nav-actions {
+      flex-direction: column;
+      align-items: stretch;
+      gap: var(--space-3);
+    }
+
+    .site-nav-phone {
+      display: block;
+      text-align: center;
+    }
+
+    .site-nav-cta {
+      text-align: center;
+    }
+  }
+
+  @media (min-width: 1024px) {
+    .mobile-nav-toggle {
+      display: none;
+    }
+
+    .mobile-nav-content {
+      display: contents;
+    }
+  }
+
   .site-nav-phone {
+    font-size: var(--font-size-lg);
     font-weight: 700;
     color: var(--color-forest-900);
     text-decoration: none;
@@ -89,11 +241,6 @@ const quoteCta = headerNav.find((item) => item.label === 'Request a Quote');
 
   .site-nav-cta {
     white-space: nowrap;
-  }
-
-  @media (max-width: 640px) {
-    .site-nav-phone {
-      display: none;
-    }
+    font-size: var(--font-size-base);
   }
 </style>

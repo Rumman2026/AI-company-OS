@@ -24,6 +24,10 @@ export const headerNav: NavItem[] = [
     href: '/multi-family-hoa',
     children: categoryChildren('multi-family-hoa'),
   },
+  // Links to the homepage's #reviews section (real, honestly-marked
+  // placeholder content today) rather than a standalone page - no
+  // dedicated Reviews route exists yet.
+  { label: 'Reviews', href: '/#reviews' },
   { label: 'Service Areas', href: '/service-areas' },
   { label: 'Contact', href: '/contact-us' },
   { label: 'Request a Quote', href: '/contact-us#quote-form' },
