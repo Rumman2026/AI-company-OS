@@ -1,30 +1,58 @@
 /*
- * Checkpoint 1 placeholder design tokens — not approved final brand
- * colors or typography. Local to this app only (packages/ui-kit was not
- * modified for this checkpoint). See DECISIONS.md ADR-0004.
+ * Premium design-system tokens (2026-07-27 homepage redesign direction) -
+ * pending Figma-based final approval. Local to this app only
+ * (packages/ui-kit was not modified). See DECISIONS.md ADR-0004.
+ *
+ * Existing token NAMES are preserved everywhere they were already used
+ * (forms, footer, service cards, focus rings) - only values changed, plus
+ * new tokens added - so no other page's markup needed to change to pick
+ * up the refined palette. --color-bg intentionally stays white (the
+ * homepage opts into the new --color-cream-* backgrounds itself); other
+ * routes are not being redesigned this stage.
  */
 :root {
+  /* Brand colors - deep forest green, warm ivory, charcoal, muted gold */
+  --color-forest-900: #142a20;
+  --color-forest-700: #1f4a34;
+  --color-forest-500: #2e6b4a;
+  --color-cream-50: #fbf8f1;
+  --color-cream-100: #f3ecdd;
+  --color-charcoal-900: #232220;
+  --color-charcoal-600: #5b5750;
+  --color-gold-500: #b08d57;
+  --color-gold-700: #7a5c33;
+  --color-white: #ffffff;
+
   /* Semantic colors */
   --color-bg: #ffffff;
-  --color-text: #1a1a1a;
-  --color-accent: #2f6b3a;
-  --color-link: #1f5c8b;
-  --color-link-visited: #5a3d8b;
+  --color-text: var(--color-charcoal-900);
+  --color-accent: var(--color-forest-700);
+  --color-link: var(--color-forest-700);
+  --color-link-visited: var(--color-gold-700);
   --color-danger: #b91c1c;
 
-  /* Neutral colors */
+  /* Neutral colors (unchanged - still used by forms/borders site-wide) */
   --color-neutral-100: #f5f5f4;
   --color-neutral-300: #d6d3d1;
   --color-neutral-600: #57534e;
   --color-neutral-900: #1c1917;
 
-  /* Typography scale */
+  /* Typography - serif for display headings, system sans for everything
+     else (no external font request: keeps every page's load fast and
+     avoids a font-swap layout shift). */
   --font-family-base: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font-family-display: Georgia, 'Iowan Old Style', 'Palatino Linotype', Palatino, 'Book Antiqua',
+    serif;
+  --font-size-xs: 0.8125rem;
   --font-size-sm: 0.875rem;
   --font-size-base: 1rem;
   --font-size-lg: 1.25rem;
   --font-size-xl: 1.75rem;
   --font-size-2xl: 2.5rem;
+  /* Fluid sizes for the homepage's largest headings - scale smoothly
+     between mobile and desktop instead of one oversized fixed size. */
+  --font-size-hero: clamp(2.25rem, 5vw + 1rem, 3.75rem);
+  --font-size-section-heading: clamp(1.75rem, 3vw + 1rem, 2.5rem);
 
   /* Spacing */
   --space-1: 0.25rem;
@@ -33,22 +61,30 @@
   --space-4: 1.5rem;
   --space-5: 2rem;
   --space-6: 3rem;
+  --space-7: 4.5rem;
+  --space-8: 6rem;
 
   /* Container sizes */
   --container-max-width: 60rem;
+  --container-wide: 75rem;
 
   /* Border radii */
   --radius-sm: 0.25rem;
   --radius-md: 0.5rem;
+  --radius-lg: 0.75rem;
+  --radius-full: 9999px;
 
   /* Shadows */
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.08);
+  --shadow-md: 0 4px 16px rgba(20, 42, 32, 0.1);
+  --shadow-lg: 0 12px 32px rgba(20, 42, 32, 0.16);
 
   /* Focus indicators */
-  --focus-ring-color: #1f5c8b;
+  --focus-ring-color: var(--color-forest-700);
   --focus-ring-width: 3px;
 
   /* Motion durations */
   --motion-duration-fast: 100ms;
   --motion-duration-base: 200ms;
+  --motion-duration-slow: 400ms;
 }

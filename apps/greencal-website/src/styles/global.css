@@ -8,6 +8,11 @@ html,
 body {
   margin: 0;
   padding: 0;
+  /* .full-bleed sections use 100vw, which on Windows/Linux browsers
+     exceeds the visible viewport by the scrollbar's own width - this
+     clips exactly that known discrepancy, never legitimate content
+     (every page is already required to have no horizontal overflow). */
+  overflow-x: hidden;
 }
 
 body {
@@ -73,13 +78,6 @@ header nav {
   align-items: center;
   gap: var(--space-3);
   padding-block: var(--space-3);
-}
-
-.brand {
-  font-weight: 700;
-  font-size: var(--font-size-lg);
-  text-decoration: none;
-  color: var(--color-text);
 }
 
 header nav ul,
@@ -336,6 +334,114 @@ footer {
 #quote-form-submit:disabled {
   cursor: not-allowed;
   opacity: 0.7;
+}
+
+/* --- Premium design-system utilities (2026-07-27 homepage redesign) ---
+   Shared, reusable across future pages - not homepage-only, even though
+   only the homepage uses them this stage. */
+
+.container-wide {
+  max-width: var(--container-wide);
+  margin-inline: auto;
+  padding-inline: var(--space-4);
+}
+
+/* Lets a section's background span the full viewport width while its
+   content stays constrained inside an ancestor with a narrower
+   max-width - standard CSS breakout, no layout engine changes needed. */
+.full-bleed {
+  width: 100vw;
+  margin-inline: calc(50% - 50vw);
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  min-height: 44px;
+  padding: var(--space-3) var(--space-5);
+  font: inherit;
+  font-weight: 700;
+  text-decoration: none;
+  text-align: center;
+  border-radius: var(--radius-sm);
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition:
+    background-color var(--motion-duration-base) ease,
+    border-color var(--motion-duration-base) ease,
+    transform var(--motion-duration-fast) ease;
+}
+
+.btn:active {
+  transform: translateY(1px);
+}
+
+.btn-primary {
+  color: var(--color-white);
+  background-color: var(--color-forest-700);
+  border-color: var(--color-forest-700);
+}
+
+.btn-primary:hover {
+  background-color: var(--color-forest-900);
+  border-color: var(--color-forest-900);
+}
+
+.btn-secondary {
+  color: var(--color-forest-700);
+  background-color: var(--color-white);
+  border-color: var(--color-forest-700);
+}
+
+.btn-secondary:hover {
+  background-color: var(--color-cream-100);
+}
+
+/* For use on dark hero/CTA backgrounds - light outline instead of a
+   forest-on-forest button that would disappear. */
+.btn-inverse {
+  color: var(--color-white);
+  background-color: transparent;
+  border-color: var(--color-white);
+}
+
+.btn-inverse:hover {
+  background-color: rgba(255, 255, 255, 0.12);
+}
+
+.btn-lg {
+  padding: var(--space-3) var(--space-6);
+  font-size: var(--font-size-lg);
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-1) var(--space-3);
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: var(--color-forest-700);
+  background-color: var(--color-cream-100);
+  border: 1px solid var(--color-gold-500);
+  border-radius: var(--radius-full);
+}
+
+.divider {
+  border: none;
+  border-top: 1px solid var(--color-gold-500);
+  opacity: 0.5;
+  width: 4rem;
+  margin: var(--space-4) auto;
+}
+
+.section-heading {
+  font-family: var(--font-family-display);
+  font-size: var(--font-size-section-heading);
+  color: var(--color-forest-900);
+  line-height: 1.15;
 }
 
 @media (max-width: 700px) {
