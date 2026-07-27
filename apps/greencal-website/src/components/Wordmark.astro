@@ -1,0 +1,93 @@
+---
+// TEMPORARY brand mark - no approved GreenCal logo/vector identity exists
+// in this repository. This is a restrained text wordmark with a
+// monogram, not a final trademark asset. Replace this component's
+// internals (not its usage sites) once a real logo is approved - every
+// page already imports it from one place.
+export interface Props {
+  variant?: 'default' | 'inverse';
+  /**
+   * Tests key off a single, unique `.brand` element (tab-order and
+   * focus-visibility checks) - only the header's instance should set
+   * this. Leave false for any other placement (e.g. the footer).
+   */
+  isSiteBrand?: boolean;
+}
+
+const { variant = 'default', isSiteBrand = false } = Astro.props;
+---
+
+<a
+  href="/"
+  class={`wordmark wordmark-${variant} ${isSiteBrand ? 'brand' : ''}`}
+  aria-label="GreenCal Pressure Washing home">
+  <span class="wordmark-monogram" aria-hidden="true">GC</span>
+  <span class="wordmark-text">
+    <span class="wordmark-name">GreenCal</span>
+    <span class="wordmark-tagline">Pressure Washing</span>
+  </span>
+</a>
+
+<style>
+  .wordmark {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-3);
+    text-decoration: none;
+    color: var(--color-forest-900);
+  }
+
+  .wordmark-monogram {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.5rem;
+    height: 2.5rem;
+    flex: none;
+    font-family: var(--font-family-display);
+    font-size: 1.125rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    color: var(--color-white);
+    background-color: var(--color-forest-700);
+    border-radius: var(--radius-full);
+  }
+
+  .wordmark-text {
+    display: flex;
+    flex-direction: column;
+    line-height: 1.1;
+  }
+
+  .wordmark-name {
+    font-family: var(--font-family-display);
+    font-size: 1.25rem;
+    font-weight: 700;
+  }
+
+  .wordmark-tagline {
+    font-size: var(--font-size-xs);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--color-charcoal-600);
+  }
+
+  .wordmark-inverse {
+    color: var(--color-white);
+  }
+
+  .wordmark-inverse .wordmark-monogram {
+    background-color: var(--color-white);
+    color: var(--color-forest-900);
+  }
+
+  .wordmark-inverse .wordmark-tagline {
+    color: rgba(255, 255, 255, 0.75);
+  }
+
+  @media (max-width: 480px) {
+    .wordmark-tagline {
+      display: none;
+    }
+  }
+</style>
