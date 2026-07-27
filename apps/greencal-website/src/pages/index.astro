@@ -1,11 +1,19 @@
 ---
+// Premium homepage redesign (2026-07-27) - Vercel Preview review only,
+// not yet merged to main. See the redesign report for the full section
+// list, asset inventory, and Figma handoff summary. Only this page's
+// structure changed; every other route is unchanged this stage.
 import BaseLayout from '../layouts/BaseLayout.astro';
-import ServiceCard from '../components/ServiceCard.astro';
-import ContactActions from '../components/ContactActions.astro';
-import HowItWorks from '../components/HowItWorks.astro';
-import ClosingCta from '../components/ClosingCta.astro';
+import Hero from '../components/homepage/Hero.astro';
+import TrustStrip from '../components/homepage/TrustStrip.astro';
+import ServiceGridSection from '../components/homepage/ServiceGridSection.astro';
+import BeforeAfter from '../components/homepage/BeforeAfter.astro';
+import WhyChooseGreenCal from '../components/homepage/WhyChooseGreenCal.astro';
+import ProcessSteps from '../components/homepage/ProcessSteps.astro';
+import Testimonials from '../components/homepage/Testimonials.astro';
+import ServiceAreaSection from '../components/homepage/ServiceAreaSection.astro';
+import FinalCta from '../components/homepage/FinalCta.astro';
 import { servicesByCategory } from '../data/services';
-import { siteInfo } from '../data/site';
 
 const title = 'GreenCal Pressure Washing';
 const description = `Residential, commercial, and multi-family exterior cleaning serving approved communities across San Diego, Orange, and Riverside Counties.`;
@@ -16,43 +24,44 @@ const multiFamilyHoa = servicesByCategory('multi-family-hoa');
 ---
 
 <BaseLayout title={title} description={description} path="/">
-  <h1>GreenCal Pressure Washing</h1>
-  <p class="lede">
-    {siteInfo.businessName} provides residential, commercial, and multi-family exterior cleaning
-    for properties across approved Southern California communities.
-  </p>
-  <div class="cta-banner">
-    <p>Call or email to request a quote:</p>
-    <ContactActions />
-  </div>
+  <Hero />
+  <TrustStrip />
 
-  <p class="service-area-statement">
-    Serving approved communities across San Diego, Orange, and Riverside Counties. See the{' '}
-    <a href="/service-areas">full service-area list</a> to check your location.
-  </p>
+  <ServiceGridSection
+    id="residential-heading"
+    heading="Residential Services"
+    intro="Roof, house, and concrete cleaning for homeowners across the approved service area."
+    services={residential}
+    viewAllRoute="/residential"
+    viewAllLabel="All Residential Services"
+    icon="roof"
+  />
 
-  <section aria-labelledby="residential-heading">
-    <h2 id="residential-heading">Residential Services</h2>
-    {residential.map((service) => <ServiceCard service={service} />)}
-    <p><a href="/residential">All residential services</a></p>
-  </section>
+  <ServiceGridSection
+    id="commercial-heading"
+    heading="Commercial Services"
+    intro="Credible, scheduling-conscious exterior cleaning for property managers, facility managers, and business owners - including gas stations, shopping centers, warehouses, and other commercial properties."
+    services={commercial}
+    viewAllRoute="/commercial"
+    viewAllLabel="All Commercial Services"
+    icon="building"
+    tone="alt"
+  />
 
-  <section aria-labelledby="commercial-heading">
-    <h2 id="commercial-heading">Commercial Services</h2>
-    {commercial.map((service) => <ServiceCard service={service} />)}
-    <p><a href="/commercial">All commercial services</a></p>
-  </section>
+  <ServiceGridSection
+    id="multi-family-hoa-heading"
+    heading="Multi-Family & HOA"
+    intro="Building exteriors and shared common-area concrete - sidewalks, breezeways, and parking areas - for apartments, condominiums, and HOA-managed communities, with recurring service plans available."
+    services={multiFamilyHoa}
+    viewAllRoute="/multi-family-hoa"
+    viewAllLabel="All Multi-Family & HOA Services"
+    icon="community"
+  />
 
-  <section aria-labelledby="multi-family-hoa-heading">
-    <h2 id="multi-family-hoa-heading">Multi-Family & HOA Services</h2>
-    {multiFamilyHoa.map((service) => <ServiceCard service={service} />)}
-    <p><a href="/multi-family-hoa">All multi-family & HOA services</a></p>
-  </section>
-
-  <HowItWorks />
-  <ClosingCta />
-  <nav aria-label="Related pages" class="page-links">
-    <a href="/service-areas">Service Areas</a>
-    <a href="/contact-us">Contact</a>
-  </nav>
+  <BeforeAfter />
+  <WhyChooseGreenCal />
+  <ProcessSteps />
+  <Testimonials />
+  <ServiceAreaSection />
+  <FinalCta />
 </BaseLayout>
