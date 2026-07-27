@@ -82,22 +82,41 @@ copy.
 
 ## Photography
 
-Zero real photos exist in this repository for any of the following.
-Every slot below currently renders the honest `ImagePlaceholder`/
-`ResponsiveImage` absence treatment, not a stock photo and not a
-fabricated "before/after" pair:
+**Real Photo Integration Pass (2026-07-26)**: 3 real, owner-supplied
+before/after photo pairs are now integrated (Roof Washing, House
+Washing, Concrete/Driveway Cleaning) — used for the hero (concrete
+"after"), the 3 residential service cards ("after" photos), and the
+Real Results section (all 3 pairs, Roof Washing featured). Originals
+are preserved untouched at
+`apps/greencal-website/public/assets/greencal/homepage/`; generated
+WebP derivatives (optimized, and privacy-blurred where needed) live at
+`apps/greencal-website/public/assets/greencal/generated/homepage/`.
 
-- Hero image (concrete tile roof / commercial concrete / house washing
-  / driveway / technician+equipment / before-after transformation)
-- 3 primary + 4 secondary residential service photos
+**Privacy note**: the original Concrete Cleaning and House Washing
+source photos both had a legible house number visible (Concrete: "248"
+on the garage wall; House Washing: "131" near the front door), in both
+the before and after photo of each pair. Both numbers are blurred (soft,
+feathered blur — not a hard redaction box) in the generated derivatives
+used on the site; the original, unblurred source files are preserved
+as-is per the file-handling rules, but are not referenced by any
+component. The Roof Washing pair had no visible privacy issue.
+
+Still zero real photos for any of the following. Every slot below
+currently renders the honest `ImagePlaceholder`/`ResponsiveImage`
+absence treatment, not a stock photo and never presented as commercial/
+HOA proof:
+
+- 4 secondary residential service photos (moot — those services aren't
+  approved; see the scope-conflict section above)
 - 7 commercial service photos + 5 property-type images (gas station,
-  shopping center, storefront, warehouse, restaurant)
-- 4 multi-family/HOA images
-- At least 3 before/after pairs (Roof Washing, Residential Concrete,
-  Commercial Flatwork) — real, owner-consented job photos, never stock
-  substitutes presented as GreenCal work
-- Logo/favicon (still the temporary text wordmark from the prior
-  phase)
+  shopping center, storefront, warehouse, restaurant) — explicitly
+  labeled "Commercial Project Media Coming Soon," never a residential
+  photo repurposed as commercial proof
+- 4 multi-family/HOA images — same "Commercial Project Media Coming
+  Soon" placeholder
+- Logo/favicon — `public/assets/greencal/logo/` was created but no
+  logo file has been placed there; the temporary text wordmark remains
+  in use in the header and footer
 
 ## Phase 2 — same requests repeated, same resolution
 
