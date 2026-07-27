@@ -1,24 +1,34 @@
 ---
-// Only claims already supported by this site's existing, owner-approved
-// copy (see src/data/services.ts) - no equipment, certification, or
-// guarantee language invented for this section.
-const reasons = [
+// "Commercial-Grade Equipment," "wastewater recovery," and "hot-water
+// cleaning" from the refinement brief are excluded - no evidence
+// exists in this repository (see
+// docs/GREENCAL_OWNER_VERIFICATION_REQUIRED.md). Only claims already
+// supported by this site's existing, owner-approved copy
+// (src/data/services.ts) are used.
+const primaryBenefits = [
   {
-    title: 'Property-Conscious Methods',
-    body: 'Surface-appropriate cleaning approaches, chosen based on the material being cleaned.',
+    title: 'Right Method for Every Surface',
+    body: 'Cleaning approach is chosen based on the material being cleaned, not a single one-size-fits-all method.',
   },
   {
-    title: 'Residential & Commercial Capability',
-    body: 'One provider for homes, businesses, and multi-family communities across the approved service area.',
-  },
-  {
-    title: 'Clear Communication',
+    title: 'Clear Communication and Documentation',
     body: 'Project scope, access, and scheduling are discussed up front as part of every quote.',
   },
   {
-    title: 'Individually Evaluated Projects',
-    body: 'Every property and surface is assessed on its own before work begins - no one-size-fits-all approach.',
+    title: 'Residential and Commercial Capability',
+    body: 'One provider for homes, businesses, and multi-family communities across the approved service area.',
   },
+  {
+    title: 'Individually Evaluated Projects',
+    body: 'Every property and surface is assessed on its own before work begins.',
+  },
+];
+
+const secondaryCapabilities = [
+  'Plant & Greenery-Conscious Cleaning',
+  'Runoff-Conscious Practices',
+  'Before-and-After Photos Available',
+  'Recurring Service Availability',
 ];
 ---
 
@@ -27,7 +37,7 @@ const reasons = [
     <h2 id="why-choose-heading" class="section-heading">Why Choose GreenCal</h2>
     <div class="why-choose-grid">
       {
-        reasons.map((reason) => (
+        primaryBenefits.map((reason) => (
           <div class="why-choose-item">
             <h3>{reason.title}</h3>
             <p>{reason.body}</p>
@@ -35,6 +45,9 @@ const reasons = [
         ))
       }
     </div>
+    <ul class="why-choose-secondary">
+      {secondaryCapabilities.map((item) => <li>{item}</li>)}
+    </ul>
   </div>
 </section>
 
@@ -47,23 +60,37 @@ const reasons = [
 
   .why-choose-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
-    gap: var(--space-5);
-    margin-block-start: var(--space-5);
+    grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
+    gap: var(--space-6);
+    margin-block: var(--space-6);
   }
 
   .why-choose-item h3 {
     font-family: var(--font-family-display);
-    font-size: var(--font-size-lg);
+    font-size: var(--font-size-xl);
     color: var(--color-gold-500);
-    margin-block: 0 var(--space-2);
+    margin-block: 0 var(--space-3);
   }
 
   .why-choose-item p {
-    color: rgba(255, 255, 255, 0.8);
+    font-size: var(--font-size-lg);
+    color: rgba(255, 255, 255, 0.82);
   }
 
   .why-choose .section-heading {
     color: var(--color-white);
+  }
+
+  .why-choose-secondary {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-3) var(--space-5);
+    list-style: none;
+    margin: 0;
+    padding-block-start: var(--space-5);
+    border-top: 1px solid rgba(255, 255, 255, 0.2);
+    font-size: var(--font-size-sm);
+    font-weight: 600;
+    color: rgba(255, 255, 255, 0.75);
   }
 </style>

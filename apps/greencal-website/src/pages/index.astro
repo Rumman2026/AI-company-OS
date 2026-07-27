@@ -1,14 +1,18 @@
 ---
-// Premium homepage redesign (2026-07-27) - Vercel Preview review only,
-// not yet merged to main. See the redesign report for the full section
-// list, asset inventory, and Figma handoff summary. Only this page's
+// Premium homepage - visual/conversion refinement phase (2026-07-27),
+// on Vercel Preview only. See docs/GREENCAL_VISUAL_REFINEMENT_PLAN.md
+// and docs/GREENCAL_OWNER_VERIFICATION_REQUIRED.md. Only this page's
 // structure changed; every other route is unchanged this stage.
 import BaseLayout from '../layouts/BaseLayout.astro';
 import Hero from '../components/homepage/Hero.astro';
 import TrustStrip from '../components/homepage/TrustStrip.astro';
+import CustomerSegmentSection from '../components/homepage/CustomerSegmentSection.astro';
 import ServiceGridSection from '../components/homepage/ServiceGridSection.astro';
+import CommercialSection from '../components/homepage/CommercialSection.astro';
+import HOASection from '../components/homepage/HOASection.astro';
 import BeforeAfter from '../components/homepage/BeforeAfter.astro';
 import WhyChooseGreenCal from '../components/homepage/WhyChooseGreenCal.astro';
+import SafetySection from '../components/homepage/SafetySection.astro';
 import ProcessSteps from '../components/homepage/ProcessSteps.astro';
 import Testimonials from '../components/homepage/Testimonials.astro';
 import ServiceAreaSection from '../components/homepage/ServiceAreaSection.astro';
@@ -19,13 +23,12 @@ const title = 'GreenCal Pressure Washing';
 const description = `Residential, commercial, and multi-family exterior cleaning serving approved communities across San Diego, Orange, and Riverside Counties.`;
 
 const residential = servicesByCategory('residential');
-const commercial = servicesByCategory('commercial');
-const multiFamilyHoa = servicesByCategory('multi-family-hoa');
 ---
 
 <BaseLayout title={title} description={description} path="/">
   <Hero />
   <TrustStrip />
+  <CustomerSegmentSection />
 
   <ServiceGridSection
     id="residential-heading"
@@ -37,29 +40,11 @@ const multiFamilyHoa = servicesByCategory('multi-family-hoa');
     icon="roof"
   />
 
-  <ServiceGridSection
-    id="commercial-heading"
-    heading="Commercial Services"
-    intro="Credible, scheduling-conscious exterior cleaning for property managers, facility managers, and business owners - including gas stations, shopping centers, warehouses, and other commercial properties."
-    services={commercial}
-    viewAllRoute="/commercial"
-    viewAllLabel="All Commercial Services"
-    icon="building"
-    tone="alt"
-  />
-
-  <ServiceGridSection
-    id="multi-family-hoa-heading"
-    heading="Multi-Family & HOA"
-    intro="Building exteriors and shared common-area concrete - sidewalks, breezeways, and parking areas - for apartments, condominiums, and HOA-managed communities, with recurring service plans available."
-    services={multiFamilyHoa}
-    viewAllRoute="/multi-family-hoa"
-    viewAllLabel="All Multi-Family & HOA Services"
-    icon="community"
-  />
-
+  <CommercialSection />
+  <HOASection />
   <BeforeAfter />
   <WhyChooseGreenCal />
+  <SafetySection />
   <ProcessSteps />
   <Testimonials />
   <ServiceAreaSection />

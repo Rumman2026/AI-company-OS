@@ -1,9 +1,23 @@
 ---
+// Four-column expansion (visual-refinement phase). "Privacy Policy,"
+// "Terms," and "Accessibility" pages don't exist yet - omitted rather
+// than linked to nowhere (see
+// docs/GREENCAL_OWNER_VERIFICATION_REQUIRED.md). Business hours,
+// Google Business Profile, Facebook, and Instagram are shown as
+// explicit "not yet connected" notes, never as live-looking dead
+// links. The pre-existing, tested <nav aria-label="Footer"> below is
+// unchanged.
 import { footerNav } from '../data/navigation';
+import { servicesByCategory } from '../data/services';
 import { siteInfo } from '../data/site';
 import Wordmark from './Wordmark.astro';
 
 const year = new Date().getFullYear();
+const residentialServices = servicesByCategory('residential');
+const commercialHoaLinks = [
+  ...servicesByCategory('commercial').slice(0, 3),
+  ...servicesByCategory('multi-family-hoa'),
+];
 ---
 
 <footer class="site-footer">
@@ -15,11 +29,43 @@ const year = new Date().getFullYear();
         California communities.
       </p>
     </div>
-    <div class="site-footer-contact">
-      <a href={siteInfo.phoneHref}>{siteInfo.phoneDisplay}</a>
-      <a href={siteInfo.emailHref}>{siteInfo.emailDisplay}</a>
+  </div>
+
+  <div class="site-footer-columns">
+    <div class="site-footer-column">
+      <h3>Company</h3>
+      <ul>
+        <li><a href="/">Home</a></li>
+        <li><a href="/#reviews">Reviews</a></li>
+        <li><a href="/service-areas">Service Areas</a></li>
+        <li><a href="/contact-us">Contact</a></li>
+      </ul>
+    </div>
+    <div class="site-footer-column">
+      <h3>Residential Services</h3>
+      <ul>
+        {residentialServices.map((service) => <li><a href={service.route}>{service.title}</a></li>)}
+      </ul>
+    </div>
+    <div class="site-footer-column">
+      <h3>Commercial &amp; HOA</h3>
+      <ul>
+        {commercialHoaLinks.map((service) => <li><a href={service.route}>{service.title}</a></li>)}
+      </ul>
+    </div>
+    <div class="site-footer-column">
+      <h3>Contact</h3>
+      <ul class="site-footer-contact-list">
+        <li>{siteInfo.businessName}</li>
+        <li><a href={siteInfo.phoneHref}>{siteInfo.phoneDisplay}</a></li>
+        <li><a href={siteInfo.emailHref}>{siteInfo.emailDisplay}</a></li>
+        <li class="site-footer-note">Business hours: not yet published</li>
+        <li class="site-footer-note">Google Business Profile: not yet connected</li>
+        <li class="site-footer-note">Facebook / Instagram: not yet connected</li>
+      </ul>
     </div>
   </div>
+
   <nav aria-label="Footer" class="site-footer-nav">
     <ul>
       {
@@ -71,15 +117,46 @@ const year = new Date().getFullYear();
     color: rgba(255, 255, 255, 0.75);
   }
 
-  .site-footer-contact {
+  .site-footer-columns {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
+    gap: var(--space-5);
+    margin-block: var(--space-6);
+  }
+
+  .site-footer-column h3 {
+    font-size: var(--font-size-base);
+    color: var(--color-gold-500);
+    margin-block: 0 var(--space-3);
+  }
+
+  .site-footer-column ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
     display: flex;
     flex-direction: column;
     gap: var(--space-2);
   }
 
-  .site-footer-contact a {
-    color: var(--color-white);
+  .site-footer-column a {
+    color: rgba(255, 255, 255, 0.85);
+    text-decoration: none;
+  }
+
+  .site-footer-column a:hover {
+    text-decoration: underline;
+  }
+
+  .site-footer-contact-list li:first-child {
     font-weight: 700;
+    color: var(--color-white);
+  }
+
+  .site-footer-note {
+    font-size: var(--font-size-sm);
+    color: rgba(255, 255, 255, 0.55);
+    font-style: italic;
   }
 
   .site-footer-nav {

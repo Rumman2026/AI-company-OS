@@ -1,0 +1,43 @@
+---
+export interface Props {
+  countyName: string;
+  countyHref: string;
+  cities: string[];
+}
+
+const { countyName, countyHref, cities } = Astro.props;
+---
+
+<div class="service-area-group">
+  <h3><a href={countyHref}>{countyName}</a></h3>
+  <p class="service-area-cities">{cities.join(', ')}</p>
+</div>
+
+<style>
+  .service-area-group {
+    padding: var(--space-4);
+    background-color: var(--color-white);
+    border: 1px solid var(--color-cream-100);
+    border-radius: var(--radius-md);
+  }
+
+  .service-area-group h3 {
+    font-size: var(--font-size-lg);
+    margin-block: 0 var(--space-2);
+  }
+
+  .service-area-group h3 a {
+    color: var(--color-forest-900);
+    text-decoration: none;
+  }
+
+  .service-area-group h3 a:hover {
+    text-decoration: underline;
+  }
+
+  .service-area-cities {
+    font-size: var(--font-size-sm);
+    color: var(--color-charcoal-600);
+    margin: 0;
+  }
+</style>

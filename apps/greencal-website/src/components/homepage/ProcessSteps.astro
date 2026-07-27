@@ -1,16 +1,18 @@
 ---
 const steps = [
-  { title: 'Request an Estimate', body: 'Contact GreenCal by phone, email, or the online form.' },
-  { title: 'Property Review', body: 'Discuss your property, surfaces, and cleaning needs.' },
-  { title: 'Service Plan', body: 'Agree on scope, scheduling, and approach before work begins.' },
-  { title: 'Professional Cleaning', body: 'Surface-appropriate exterior cleaning is performed.' },
-  { title: 'Final Walkthrough', body: 'Review completed work together before wrapping up.' },
+  { title: 'Request Your Estimate', body: 'Contact GreenCal by phone, email, or the online form.' },
+  { title: 'Receive the Recommended Cleaning Plan', body: 'GreenCal recommends an approach based on your property and surfaces.' },
+  { title: 'Schedule the Service', body: 'Agree on timing and scope before work begins.' },
+  { title: 'Review the Completed Results', body: 'Walk through the completed work together.' },
 ];
 ---
 
 <section class="process-steps" aria-labelledby="process-heading">
   <div class="container-wide">
     <h2 id="process-heading" class="section-heading">Our Process</h2>
+    <p class="process-note">
+      Photos or an in-person site assessment may be required depending on the project.
+    </p>
     <ol class="process-steps-list">
       {
         steps.map((step, index) => (
@@ -18,8 +20,10 @@ const steps = [
             <span class="process-step-number" aria-hidden="true">
               {index + 1}
             </span>
-            <h3>{step.title}</h3>
-            <p>{step.body}</p>
+            <div class="process-step-body">
+              <h3>{step.title}</h3>
+              <p>{step.body}</p>
+            </div>
           </li>
         ))
       }
@@ -33,47 +37,64 @@ const steps = [
     background-color: var(--color-cream-50);
   }
 
+  .process-note {
+    color: var(--color-charcoal-600);
+    margin-block-end: var(--space-5);
+  }
+
   .process-steps-list {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
+    display: flex;
     gap: var(--space-4);
     list-style: none;
-    margin-block-start: var(--space-5);
+    margin: 0;
     padding: 0;
-    counter-reset: none;
   }
 
   .process-steps-list li {
+    flex: 1;
     position: relative;
-    padding: var(--space-4);
+    padding: var(--space-5) var(--space-3) var(--space-3);
     background-color: var(--color-white);
     border: 1px solid var(--color-cream-100);
     border-radius: var(--radius-md);
   }
 
   .process-step-number {
+    position: absolute;
+    top: -1.25rem;
+    left: var(--space-3);
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 2.25rem;
-    height: 2.25rem;
-    margin-block-end: var(--space-3);
+    width: 3rem;
+    height: 3rem;
     font-family: var(--font-family-display);
+    font-size: var(--font-size-xl);
     font-weight: 700;
     color: var(--color-white);
     background-color: var(--color-forest-700);
     border-radius: var(--radius-full);
+    border: 3px solid var(--color-cream-50);
   }
 
-  .process-steps-list h3 {
+  .process-step-body h3 {
     font-size: var(--font-size-base);
     margin-block: 0 var(--space-2);
     color: var(--color-forest-900);
   }
 
-  .process-steps-list p {
+  .process-step-body p {
     font-size: var(--font-size-sm);
     color: var(--color-charcoal-600);
     margin: 0;
+  }
+
+  /* Vertical timeline below tablet width, per the phase's mobile
+     requirement. */
+  @media (max-width: 768px) {
+    .process-steps-list {
+      flex-direction: column;
+      gap: var(--space-5);
+    }
   }
 </style>

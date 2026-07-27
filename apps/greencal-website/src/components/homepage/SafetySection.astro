@@ -1,0 +1,72 @@
+---
+// Educational, not promotional - explains why cleaning method must
+// match surface, without attacking competitors or making unsupported
+// technical/regulatory claims. "Wastewater/runoff" is phrased as a
+// planning consideration, not a certified capability claim.
+const surfaces = [
+  { title: 'Concrete Tile Roofs', body: 'Excess pressure can crack or dislodge tiles - method and pressure are matched to the roofing material.' },
+  { title: 'Stucco & Painted Surfaces', body: 'Too much pressure can strip paint or damage stucco texture.' },
+  { title: 'Concrete & Pavers', body: 'Surface condition and joint sand (for pavers) affect what approach is appropriate.' },
+  { title: 'Commercial Flatwork', body: 'Heavier soiling on commercial surfaces still requires a method matched to the surface underneath it.' },
+];
+---
+
+<section class="safety-section" aria-labelledby="safety-heading">
+  <div class="container-wide">
+    <h2 id="safety-heading" class="section-heading">Cleaning Methods Matter</h2>
+    <p class="safety-intro">
+      Excessive pressure or the wrong cleaning method can damage a surface instead of restoring
+      it. GreenCal evaluates each surface and matches the cleaning approach to it as part of every
+      quote - including protecting nearby plants and runoff considerations during the project.
+    </p>
+    <div class="safety-grid">
+      {
+        surfaces.map((surface) => (
+          <div class="safety-item">
+            <h3>{surface.title}</h3>
+            <p>{surface.body}</p>
+          </div>
+        ))
+      }
+    </div>
+  </div>
+</section>
+
+<style>
+  .safety-section {
+    padding-block: var(--space-7);
+    background-color: var(--color-cream-100);
+  }
+
+  .safety-intro {
+    max-width: 42rem;
+    font-size: var(--font-size-lg);
+    color: var(--color-charcoal-600);
+    margin-block-end: var(--space-5);
+  }
+
+  .safety-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+    gap: var(--space-4);
+  }
+
+  .safety-item {
+    padding: var(--space-4);
+    background-color: var(--color-white);
+    border-radius: var(--radius-md);
+    border: 1px solid var(--color-cream-100);
+  }
+
+  .safety-item h3 {
+    font-size: var(--font-size-base);
+    color: var(--color-forest-900);
+    margin-block: 0 var(--space-2);
+  }
+
+  .safety-item p {
+    font-size: var(--font-size-sm);
+    color: var(--color-charcoal-600);
+    margin: 0;
+  }
+</style>
