@@ -8,9 +8,10 @@ export interface Props {
   learnMoreHref: string;
   estimateLabel: string;
   icon: 'roof' | 'wall' | 'concrete' | 'building' | 'community' | 'camera';
+  statusLabel?: string;
 }
 
-const { title, description, examples, learnMoreHref, estimateLabel, icon } = Astro.props;
+const { title, description, examples, learnMoreHref, estimateLabel, icon, statusLabel } = Astro.props;
 ---
 
 <article class="segment-card">
@@ -20,6 +21,7 @@ const { title, description, examples, learnMoreHref, estimateLabel, icon } = Ast
       ratio="4/3"
       icon={icon}
       categoryLabel={title}
+      statusLabel={statusLabel}
     />
   </div>
   <div class="segment-card-body">

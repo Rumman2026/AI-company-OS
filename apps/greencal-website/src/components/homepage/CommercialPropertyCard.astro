@@ -12,7 +12,13 @@ const { title, description, icon } = Astro.props;
 
 <article class="property-card">
   <div class="property-card-media">
-    <ResponsiveImage fallbackLabel={`Photo needed: ${title}`} ratio="4/3" icon={icon} categoryLabel={title} />
+    <ResponsiveImage
+      fallbackLabel={`Photo needed: ${title}`}
+      ratio="4/3"
+      icon={icon}
+      categoryLabel={title}
+      statusLabel="Commercial Project Media Coming Soon"
+    />
   </div>
   <div class="property-card-body">
     <h3>{title}</h3>

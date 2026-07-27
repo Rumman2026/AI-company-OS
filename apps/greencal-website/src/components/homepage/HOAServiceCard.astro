@@ -15,7 +15,13 @@ const { title, description, examples, ctaLabel, ctaHref, icon } = Astro.props;
 
 <article class="hoa-card">
   <div class="hoa-card-media">
-    <ResponsiveImage fallbackLabel={`Photo needed: ${title}`} icon={icon} categoryLabel={title} fill />
+    <ResponsiveImage
+      fallbackLabel={`Photo needed: ${title}`}
+      icon={icon}
+      categoryLabel={title}
+      statusLabel="Commercial Project Media Coming Soon"
+      fill
+    />
   </div>
   <div class="hoa-card-body">
     <h3>{title}</h3>
