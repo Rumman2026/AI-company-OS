@@ -1,12 +1,18 @@
 ---
-// Split-layout, image-led hero (visual-refinement phase). No real hero
-// photo exists in this repository - see
-// docs/GREENCAL_OWNER_VERIFICATION_REQUIRED.md. ResponsiveImage renders
-// the honest dark-toned placeholder until one is approved; swapping in
-// a real photo later is a one-prop change (pass `media`), not a
-// markup change.
+// Split-layout, image-led hero. Real Photo Integration Pass
+// (2026-07-26): uses the real GreenCal concrete-cleaning "after" photo
+// - chosen over the roof-wash/house-wash after photos because it's
+// already landscape (1.83:1), the closest match to this panel's
+// 4:3/3:2 crop and the only one of the three that doesn't require a
+// severe crop to fit. The house-number visible in the original source
+// photo is blurred in the generated derivative - see
+// docs/GREENCAL_OWNER_VERIFICATION_REQUIRED.md. This is a residential
+// photo - the "REAL GREENCAL PROJECT" label makes no commercial claim.
 import { siteInfo } from '../../data/site';
 import ResponsiveImage from '../ResponsiveImage.astro';
+import { getMediaById } from '../../data/media';
+
+const heroMedia = getMediaById('concrete-cleaning-01-after');
 ---
 
 <section class="hero full-bleed" aria-labelledby="hero-heading">
@@ -34,6 +40,7 @@ import ResponsiveImage from '../ResponsiveImage.astro';
     </div>
     <div class="hero-media">
       <ResponsiveImage
+        media={heroMedia}
         fallbackLabel="Hero photo needed: technician performing exterior cleaning"
         icon="building"
         tone="dark"
@@ -41,6 +48,7 @@ import ResponsiveImage from '../ResponsiveImage.astro';
         fill
         loading="eager"
       />
+      {heroMedia && <span class="hero-media-badge">Real GreenCal Project</span>}
     </div>
   </div>
 </section>
@@ -137,6 +145,20 @@ import ResponsiveImage from '../ResponsiveImage.astro';
     border-radius: var(--radius-lg);
     overflow: hidden;
     box-shadow: var(--shadow-lg);
+  }
+
+  .hero-media-badge {
+    position: absolute;
+    left: var(--space-3);
+    bottom: var(--space-3);
+    padding: var(--space-1) var(--space-3);
+    font-size: var(--font-size-xs);
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--color-white);
+    background-color: rgba(20, 42, 32, 0.75);
+    border-radius: var(--radius-full);
   }
 
   /* ~48% of the desktop hero is visual (hero-media column plus its

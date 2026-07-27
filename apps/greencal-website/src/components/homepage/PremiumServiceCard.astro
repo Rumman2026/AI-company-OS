@@ -1,5 +1,12 @@
 ---
-import ImagePlaceholder from '../ImagePlaceholder.astro';
+// Real Photo Integration Pass (2026-07-26): the "after" photo for each
+// of the 3 real residential services renders here once a matching
+// MediaRecord exists (getMediaById) - falls back to the honest
+// placeholder for every other service/category automatically, since
+// ResponsiveImage only renders a real <img> when approvalStatus is
+// 'approved'.
+import ResponsiveImage from '../ResponsiveImage.astro';
+import { getMediaById } from '../../data/media';
 import type { ServiceRecord } from '../../types/content';
 
 export interface Props {
@@ -11,12 +18,20 @@ export interface Props {
 
 const { service, icon = 'camera', size = 'default' } = Astro.props;
 const isFeatured = size === 'featured';
+
+const AFTER_PHOTO_BY_SLUG: Record<string, string> = {
+  'roof-cleaning': 'roof-wash-01-after',
+  'house-washing': 'house-wash-01-after',
+  'concrete-cleaning': 'concrete-cleaning-01-after',
+};
+const cardMedia = getMediaById(AFTER_PHOTO_BY_SLUG[service.slug] ?? '');
 ---
 
 <article class={`premium-service-card ${isFeatured ? 'premium-service-card-featured' : ''}`}>
   <div class="premium-service-card-media">
-    <ImagePlaceholder
-      label={`Photo needed: ${service.title}`}
+    <ResponsiveImage
+      media={cardMedia}
+      fallbackLabel={`Photo needed: ${service.title}`}
       ratio={isFeatured ? '3/2' : '4/3'}
       icon={icon}
       categoryLabel={service.title}
@@ -62,13 +77,16 @@ const isFeatured = size === 'featured';
     overflow: hidden;
   }
 
-  .premium-service-card-media :global(.image-placeholder) {
+  .premium-service-card-media :global(.image-placeholder),
+  .premium-service-card-media :global(img) {
     border-radius: 0;
     border-width: 0;
+    width: 100%;
     transition: transform var(--motion-duration-slow) ease;
   }
 
-  .premium-service-card:hover .premium-service-card-media :global(.image-placeholder) {
+  .premium-service-card:hover .premium-service-card-media :global(.image-placeholder),
+  .premium-service-card:hover .premium-service-card-media :global(img) {
     transform: scale(1.04);
   }
 
@@ -133,7 +151,8 @@ const isFeatured = size === 'featured';
 
   @media (prefers-reduced-motion: reduce) {
     .premium-service-card,
-    .premium-service-card-media :global(.image-placeholder) {
+    .premium-service-card-media :global(.image-placeholder),
+    .premium-service-card-media :global(img) {
       transition: none;
     }
   }

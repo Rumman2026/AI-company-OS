@@ -1,22 +1,26 @@
 ---
-// Three featured project *categories*, not real completed jobs - no
-// real before/after photos or verified project records exist in this
-// repository (docs/GREENCAL_OWNER_VERIFICATION_REQUIRED.md). The
-// "Irvine" example below is the exact illustrative example given in
-// the refinement brief itself (and Irvine is a real, approved city -
-// see BUSINESS_FACTS.md) - used only as generic, process-descriptive
-// placeholder copy, never presented as a specific verified past job.
-// The other two categories intentionally omit a specific city, since
-// no city was supplied for them and inventing one would misrepresent
-// a real completed project.
+// Real Photo Integration Pass (2026-07-26): all 3 projects now use real
+// GreenCal residential photos (getMediaById) instead of illustrative
+// placeholder categories. No city, customer name, or technical
+// treatment claim is attached - none were verified for these photos
+// (the prior phase's "Irvine, California" placeholder text is removed
+// for the same reason: it was acceptable only as an explicitly-labeled
+// illustrative example next to a placeholder image, not next to a real
+// photo, where a city would misrepresent a real project's location).
+// Descriptions use exactly the neutral, owner-approved wording supplied
+// for this pass. Roof Washing is featured (the most visually dramatic
+// transformation); House Washing and Concrete Cleaning are supporting
+// cards, per the requested "featured + two supporting" composition.
 import BeforeAfterSlider from './BeforeAfterSlider.astro';
+import { getMediaById } from '../../data/media';
 
 interface FeaturedProject {
   id: string;
   title: string;
-  city?: string;
   surfaceType: string;
   description: string;
+  beforeMediaId: string;
+  afterMediaId: string;
   featured?: boolean;
   relatedServiceHref?: string;
 }
@@ -24,24 +28,29 @@ interface FeaturedProject {
 const projects: FeaturedProject[] = [
   {
     id: 'roof-washing',
-    title: 'Concrete Tile Roof Cleaning',
-    city: 'Irvine, California',
+    title: 'Roof Washing',
     surfaceType: 'Concrete Tile Roof',
-    description: 'Organic buildup removed using a surface-appropriate, low-pressure cleaning process.',
+    description: 'Before-and-after view of a GreenCal residential roof-washing project.',
+    beforeMediaId: 'roof-wash-01-before',
+    afterMediaId: 'roof-wash-01-after',
     featured: true,
     relatedServiceHref: '/services/roof-cleaning',
   },
   {
-    id: 'residential-concrete',
-    title: 'Residential Concrete Cleaning',
-    surfaceType: 'Driveway & Walkway Concrete',
-    description: 'Dirt and staining removed from residential concrete surfaces.',
+    id: 'house-washing',
+    title: 'House Washing',
+    surfaceType: 'Stucco Exterior',
+    description: 'Before-and-after view of a GreenCal residential house-washing project.',
+    beforeMediaId: 'house-wash-01-before',
+    afterMediaId: 'house-wash-01-after',
   },
   {
-    id: 'commercial-flatwork',
-    title: 'Commercial Flatwork Cleaning',
-    surfaceType: 'Commercial Concrete Flatwork',
-    description: 'Grime and buildup removed from commercial walkways and parking-area concrete.',
+    id: 'concrete-cleaning',
+    title: 'Concrete Cleaning',
+    surfaceType: 'Driveway Concrete',
+    description: 'Before-and-after view of a GreenCal residential driveway-cleaning project.',
+    beforeMediaId: 'concrete-cleaning-01-before',
+    afterMediaId: 'concrete-cleaning-01-after',
   },
 ];
 ---
@@ -50,8 +59,7 @@ const projects: FeaturedProject[] = [
   <div class="container-wide">
     <h2 id="before-after-heading" class="section-heading">Real Results</h2>
     <p class="before-after-intro">
-      Real, owner-approved before-and-after project photography will appear here as it becomes
-      available. The categories below show how each project will be presented.
+      Real GreenCal residential before-and-after projects. Drag or use the slider to compare.
     </p>
     <div class="before-after-grid">
       {
@@ -59,9 +67,10 @@ const projects: FeaturedProject[] = [
           <BeforeAfterSlider
             id={project.id}
             title={project.title}
-            city={project.city}
             surfaceType={project.surfaceType}
             description={project.description}
+            beforeMedia={getMediaById(project.beforeMediaId)}
+            afterMedia={getMediaById(project.afterMediaId)}
             featured={project.featured}
             relatedServiceHref={project.relatedServiceHref}
           />
