@@ -37,6 +37,7 @@ import ResponsiveImage from '../ResponsiveImage.astro';
         fallbackLabel="Hero photo needed: technician performing exterior cleaning"
         icon="building"
         tone="dark"
+        categoryLabel="Exterior Cleaning Project"
         fill
         loading="eager"
       />
@@ -128,7 +129,11 @@ import ResponsiveImage from '../ResponsiveImage.astro';
 
   .hero-media {
     position: relative;
-    min-height: 20rem;
+    /* A real, intentional media aspect ratio (4/3) instead of an
+       arbitrary min-height blob - Phase 2 "hero media readiness"
+       requirement. Still sized against the column's own width, not the
+       hero's overall height, so it scales naturally with the grid. */
+    aspect-ratio: 4/3;
     border-radius: var(--radius-lg);
     overflow: hidden;
     box-shadow: var(--shadow-lg);
@@ -142,7 +147,7 @@ import ResponsiveImage from '../ResponsiveImage.astro';
     }
 
     .hero-media {
-      min-height: 14rem;
+      aspect-ratio: 3/2;
       order: -1;
     }
   }

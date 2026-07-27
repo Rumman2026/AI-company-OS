@@ -19,10 +19,20 @@ export interface Props {
   fill?: boolean;
   tone?: 'light' | 'dark';
   loading?: 'lazy' | 'eager';
+  /** Visible "what goes here" caption on the placeholder - see ImagePlaceholder.astro. */
+  categoryLabel?: string;
 }
 
-const { media, fallbackLabel, ratio = '4/3', icon = 'camera', fill = false, tone = 'light', loading = 'lazy' } =
-  Astro.props;
+const {
+  media,
+  fallbackLabel,
+  ratio = '4/3',
+  icon = 'camera',
+  fill = false,
+  tone = 'light',
+  loading = 'lazy',
+  categoryLabel,
+} = Astro.props;
 ---
 
 {
@@ -36,7 +46,14 @@ const { media, fallbackLabel, ratio = '4/3', icon = 'camera', fill = false, tone
       style={fill ? undefined : `aspect-ratio: ${ratio}; object-fit: cover;`}
     />
   ) : (
-    <ImagePlaceholder label={fallbackLabel} ratio={ratio} icon={icon} fill={fill} tone={tone} />
+    <ImagePlaceholder
+      label={fallbackLabel}
+      ratio={ratio}
+      icon={icon}
+      fill={fill}
+      tone={tone}
+      categoryLabel={categoryLabel}
+    />
   )
 }
 

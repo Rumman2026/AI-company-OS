@@ -15,7 +15,12 @@ const { title, description, examples, learnMoreHref, estimateLabel, icon } = Ast
 
 <article class="segment-card">
   <div class="segment-card-media">
-    <ResponsiveImage fallbackLabel={`Photo needed: ${title} customers`} ratio="4/3" icon={icon} />
+    <ResponsiveImage
+      fallbackLabel={`Photo needed: ${title} customers`}
+      ratio="4/3"
+      icon={icon}
+      categoryLabel={title}
+    />
   </div>
   <div class="segment-card-body">
     <h3>{title}</h3>

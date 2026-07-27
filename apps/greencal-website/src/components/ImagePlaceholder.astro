@@ -14,9 +14,17 @@ export interface Props {
   fill?: boolean;
   /** 'dark' reads correctly under a dark overlay (e.g. the hero); 'light' is the default card/section treatment. */
   tone?: 'light' | 'dark';
+  /**
+   * Visible on-panel caption (e.g. "Roof Cleaning") shown alongside a
+   * "Photo Coming Soon" note - Phase 2 visual-cleanup requirement: the
+   * placeholder must read as an intentional, labeled media slot, not a
+   * generic empty icon. When omitted, only the icon renders (used for
+   * very small slots where a caption wouldn't fit).
+   */
+  categoryLabel?: string;
 }
 
-const { label, ratio = '4/3', icon = 'camera', fill = false, tone = 'light' } = Astro.props;
+const { label, ratio = '4/3', icon = 'camera', fill = false, tone = 'light', categoryLabel } = Astro.props;
 
 const icons: Record<string, string> = {
   roof: 'M4 12L12 5l8 7M6 12v7h12v-7',
@@ -37,16 +45,28 @@ const icons: Record<string, string> = {
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.25" aria-hidden="true">
     <path d={icons[icon]} stroke-linecap="round" stroke-linejoin="round"></path>
   </svg>
+  {
+    categoryLabel && (
+      <p class="image-placeholder-caption">
+        <span class="image-placeholder-category">{categoryLabel}</span>
+        <span class="image-placeholder-status">Photo Coming Soon</span>
+      </p>
+    )
+  }
 </div>
 
 <style>
   .image-placeholder {
     display: flex;
+    flex-direction: column;
     align-items: center;
     justify-content: center;
+    gap: var(--space-2);
     width: 100%;
     border-radius: var(--radius-md);
     overflow: hidden;
+    text-align: center;
+    padding: var(--space-3);
   }
 
   .image-placeholder-light {
@@ -74,9 +94,33 @@ const icons: Record<string, string> = {
   }
 
   .image-placeholder svg {
-    width: 22%;
-    max-width: 3.5rem;
+    width: 16%;
+    max-width: 2.25rem;
     height: auto;
-    opacity: 0.55;
+    opacity: 0.45;
+    flex: none;
+  }
+
+  .image-placeholder-caption {
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+  }
+
+  .image-placeholder-category {
+    font-weight: 700;
+    font-size: var(--font-size-base);
+  }
+
+  .image-placeholder-status {
+    font-size: var(--font-size-xs);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    opacity: 0.8;
+  }
+
+  .image-placeholder-fill .image-placeholder-caption {
+    max-width: 80%;
   }
 </style>
