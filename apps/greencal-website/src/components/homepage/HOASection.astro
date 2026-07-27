@@ -1,0 +1,72 @@
+---
+// 4 cards over the 2 real approved services (apartment-condo-cleaning,
+// hoa-pressure-washing) - "Apartment" and "Condominium" both map to
+// the same real page (services.ts already treats them as one
+// approved page), and "Recurring Community Maintenance" is a service
+// plan/CTA framing, not a third distinct service page.
+import HOAServiceCard from './HOAServiceCard.astro';
+---
+
+<section class="hoa-section" aria-labelledby="multi-family-hoa-heading">
+  <div class="container-wide">
+    <h2 id="multi-family-hoa-heading" class="section-heading">Multi-Family &amp; HOA</h2>
+    <p class="hoa-intro">
+      Building exteriors and shared common-area concrete for apartments, condominiums, and
+      HOA-managed communities.
+    </p>
+    <div class="hoa-grid">
+      <HOAServiceCard
+        title="Apartment Communities"
+        description="Exterior building washing and common-area concrete for apartment properties."
+        examples={['Building exteriors', 'Breezeways', 'Parking areas']}
+        ctaLabel="Learn More"
+        ctaHref="/multi-family-hoa/apartment-condo-cleaning"
+        icon="building"
+      />
+      <HOAServiceCard
+        title="Condominium Communities"
+        description="Exterior building washing and common-area concrete for condominium properties."
+        examples={['Building exteriors', 'Entrances', 'Shared walkways']}
+        ctaLabel="Learn More"
+        ctaHref="/multi-family-hoa/apartment-condo-cleaning"
+        icon="wall"
+      />
+      <HOAServiceCard
+        title="HOA Common Areas"
+        description="Exterior cleaning for HOA-managed community common areas and buildings, coordinated with HOA boards."
+        examples={['Sidewalks', 'Common-area concrete', 'Clubhouses']}
+        ctaLabel="Learn More"
+        ctaHref="/multi-family-hoa/hoa-pressure-washing"
+        icon="community"
+      />
+      <HOAServiceCard
+        title="Recurring Community Maintenance"
+        description="A scheduled maintenance plan arranged with your community's management or board."
+        examples={['Weekly, monthly, or custom interval', 'Multiple buildings/locations', 'Coordinated scheduling']}
+        ctaLabel="Request a Community Cleaning Proposal"
+        ctaHref="/contact-us#quote-form"
+        icon="concrete"
+      />
+    </div>
+  </div>
+</section>
+
+<style>
+  .hoa-section {
+    padding-block: var(--space-7);
+    background-color: var(--color-cream-50);
+  }
+
+  .hoa-intro {
+    max-width: 40rem;
+    color: var(--color-charcoal-600);
+    font-size: var(--font-size-lg);
+    margin-block-end: var(--space-5);
+  }
+
+  .hoa-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
+    gap: var(--space-4);
+  }
+</style>

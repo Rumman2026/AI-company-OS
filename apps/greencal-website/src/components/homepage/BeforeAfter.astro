@@ -1,30 +1,58 @@
 ---
-// Reusable before/after comparison component. No real completed-job
-// photos exist in this repository yet, so this renders an honest,
-// clearly-unpaired placeholder state rather than fabricating or
-// stock-photo-substituting a "before" and "after" of a job that never
-// happened. Once real, owner-approved job photos exist, pass them via
-// `beforeLabel`/`afterLabel` (and swap ImagePlaceholder for a real
-// <img> at each slot) without changing this component's structure.
-import ImagePlaceholder from '../ImagePlaceholder.astro';
+// Three featured project *categories*, not real completed jobs - no
+// real before/after photos or verified project records exist in this
+// repository (docs/GREENCAL_OWNER_VERIFICATION_REQUIRED.md). The
+// "Irvine" example below is the exact illustrative example given in
+// the refinement brief itself (and Irvine is a real, approved city -
+// see BUSINESS_FACTS.md) - used only as generic, process-descriptive
+// placeholder copy, never presented as a specific verified past job.
+// The other two categories intentionally omit a specific city, since
+// no city was supplied for them and inventing one would misrepresent
+// a real completed project.
+import BeforeAfterSlider from './BeforeAfterSlider.astro';
+
+const projects = [
+  {
+    id: 'roof-washing',
+    title: 'Concrete Tile Roof Cleaning',
+    city: 'Irvine, California',
+    surfaceType: 'Concrete Tile Roof',
+    description: 'Organic buildup removed using a surface-appropriate, low-pressure cleaning process.',
+  },
+  {
+    id: 'residential-concrete',
+    title: 'Residential Concrete Cleaning',
+    surfaceType: 'Driveway & Walkway Concrete',
+    description: 'Dirt and staining removed from residential concrete surfaces.',
+  },
+  {
+    id: 'commercial-flatwork',
+    title: 'Commercial Flatwork Cleaning',
+    surfaceType: 'Commercial Concrete Flatwork',
+    description: 'Grime and buildup removed from commercial walkways and parking-area concrete.',
+  },
+];
 ---
 
 <section class="before-after" aria-labelledby="before-after-heading">
   <div class="container-wide">
     <h2 id="before-after-heading" class="section-heading">Real Results</h2>
     <p class="before-after-intro">
-      Before-and-after photography from real GreenCal jobs will appear here as it becomes
-      available.
+      Real, owner-approved before-and-after project photography will appear here as it becomes
+      available. The categories below show how each project will be presented.
     </p>
     <div class="before-after-grid">
-      <figure>
-        <ImagePlaceholder label="Before photo needed" ratio="4/3" icon="wall" />
-        <figcaption>Before</figcaption>
-      </figure>
-      <figure>
-        <ImagePlaceholder label="After photo needed" ratio="4/3" icon="wall" />
-        <figcaption>After</figcaption>
-      </figure>
+      {
+        projects.map((project) => (
+          <BeforeAfterSlider
+            id={project.id}
+            title={project.title}
+            city={project.city}
+            surfaceType={project.surfaceType}
+            description={project.description}
+          />
+        ))
+      }
     </div>
   </div>
 </section>
@@ -35,7 +63,7 @@ import ImagePlaceholder from '../ImagePlaceholder.astro';
   }
 
   .before-after-intro {
-    max-width: 40rem;
+    max-width: 42rem;
     color: var(--color-charcoal-600);
     font-size: var(--font-size-lg);
     margin-block-end: var(--space-5);
@@ -43,18 +71,7 @@ import ImagePlaceholder from '../ImagePlaceholder.astro';
 
   .before-after-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
-    gap: var(--space-4);
-  }
-
-  .before-after-grid figure {
-    margin: 0;
-  }
-
-  .before-after-grid figcaption {
-    margin-block-start: var(--space-2);
-    font-weight: 700;
-    text-align: center;
-    color: var(--color-forest-900);
+    grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
+    gap: var(--space-5);
   }
 </style>

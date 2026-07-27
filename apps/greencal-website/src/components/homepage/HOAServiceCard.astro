@@ -1,0 +1,83 @@
+---
+import ResponsiveImage from '../ResponsiveImage.astro';
+
+export interface Props {
+  title: string;
+  description: string;
+  examples: string[];
+  ctaLabel: string;
+  ctaHref: string;
+  icon: 'roof' | 'wall' | 'concrete' | 'building' | 'community' | 'camera';
+}
+
+const { title, description, examples, ctaLabel, ctaHref, icon } = Astro.props;
+---
+
+<article class="hoa-card">
+  <div class="hoa-card-media">
+    <ResponsiveImage fallbackLabel={`Photo needed: ${title}`} ratio="4/3" icon={icon} />
+  </div>
+  <div class="hoa-card-body">
+    <h3>{title}</h3>
+    <p>{description}</p>
+    <ul>
+      {examples.map((example) => <li>{example}</li>)}
+    </ul>
+    <a href={ctaHref} class="btn btn-secondary">{ctaLabel}</a>
+  </div>
+</article>
+
+<style>
+  .hoa-card {
+    display: flex;
+    flex-direction: column;
+    background-color: var(--color-white);
+    border: 1px solid var(--color-cream-100);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    box-shadow: var(--shadow-sm);
+  }
+
+  .hoa-card-body {
+    padding: var(--space-4);
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+  }
+
+  .hoa-card-body h3 {
+    font-size: var(--font-size-lg);
+    color: var(--color-forest-900);
+    margin-block: 0 var(--space-2);
+  }
+
+  .hoa-card-body p {
+    color: var(--color-charcoal-600);
+    margin-block-end: var(--space-2);
+  }
+
+  .hoa-card-body ul {
+    list-style: none;
+    margin: 0 0 var(--space-4);
+    padding: 0;
+    font-size: var(--font-size-sm);
+    color: var(--color-charcoal-900);
+    flex: 1;
+  }
+
+  .hoa-card-body li {
+    padding-inline-start: var(--space-3);
+    position: relative;
+  }
+
+  .hoa-card-body li::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0.55em;
+    width: 0.35rem;
+    height: 0.35rem;
+    border-radius: 50%;
+    background-color: var(--color-gold-500);
+  }
+</style>

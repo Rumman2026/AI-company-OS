@@ -1,0 +1,158 @@
+---
+// Reusable before/after comparison. Uses a native <input type="range">
+// to drive the reveal instead of a custom mouse-drag handle - range
+// inputs are keyboard-operable (arrow keys, Home/End) by default,
+// which is what makes this accessible without extra JS for keyboard
+// support. No real before/after photos exist yet (see
+// docs/GREENCAL_OWNER_VERIFICATION_REQUIRED.md) - both sides render
+// through ResponsiveImage, which falls back to the honest placeholder
+// treatment until real, owner-approved job photos exist.
+import ResponsiveImage from '../ResponsiveImage.astro';
+import type { MediaRecord } from '../../types/content';
+
+export interface Props {
+  title: string;
+  city?: string;
+  surfaceType: string;
+  description: string;
+  beforeMedia?: MediaRecord;
+  afterMedia?: MediaRecord;
+  id: string;
+}
+
+const { title, city, surfaceType, description, beforeMedia, afterMedia, id } = Astro.props;
+---
+
+<figure class="baf" data-baf-id={id}>
+  <div class="baf-frame">
+    <div class="baf-layer baf-after">
+      <ResponsiveImage media={afterMedia} fallbackLabel={`After photo needed: ${title}`} fill icon="concrete" />
+      <span class="baf-label baf-label-after">After</span>
+    </div>
+    <div class="baf-layer baf-before" style="clip-path: inset(0 50% 0 0);">
+      <ResponsiveImage media={beforeMedia} fallbackLabel={`Before photo needed: ${title}`} fill icon="wall" />
+      <span class="baf-label baf-label-before">Before</span>
+    </div>
+    <div class="baf-handle" style="left: 50%;" aria-hidden="true"></div>
+  </div>
+  <input
+    type="range"
+    min="0"
+    max="100"
+    value="50"
+    class="baf-range"
+    aria-label={`Reveal before and after: ${title}`}
+  />
+  <figcaption>
+    <h3>{title}</h3>
+    <p class="baf-meta">
+      {city && <span>{city}</span>}
+      <span>{surfaceType}</span>
+    </p>
+    <p>{description}</p>
+  </figcaption>
+</figure>
+
+<script>
+  function initSliders() {
+    document.querySelectorAll<HTMLElement>('.baf').forEach((figure) => {
+      const range = figure.querySelector<HTMLInputElement>('.baf-range');
+      const before = figure.querySelector<HTMLElement>('.baf-before');
+      const handle = figure.querySelector<HTMLElement>('.baf-handle');
+      if (!range || !before || !handle) return;
+      const update = () => {
+        const value = range.value;
+        before.style.clipPath = `inset(0 calc(100% - ${value}%) 0 0)`;
+        handle.style.left = `${value}%`;
+      };
+      range.addEventListener('input', update);
+      update();
+    });
+  }
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initSliders);
+  } else {
+    initSliders();
+  }
+</script>
+
+<style>
+  .baf {
+    margin: 0;
+  }
+
+  .baf-frame {
+    position: relative;
+    aspect-ratio: 4/3;
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    box-shadow: var(--shadow-md);
+  }
+
+  .baf-layer {
+    position: absolute;
+    inset: 0;
+  }
+
+  .baf-label {
+    position: absolute;
+    top: var(--space-2);
+    padding: var(--space-1) var(--space-3);
+    font-size: var(--font-size-xs);
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--color-white);
+    background-color: rgba(20, 42, 32, 0.75);
+    border-radius: var(--radius-full);
+  }
+
+  .baf-label-after {
+    right: var(--space-2);
+  }
+
+  .baf-label-before {
+    left: var(--space-2);
+  }
+
+  .baf-handle {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 3px;
+    background-color: var(--color-white);
+    transform: translateX(-50%);
+    pointer-events: none;
+    box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.2);
+  }
+
+  .baf-range {
+    width: 100%;
+    margin-block-start: var(--space-3);
+    accent-color: var(--color-forest-700);
+    min-height: 44px;
+  }
+
+  .baf figcaption {
+    margin-block-start: var(--space-3);
+  }
+
+  .baf figcaption h3 {
+    font-size: var(--font-size-lg);
+    color: var(--color-forest-900);
+    margin-block: 0 var(--space-1);
+  }
+
+  .baf-meta {
+    display: flex;
+    gap: var(--space-3);
+    font-size: var(--font-size-sm);
+    font-weight: 600;
+    color: var(--color-gold-700);
+    margin-block-end: var(--space-2);
+  }
+
+  .baf figcaption p:last-child {
+    color: var(--color-charcoal-600);
+  }
+</style>
