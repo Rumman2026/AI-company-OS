@@ -99,6 +99,32 @@ fabricated "before/after" pair:
 - Logo/favicon (still the temporary text wordmark from the prior
   phase)
 
+## Phase 2 — same requests repeated, same resolution
+
+The Phase 2 visual-cleanup brief re-requested several of the exact items
+above (Window/Gutter/Solar Cleaning as residential services; Hot-Water
+Cleaning/Wastewater Recovery as commercial claims; San Bernardino County
+and "selected Los Angeles County communities"). These remain excluded
+for the same reasons documented above — no new information changes the
+approved-scope facts. Two additional items appeared for the first time
+in Phase 2 and are logged here:
+
+- **"Oil and Grease Treatment" / "Commercial Surface Cleaners"** as
+  commercial capability claims — no evidence exists in this repository
+  that GreenCal offers a distinct oil/grease treatment service or uses
+  specific "commercial surface cleaner" equipment. Not published.
+- **"BASED IN MORENO VALLEY, SERVING SOUTHERN CALIFORNIA"** as a service-
+  area section heading — "serving Southern California" contradicts
+  `BUSINESS_FACTS.md`'s explicit instruction not to publish
+  county-wide/Southern-California-wide claims (only San Diego, Orange,
+  and Riverside Counties are approved). "Based in Moreno Valley" reads as
+  a business address/headquarters claim, which is exactly the
+  NAP-adjacent claim gated by the still-unresolved NAP decision
+  (`.claude/rules/websites.md`). Neither phrase is published; Moreno
+  Valley is instead visually emphasized as the first-listed, real,
+  approved Riverside County city under the existing three-county
+  heading.
+
 ## Decisions already made this session (recorded here for continuity)
 
 - Skip `LocalBusiness`/`ProfessionalService` structured data until NAP

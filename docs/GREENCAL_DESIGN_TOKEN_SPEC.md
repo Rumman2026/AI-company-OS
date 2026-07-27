@@ -35,14 +35,27 @@ beyond the single dark hero-overlay treatment.
 
 ## 2. Typography
 
+**Phase 2 visual-cleanup change (2026-07-26)**: `--font-size-xs` and
+`--font-size-sm` were both nudged up one step, and a new
+`--font-size-nav` token was added — too much of the site's body-adjacent
+copy (card descriptions, footer links, review meta, utility bar,
+capability labels) read as genuinely small text at the old values, per
+this phase's "typography too small" complaint. `--font-size-base` is
+unchanged (16px stays the explicit body-text floor). Several
+description/review-text roles also moved up to `--font-size-base`/`-lg`
+directly where even the bumped small-text values still read as
+secondary rather than primary content (residential/HOA card
+descriptions, review body text).
+
 | Token                         | Value                                                                              | Intended use                                                                             | Figma equivalent                                                                                                                               |
 | ----------------------------- | ---------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
 | `--font-family-base`          | `system-ui, -apple-system, "Segoe UI", Roboto, sans-serif`                         | Body copy, nav, forms, buttons — no external font request, avoids font-swap layout shift | Map to a licensed humanist sans (e.g. system UI stack or a close licensed equivalent) for the Figma file; keep the system stack in code        |
 | `--font-family-display`       | `Georgia, "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", serif` | Headings (H1/H2), display moments — the "elegant serif" requirement                      | Map to a licensed display serif in Figma; system serif fallback stays in code                                                                  |
-| `--font-size-xs`              | `0.8125rem` (13px)                                                                 | Fine print, legal/disclaimer text                                                        | `Text/XS`                                                                                                                                      |
-| `--font-size-sm`              | `0.875rem` (14px)                                                                  | Captions, secondary metadata, footer links                                               | `Text/SM`                                                                                                                                      |
+| `--font-size-xs`              | `0.875rem` (14px, was 13px)                                                        | Fine print, legal/disclaimer text                                                        | `Text/XS`                                                                                                                                      |
+| `--font-size-sm`              | `0.9375rem` (15px, was 14px)                                                       | Captions, secondary metadata, footer notes, utility bar                                  | `Text/SM`                                                                                                                                      |
 | `--font-size-base`            | `1rem` (16px)                                                                      | Body copy floor — nothing on the site should render smaller than this for body text      | `Text/Base`                                                                                                                                    |
-| `--font-size-lg`              | `1.25rem` (20px)                                                                   | Section intros, card body copy                                                           | `Text/LG`                                                                                                                                      |
+| `--font-size-nav`             | `1.0625rem` (17px, new)                                                            | Header nav links only — wayfinding, not body copy                                        | `Text/Nav`                                                                                                                                     |
+| `--font-size-lg`              | `1.25rem` (20px)                                                                   | Section intros, card body copy, review text, featured-card copy                          | `Text/LG`                                                                                                                                      |
 | `--font-size-xl`              | `1.75rem` (28px)                                                                   | Card headings, sub-section headings                                                      | `Text/XL`                                                                                                                                      |
 | `--font-size-2xl`             | `2.5rem` (40px)                                                                    | Fixed large heading (non-fluid contexts)                                                 | `Text/2XL`                                                                                                                                     |
 | `--font-size-3xl`             | `3rem` (48px)                                                                      | Largest fixed heading                                                                    | `Text/3XL`                                                                                                                                     |
@@ -51,18 +64,26 @@ beyond the single dark hero-overlay treatment.
 
 ## 3. Spacing
 
-| Token       | Value           | Intended use                                                                         |
-| ----------- | --------------- | ------------------------------------------------------------------------------------ |
-| `--space-1` | `0.25rem` (4px) | Icon-to-label gaps                                                                   |
-| `--space-2` | `0.5rem` (8px)  | Tight internal padding                                                               |
-| `--space-3` | `1rem` (16px)   | Standard internal padding, small gaps                                                |
-| `--space-4` | `1.5rem` (24px) | Card padding, medium gaps                                                            |
-| `--space-5` | `2rem` (32px)   | Section-internal rhythm (heading-to-content)                                         |
-| `--space-6` | `3rem` (48px)   | Large internal section spacing                                                       |
-| `--space-7` | `4.5rem` (72px) | Section `padding-block` — the primary vertical rhythm unit between homepage sections |
-| `--space-8` | `6rem` (96px)   | Largest spacing — hero vertical padding                                              |
+**Phase 2 change**: `--space-7` (the section `padding-block` used by
+every homepage section) increased from 72px to 88px — the "increase
+section padding" / page-rhythm request. Every section uses this one
+token, so this is a single, consistent change rather than per-section
+one-offs. Several components' card-level padding/gaps also moved up one
+step on this same scale (e.g. `--space-4` → `--space-5`) this phase —
+see `FIGMA_HANDOFF_BRIEF.md` for the per-component list.
 
-Figma equivalent: an 8px base spacing scale (4/8/16/24/32/48/72/96),
+| Token       | Value                     | Intended use                                                                         |
+| ----------- | ------------------------- | ------------------------------------------------------------------------------------ |
+| `--space-1` | `0.25rem` (4px)           | Icon-to-label gaps                                                                   |
+| `--space-2` | `0.5rem` (8px)            | Tight internal padding                                                               |
+| `--space-3` | `1rem` (16px)             | Standard internal padding, small gaps                                                |
+| `--space-4` | `1.5rem` (24px)           | Card padding, medium gaps                                                            |
+| `--space-5` | `2rem` (32px)             | Section-internal rhythm; now also many cards' internal padding                       |
+| `--space-6` | `3rem` (48px)             | Large internal section spacing; now also several grids' card-to-card gap             |
+| `--space-7` | `5.5rem` (88px, was 72px) | Section `padding-block` — the primary vertical rhythm unit between homepage sections |
+| `--space-8` | `6rem` (96px)             | Largest spacing — hero vertical padding                                              |
+
+Figma equivalent: an 8px base spacing scale (4/8/16/24/32/48/88/96),
 documented as auto-layout gap/padding presets per section type.
 
 ## 4. Component sizing
@@ -125,3 +146,30 @@ explicitly.
   `clip-path` reveal — keyboard-operable by design (arrow keys move the
   slider), not a drag-only interaction. Figma should show three states:
   default (50/50), dragged-toward-before, dragged-toward-after.
+
+## 8. Phase 2 component variants (new)
+
+- **Media placeholder with a visible caption**: `ImagePlaceholder`/
+  `ResponsiveImage` gained an optional `categoryLabel` prop that renders
+  a visible "{Category} / Photo Coming Soon" caption on the placeholder
+  panel itself, not just an invisible `aria-label`. Used everywhere a
+  photo slot exists (hero, property cards, HOA cards, segment cards) so
+  every placeholder reads as an intentional, labeled media slot rather
+  than a generic empty icon.
+- **`PremiumServiceCard` `size="featured"`**: used only by Residential's
+  3 primary services — larger media ratio (3/2 vs 4/3), larger heading/
+  body type, and a second "Request Estimate" CTA alongside "Learn More".
+- **`HOAServiceCard` horizontal layout** (≥640px): image-led, 42% media
+  column beside the text body, instead of the stacked-card pattern used
+  elsewhere — deliberate layout variety for a section this phase asked
+  to feel like "a major GreenCal business division." Uses the
+  `ResponsiveImage`/`ImagePlaceholder` `fill` mode (not a fixed `ratio`)
+  so the media column's size is governed entirely by its flex-basis,
+  not by an intrinsic aspect ratio competing with it.
+- **`BeforeAfterSlider` `featured`**: one project per Real Results
+  section renders at `grid-column: 1 / -1` (full row width), a 16:9
+  frame instead of 4:3, larger caption type, and a "View Similar
+  Projects" link to the matching real service page. The other two
+  projects render as smaller supporting cards in a two-column row below
+  it — the "one large featured project + two supporting cards"
+  composition.
