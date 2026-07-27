@@ -69,11 +69,15 @@ test.describe('Homepage', () => {
   test('homepage has a prominent call-to-action near the top, before the services list', async ({
     page,
   }) => {
+    // Premium homepage redesign (2026-07-27): the original .cta-banner div
+    // was replaced by the Hero component's Request-a-Quote/Call-Now
+    // actions - same requirement (a real CTA above the services list),
+    // new selector.
     await page.goto('/');
-    const ctaBanner = page.locator('.cta-banner');
-    await expect(ctaBanner).toBeVisible();
+    const heroCta = page.locator('.hero-actions');
+    await expect(heroCta).toBeVisible();
     const servicesHeading = page.locator('#residential-heading');
-    const ctaBox = await ctaBanner.boundingBox();
+    const ctaBox = await heroCta.boundingBox();
     const servicesBox = await servicesHeading.boundingBox();
     expect(ctaBox).not.toBeNull();
     expect(servicesBox).not.toBeNull();
@@ -81,9 +85,12 @@ test.describe('Homepage', () => {
   });
 
   test('homepage has a closing call-to-action section', async ({ page }) => {
+    // Premium homepage redesign (2026-07-27): the original .closing-cta
+    // section was replaced by the FinalCta component - same requirement,
+    // new selector.
     await page.goto('/');
-    await expect(page.locator('.closing-cta')).toBeVisible();
-    await expect(page.locator('.closing-cta a[href^="tel:"]')).toBeVisible();
+    await expect(page.locator('.final-cta')).toBeVisible();
+    await expect(page.locator('.final-cta a[href^="tel:"]')).toBeVisible();
   });
 
   test('every internal link points to an implemented route and does not 404', async ({
@@ -116,6 +123,9 @@ test.describe('Homepage', () => {
       '/commercial/recurring-exterior-cleaning',
       '/multi-family-hoa/apartment-condo-cleaning',
       '/multi-family-hoa/hoa-pressure-washing',
+      '/service-areas/san-diego-county',
+      '/service-areas/orange-county',
+      '/service-areas/riverside-county',
     ];
     for (const href of internalHrefs) {
       // Fragments (e.g. the Stage 3 quote-form anchor link) are client-side
