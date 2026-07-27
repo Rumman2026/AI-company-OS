@@ -11,13 +11,25 @@
 // a real completed project.
 import BeforeAfterSlider from './BeforeAfterSlider.astro';
 
-const projects = [
+interface FeaturedProject {
+  id: string;
+  title: string;
+  city?: string;
+  surfaceType: string;
+  description: string;
+  featured?: boolean;
+  relatedServiceHref?: string;
+}
+
+const projects: FeaturedProject[] = [
   {
     id: 'roof-washing',
     title: 'Concrete Tile Roof Cleaning',
     city: 'Irvine, California',
     surfaceType: 'Concrete Tile Roof',
     description: 'Organic buildup removed using a surface-appropriate, low-pressure cleaning process.',
+    featured: true,
+    relatedServiceHref: '/services/roof-cleaning',
   },
   {
     id: 'residential-concrete',
@@ -50,6 +62,8 @@ const projects = [
             city={project.city}
             surfaceType={project.surfaceType}
             description={project.description}
+            featured={project.featured}
+            relatedServiceHref={project.relatedServiceHref}
           />
         ))
       }
@@ -71,7 +85,16 @@ const projects = [
 
   .before-after-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
-    gap: var(--space-5);
+    grid-template-columns: 1fr;
+    gap: var(--space-6);
+  }
+
+  @media (min-width: 768px) {
+    .before-after-grid {
+      /* The featured project (grid-column: 1 / -1, see
+         BeforeAfterSlider.astro) spans this full row; the two
+         supporting cards then flow into a fixed two-column row below. */
+      grid-template-columns: repeat(2, 1fr);
+    }
   }
 </style>

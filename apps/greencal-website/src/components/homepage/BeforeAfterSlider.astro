@@ -18,12 +18,26 @@ export interface Props {
   beforeMedia?: MediaRecord;
   afterMedia?: MediaRecord;
   id: string;
+  /** 'featured' renders as the one large lead project (bigger frame/type, a "View Similar Projects" link) - Phase 2's "one large featured project + two supporting cards" composition. */
+  featured?: boolean;
+  /** Real service-page route for the featured project's "View Similar Projects" link - no project-detail page exists or is being created this phase. */
+  relatedServiceHref?: string;
 }
 
-const { title, city, surfaceType, description, beforeMedia, afterMedia, id } = Astro.props;
+const {
+  title,
+  city,
+  surfaceType,
+  description,
+  beforeMedia,
+  afterMedia,
+  id,
+  featured = false,
+  relatedServiceHref,
+} = Astro.props;
 ---
 
-<figure class="baf" data-baf-id={id}>
+<figure class={`baf ${featured ? 'baf-featured' : ''}`} data-baf-id={id}>
   <div class="baf-frame">
     <div class="baf-layer baf-after">
       <ResponsiveImage media={afterMedia} fallbackLabel={`After photo needed: ${title}`} fill icon="concrete" />
@@ -50,6 +64,13 @@ const { title, city, surfaceType, description, beforeMedia, afterMedia, id } = A
       <span>{surfaceType}</span>
     </p>
     <p>{description}</p>
+    {
+      featured && relatedServiceHref && (
+        <a href={relatedServiceHref} class="baf-view-link">
+          View Similar Projects<span aria-hidden="true"> &rarr;</span>
+        </a>
+      )
+    }
   </figcaption>
 </figure>
 
@@ -152,7 +173,43 @@ const { title, city, surfaceType, description, beforeMedia, afterMedia, id } = A
     margin-block-end: var(--space-2);
   }
 
-  .baf figcaption p:last-child {
+  .baf figcaption p:last-of-type {
     color: var(--color-charcoal-600);
+  }
+
+  .baf-view-link {
+    display: inline-block;
+    margin-block-start: var(--space-2);
+    font-weight: 700;
+    color: var(--color-forest-700);
+    text-decoration: none;
+  }
+
+  .baf-view-link:hover {
+    text-decoration: underline;
+  }
+
+  /* Featured: spans the full grid width on desktop and reads at a
+     larger type scale - the "one large featured project" half of the
+     Phase 2 "featured + two supporting" composition. */
+  .baf-featured {
+    grid-column: 1 / -1;
+  }
+
+  .baf-featured .baf-frame {
+    aspect-ratio: 16/9;
+  }
+
+  .baf-featured figcaption h3 {
+    font-family: var(--font-family-display);
+    font-size: var(--font-size-xl);
+  }
+
+  .baf-featured .baf-meta {
+    font-size: var(--font-size-base);
+  }
+
+  .baf-featured figcaption p:last-of-type {
+    font-size: var(--font-size-lg);
   }
 </style>
