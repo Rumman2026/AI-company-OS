@@ -13,6 +13,7 @@ import ReviewSummary from './ReviewSummary.astro';
 const placeholderReviews = [
   {
     displayName: 'Customer Name (Placeholder)',
+    city: 'City (placeholder)',
     servicePerformed: 'Roof Cleaning',
     starRating: 5,
     reviewText: 'Placeholder review text - real, verified customer reviews will appear here.',
@@ -21,6 +22,7 @@ const placeholderReviews = [
   },
   {
     displayName: 'Customer Name (Placeholder)',
+    city: 'City (placeholder)',
     servicePerformed: 'Commercial Concrete Cleaning',
     starRating: 5,
     reviewText: 'Placeholder review text - real, verified customer reviews will appear here.',
@@ -29,6 +31,7 @@ const placeholderReviews = [
   },
   {
     displayName: 'Customer Name (Placeholder)',
+    city: 'City (placeholder)',
     servicePerformed: 'HOA Pressure Washing',
     starRating: 5,
     reviewText: 'Placeholder review text - real, verified customer reviews will appear here.',
@@ -55,7 +58,13 @@ const placeholderReviews = [
 
   .review-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
-    gap: var(--space-4);
+    grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
+    gap: var(--space-5);
+  }
+
+  @media (min-width: 1024px) {
+    .review-grid {
+      grid-template-columns: repeat(3, 1fr);
+    }
   }
 </style>

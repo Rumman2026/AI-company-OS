@@ -9,27 +9,55 @@
     Google review integration is not yet connected. Verified reviews and a live rating summary
     will appear here once available.
   </p>
+  <div class="review-summary-actions">
+    <button type="button" class="btn btn-secondary" disabled>
+      View All Reviews
+    </button>
+    <span class="review-summary-badge">Google Business Profile: not yet connected</span>
+  </div>
   <p class="review-summary-note">
-    "View All Reviews" and a Google Business Profile link will appear here once a real profile is
-    connected.
+    Both will become real, working links once a verified Google Business Profile is connected -
+    shown disabled here rather than as dead links.
   </p>
 </div>
 
 <style>
   .review-summary {
-    padding: var(--space-4);
+    padding: var(--space-5);
     background-color: var(--color-cream-100);
-    border-radius: var(--radius-md);
-    margin-block-end: var(--space-5);
+    border-radius: var(--radius-lg);
+    margin-block-end: var(--space-6);
   }
 
   .review-summary-status {
-    margin-block: 0 var(--space-3);
+    font-size: var(--font-size-lg);
+    margin-block: 0 var(--space-4);
     color: var(--color-charcoal-600);
+  }
+
+  .review-summary-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-3);
+    margin-block-end: var(--space-3);
+  }
+
+  .review-summary-actions .btn[disabled] {
+    opacity: 0.55;
+    cursor: not-allowed;
+  }
+
+  .review-summary-badge {
+    font-size: var(--font-size-sm);
+    font-weight: 600;
+    color: var(--color-charcoal-600);
+    font-style: italic;
   }
 
   .review-summary-note {
     font-size: var(--font-size-sm);
     color: var(--color-charcoal-600);
+    margin: 0;
   }
 </style>

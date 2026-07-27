@@ -28,12 +28,28 @@ const { displayName, city, servicePerformed, starRating, reviewText, source, dat
   <div class="review-attribution">
     <p class="review-author">{displayName}{city && `, ${city}`}</p>
     <p class="review-meta">
-      {servicePerformed} - {source} - {date}
+      <span class="review-source">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path
+            fill="currentColor"
+            d="M21.6 12.23c0-.66-.06-1.3-.17-1.9H12v3.6h5.4a4.62 4.62 0 01-2 3.03v2.5h3.23c1.9-1.74 2.97-4.3 2.97-7.23z"
+          />
+          <path
+            fill="currentColor"
+            d="M12 22c2.7 0 4.96-.89 6.62-2.42l-3.23-2.5c-.9.6-2.05.96-3.4.96-2.6 0-4.8-1.76-5.6-4.12H3.06v2.6A10 10 0 0012 22z"
+          />
+          <path fill="currentColor" d="M6.4 13.92a5.96 5.96 0 010-3.83v-2.6H3.06a10 10 0 000 9.03z" />
+          <path
+            fill="currentColor"
+            d="M12 5.98c1.47 0 2.79.5 3.82 1.5l2.87-2.87A9.96 9.96 0 0012 2a10 10 0 00-8.94 5.5l3.34 2.6c.8-2.37 3-4.12 5.6-4.12z"
+          />
+        </svg>
+        {source}
+      </span>
+      <span>{servicePerformed}</span>
+      <span>{date}</span>
       {verifiedLink && (
-        <>
-          {' '}
-          - <a href={verifiedLink}>Verified</a>
-        </>
+        <a href={verifiedLink}>Verified</a>
       )}
     </p>
   </div>
@@ -43,11 +59,11 @@ const { displayName, city, servicePerformed, starRating, reviewText, source, dat
   .review-card {
     display: flex;
     flex-direction: column;
-    gap: var(--space-2);
-    padding: var(--space-4);
+    gap: var(--space-3);
+    padding: var(--space-5);
     background-color: var(--color-white);
     border: 1px solid var(--color-cream-100);
-    border-radius: var(--radius-md);
+    border-radius: var(--radius-lg);
     box-shadow: var(--shadow-sm);
   }
 
@@ -62,29 +78,48 @@ const { displayName, city, servicePerformed, starRating, reviewText, source, dat
 
   .review-stars {
     display: flex;
-    gap: 2px;
+    gap: 3px;
   }
 
   .review-stars svg {
-    width: 1.1rem;
-    height: 1.1rem;
+    width: 1.35rem;
+    height: 1.35rem;
     color: var(--color-gold-500);
   }
 
   .review-text {
+    font-size: var(--font-size-lg);
     color: var(--color-charcoal-900);
     flex: 1;
   }
 
   .review-author {
+    font-size: var(--font-size-base);
     font-weight: 700;
     color: var(--color-forest-900);
     margin: 0;
   }
 
   .review-meta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-1) var(--space-3);
     font-size: var(--font-size-sm);
     color: var(--color-charcoal-600);
     margin: 0;
+  }
+
+  .review-source {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+    font-weight: 600;
+  }
+
+  .review-source svg {
+    width: 1rem;
+    height: 1rem;
+    flex: none;
   }
 </style>
