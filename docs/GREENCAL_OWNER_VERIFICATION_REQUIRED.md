@@ -114,9 +114,24 @@ HOA proof:
   photo repurposed as commercial proof
 - 4 multi-family/HOA images — same "Commercial Project Media Coming
   Soon" placeholder
-- Logo/favicon — `public/assets/greencal/logo/` was created but no
-  logo file has been placed there; the temporary text wordmark remains
-  in use in the header and footer
+
+**Logo (Logo Integration Pass, 2026-07-29)**: a real logo now exists and
+is in use — the owner supplied two files at
+`public/assets/greencal/logo/GreenCal Pressure washing logo/`
+(`greencal-logo.png.png`, black tagline text, used in the header;
+`greencal-logo2 .png.png`, white tagline text, used in the footer).
+Both are the identical illustrated mark, genuinely transparent-background
+(confirmed via pixel alpha sampling, not assumed), trimmed and
+re-encoded as WebP derivatives at
+`public/assets/greencal/generated/logo/` (`header.webp`, `footer.webp`)
+— no redraw/recreation, originals preserved untouched. The temporary
+text wordmark is fully replaced.
+
+**Favicon still not updated** — neither supplied file is icon-only
+(both are the full illustrated mark with the character graphic and
+tagline text); no suitable square icon-only asset exists yet. Needs a
+dedicated icon-only export (square, simple enough to read at 16-32px)
+before the favicon can be changed.
 
 ## Phase 2 — same requests repeated, same resolution
 
