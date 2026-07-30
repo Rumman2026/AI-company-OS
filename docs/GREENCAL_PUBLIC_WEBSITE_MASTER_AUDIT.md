@@ -512,3 +512,31 @@ prevention) and `loading="lazy"`/`fetchpriority` used appropriately
 (hero eager + high priority; everything else lazy). The Phase 5 fade-in
 transition is CSS-only (no JS framework, no added bytes beyond a few
 lines of CSS + 2 inline event-handler attributes).
+
+## Phase 10 — Git and Preview
+
+- **Commits** (both on `feat/greencal-premium-homepage`, pushed to
+  `origin`):
+  - `0a6ddc5` — `feat(greencal): consolidate reviews/footer, add image
+fade-in, fix hero contrast, add og:image` (the 6 changed source
+    files)
+  - `1b158b5` — `docs(greencal): record Master Completion Workflow
+audit, design system, and QA` (this doc, the design-system doc, the
+    responsive-QA doc, and both screenshot sets)
+- **Preview deployment**: `dpl_BqvPENECw4v2dkpYMRYW1gRZF3gP`,
+  `target: null` (Preview, confirmed — not Production), `state: READY`,
+  built from commit `1b158b5`. Verified directly with `curl` — `200`
+  response, correct `<title>`.
+  **URL**: `https://ai-company-os-greencal-website-b6fj4eyfv-leads-initiative.vercel.app`
+- Nothing outside `apps/greencal-website` (plus the 3 root-level
+  `docs/GREENCAL_*` files, consistent with this repo's existing
+  convention) was touched. No production deployment occurred.
+
+## Gate 7 — Engineering Passed ✅ / Phase 10 Complete ✅
+
+- `typecheck`/`lint`/`build` all pass (see Phase 9 note below).
+- `test`: 255/255 passing, confirmed via single-threaded re-run after
+  ruling out parallel-worker flakiness (see the Phase 5 test-
+  infrastructure note above).
+- Commits created with clear messages; Preview deployment live and
+  verified; no Production deployment.
