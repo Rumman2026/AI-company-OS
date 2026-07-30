@@ -1,12 +1,17 @@
 ---
-// TEMPORARY brand mark - no approved GreenCal logo/vector identity exists
-// in this repository. This is a restrained text wordmark with a
-// monogram, not a final trademark asset. Replace this component's
-// internals (not its usage sites) once a real logo is approved - every
-// page already imports it from one place.
+// Real GreenCal logo (Logo Integration Pass, 2026-07-29). The owner
+// supplied two color variants of the same illustrated mark, identical
+// except for the "GreenCal Pressure Washing" tagline text color: black
+// (reads correctly on the light header) and white (reads correctly on
+// the dark-green footer) - trimmed of surrounding transparent padding
+// and re-encoded as WebP, otherwise pixel-identical to the supplied
+// artwork (no redraw/recreation). Originals preserved untouched at
+// public/assets/greencal/logo/. No icon-only file exists, so the
+// favicon is intentionally not changed here - see
+// docs/GREENCAL_OWNER_VERIFICATION_REQUIRED.md.
 export interface Props {
   variant?: 'default' | 'inverse';
-  /** 'large' is used for placements like the footer where the wordmark should read as a real logo, not a nav-bar mark. */
+  /** 'large' is used for placements like the footer where the logo should read as a real logo, not a nav-bar mark. */
   size?: 'default' | 'large';
   /**
    * Tests key off a single, unique `.brand` element (tab-order and
@@ -17,93 +22,56 @@ export interface Props {
 }
 
 const { variant = 'default', size = 'default', isSiteBrand = false } = Astro.props;
+
+// Real trimmed source is 800x560 (5:3.5, ~1.43:1) for both variants -
+// used as the base width/height attributes (CLS prevention); CSS below
+// controls the actual displayed size per size/breakpoint via height +
+// width: auto, preserving this exact aspect ratio at every size.
+const LOGO_SRC = {
+  default: '/assets/greencal/generated/logo/header.webp',
+  inverse: '/assets/greencal/generated/logo/footer.webp',
+};
 ---
 
 <a
   href="/"
   class={`wordmark wordmark-${variant} wordmark-${size} ${isSiteBrand ? 'brand' : ''}`}
   aria-label="GreenCal Pressure Washing home">
-  <span class="wordmark-monogram" aria-hidden="true">GC</span>
-  <span class="wordmark-text">
-    <span class="wordmark-name">GreenCal</span>
-    <span class="wordmark-tagline">Pressure Washing</span>
-  </span>
+  <img
+    src={LOGO_SRC[variant]}
+    alt="GreenCal Pressure Washing"
+    width="800"
+    height="560"
+    class="wordmark-logo"
+  />
 </a>
 
 <style>
   .wordmark {
     display: inline-flex;
     align-items: center;
-    gap: var(--space-3);
     text-decoration: none;
-    color: var(--color-forest-900);
   }
 
-  .wordmark-monogram {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 2.5rem;
-    height: 2.5rem;
-    flex: none;
-    font-family: var(--font-family-display);
-    font-size: 1.125rem;
-    font-weight: 700;
-    letter-spacing: 0.02em;
-    color: var(--color-white);
-    background-color: var(--color-forest-700);
-    border-radius: var(--radius-full);
+  .wordmark-logo {
+    display: block;
+    width: auto;
+    height: 44px;
   }
 
-  .wordmark-text {
-    display: flex;
-    flex-direction: column;
-    line-height: 1.1;
-  }
-
-  .wordmark-name {
-    font-family: var(--font-family-display);
-    font-size: 1.25rem;
-    font-weight: 700;
-  }
-
-  .wordmark-tagline {
-    font-size: var(--font-size-xs);
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    color: var(--color-charcoal-600);
-  }
-
-  .wordmark-inverse {
-    color: var(--color-white);
-  }
-
-  .wordmark-inverse .wordmark-monogram {
-    background-color: var(--color-white);
-    color: var(--color-forest-900);
-  }
-
-  .wordmark-inverse .wordmark-tagline {
-    color: rgba(255, 255, 255, 0.75);
-  }
-
-  @media (max-width: 480px) {
-    .wordmark-tagline {
-      display: none;
+  @media (min-width: 1280px) {
+    .wordmark-logo {
+      height: 52px;
     }
   }
 
-  .wordmark-large .wordmark-monogram {
-    width: 3.25rem;
-    height: 3.25rem;
-    font-size: 1.375rem;
+  .wordmark-large .wordmark-logo {
+    height: 64px;
   }
 
-  .wordmark-large .wordmark-name {
-    font-size: 1.75rem;
-  }
-
-  .wordmark-large .wordmark-tagline {
-    font-size: var(--font-size-sm);
+  @media (min-width: 1280px) {
+    .wordmark-large .wordmark-logo {
+      height: 88px;
+    }
   }
 </style>
