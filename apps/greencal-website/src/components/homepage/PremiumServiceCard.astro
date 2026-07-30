@@ -40,6 +40,15 @@ const cardMedia = getMediaById(AFTER_PHOTO_BY_SLUG[service.slug] ?? '');
   <div class="premium-service-card-body">
     <h3><a href={service.route}>{service.title}</a></h3>
     <p>{service.summary}</p>
+    {
+      isFeatured && service.highlights && service.highlights.length > 0 && (
+        <ul class="premium-service-card-highlights">
+          {service.highlights.slice(0, 3).map((point) => (
+            <li>{point}</li>
+          ))}
+        </ul>
+      )
+    }
     <div class="premium-service-card-actions">
       <a href={service.route} class="premium-service-card-link">Learn More<span aria-hidden="true"> &rarr;</span></a>
       {
@@ -112,6 +121,33 @@ const cardMedia = getMediaById(AFTER_PHOTO_BY_SLUG[service.slug] ?? '');
     color: var(--color-charcoal-600);
     font-size: var(--font-size-base);
     flex: 1;
+  }
+
+  .premium-service-card-highlights {
+    list-style: none;
+    margin: 0 0 var(--space-3);
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+    font-size: var(--font-size-sm);
+    color: var(--color-charcoal-900);
+  }
+
+  .premium-service-card-highlights li {
+    padding-inline-start: var(--space-3);
+    position: relative;
+  }
+
+  .premium-service-card-highlights li::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0.5em;
+    width: 0.35rem;
+    height: 0.35rem;
+    border-radius: 50%;
+    background-color: var(--color-gold-500);
   }
 
   .premium-service-card-actions {

@@ -26,6 +26,12 @@ export const services: ServiceRecord[] = [
       'Roof cleaning addresses the buildup of dirt, debris, and organic growth that can accumulate on exterior roofing surfaces over time.',
       'The general goal is to clean visible roofing surfaces as part of routine exterior property maintenance - exterior surface cleaning only.',
     ],
+    highlights: [
+      'Improves curb appeal by removing visible dirt, staining, and discoloration',
+      'Can help support documentation some insurance carriers request during a roof condition or renewal review',
+      'Cleaning method and pressure are matched to the roofing material, including tile and similar roof types',
+      'Removes moss, algae, dirt, and surface staining from visible roofing areas',
+    ],
     metaTitle: 'Roof Cleaning | GreenCal Pressure Washing',
     metaDescription:
       'Exterior roof cleaning services from GreenCal Pressure Washing, serving approved communities across San Diego, Orange, and Riverside Counties.',
@@ -40,6 +46,12 @@ export const services: ServiceRecord[] = [
       'House washing addresses dirt and buildup on exterior stucco, siding, and painted surfaces, using surface-appropriate methods that may include low-pressure soft washing.',
       'The general goal is to clean visible exterior wall surfaces as part of routine property maintenance - method and pressure are chosen based on the surface being cleaned.',
     ],
+    highlights: [
+      'Refreshes exterior appearance by removing dirt, cobwebs, mildew, and surface buildup',
+      'Can support HOA exterior-appearance and community-standard expectations where applicable',
+      'Surface-appropriate methods for stucco, siding, and painted surfaces where applicable',
+      'A cleaner exterior helps the whole property present better, inside and out',
+    ],
     metaTitle: 'House Washing | GreenCal Pressure Washing',
     metaDescription:
       'Exterior house, stucco, and siding cleaning from GreenCal Pressure Washing, serving approved communities across San Diego, Orange, and Riverside Counties.',
@@ -53,6 +65,12 @@ export const services: ServiceRecord[] = [
     body: [
       'Concrete cleaning addresses dirt, staining, and buildup on driveways, sidewalks, walkways, patios, entry areas, and other appropriate exterior hard surfaces, including brick and stone.',
       'A pool deck may be cleaned as a concrete surface. GreenCal does not offer pool cleaning, pool maintenance, pool water service, pool equipment service, or pool repair.',
+    ],
+    highlights: [
+      'Cleans driveways, walkways, and other exterior concrete and flatwork',
+      'Removes dirt, staining, algae, and surface buildup',
+      'Helps improve curb appeal and reduces slip risk from algae and organic buildup',
+      'Suitable for residential and commercial flatwork where applicable',
     ],
     metaTitle: 'Concrete Cleaning | GreenCal Pressure Washing',
     metaDescription:

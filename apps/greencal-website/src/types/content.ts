@@ -23,6 +23,8 @@ export interface ServiceRecord {
   title: string;
   summary: string;
   body: string[];
+  /** Optional short value-proposition bullets, shown on the service's own page and (for featured cards) the homepage. Not every service needs these. */
+  highlights?: string[];
   metaTitle: string;
   metaDescription: string;
 }

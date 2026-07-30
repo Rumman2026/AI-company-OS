@@ -1,0 +1,230 @@
+---
+// Homepage improvement pass (2026-07-30): a simple, real-photo hero
+// slider rotating through the 3 residential services, replacing the
+// hero's previous single static image + floating proof card - the
+// slider itself now serves the "show real project proof" purpose the
+// proof card served, without stacking both in the same space.
+//
+// One consistent frame size/aspect-ratio across all 3 slides (via
+// ResponsiveImage's `fill` mode) so nothing shifts or jumps as slides
+// rotate, regardless of each source photo's native dimensions.
+import ResponsiveImage from '../ResponsiveImage.astro';
+import { getMediaById } from '../../data/media';
+
+const slides = [
+  {
+    id: 'roof-wash',
+    mediaId: 'roof-wash-hero-after',
+    title: 'Roof Washing',
+    description: "Remove moss, algae, dirt, and staining to restore your roof's appearance.",
+  },
+  {
+    id: 'house-wash',
+    mediaId: 'house-wash-01-after',
+    title: 'House Washing',
+    description: "Refresh your home's exterior and remove dirt, cobwebs, mildew, and buildup.",
+  },
+  {
+    id: 'concrete-cleaning',
+    mediaId: 'concrete-cleaning-01-after',
+    title: 'Concrete & Driveway Cleaning',
+    description: 'Clean driveways, walkways, and concrete to improve curb appeal.',
+  },
+] as const;
+---
+
+<div class="hero-slider" id="hero-slider" role="region" aria-roledescription="carousel" aria-label="Featured GreenCal services">
+  <div class="hero-slider-track">
+    {
+      slides.map((slide, index) => (
+        <div
+          class={`hero-slider-slide ${index === 0 ? 'is-active' : ''}`}
+          id={`hero-slide-${index}`}
+          aria-hidden={index === 0 ? 'false' : 'true'}
+        >
+          <ResponsiveImage
+            media={getMediaById(slide.mediaId)}
+            fallbackLabel={`Photo needed: ${slide.title}`}
+            fill
+            loading={index === 0 ? 'eager' : 'lazy'}
+          />
+          <div class="hero-slider-overlay">
+            <p class="hero-slider-title">{slide.title}</p>
+            <p class="hero-slider-description">{slide.description}</p>
+            <a href="/contact-us#quote-form" class="btn btn-primary">
+              Get a Free Estimate
+            </a>
+          </div>
+        </div>
+      ))
+    }
+  </div>
+  <div class="hero-slider-dots" role="tablist" aria-label="Choose a featured service">
+    {
+      slides.map((slide, index) => (
+        <button
+          type="button"
+          class="hero-slider-dot"
+          role="tab"
+          aria-selected={index === 0 ? 'true' : 'false'}
+          aria-controls={`hero-slide-${index}`}
+          aria-label={`Show ${slide.title} slide`}
+          data-slide-target={index}
+        />
+      ))
+    }
+  </div>
+</div>
+
+<script>
+  function initHeroSlider(): void {
+    const root = document.getElementById('hero-slider');
+    if (!root) return;
+
+    const slides = Array.from(root.querySelectorAll<HTMLElement>('.hero-slider-slide'));
+    const dots = Array.from(root.querySelectorAll<HTMLButtonElement>('.hero-slider-dot'));
+    if (slides.length === 0) return;
+
+    let current = 0;
+    let timer: number | null = null;
+    const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    const show = (index: number): void => {
+      slides.forEach((slide, i) => {
+        slide.classList.toggle('is-active', i === index);
+        slide.setAttribute('aria-hidden', i === index ? 'false' : 'true');
+      });
+      dots.forEach((dot, i) => dot.setAttribute('aria-selected', i === index ? 'true' : 'false'));
+      current = index;
+    };
+
+    const next = (): void => show((current + 1) % slides.length);
+
+    const stopAutoRotate = (): void => {
+      if (timer !== null) {
+        window.clearInterval(timer);
+        timer = null;
+      }
+    };
+
+    // Simple auto-rotation only - no heavy effects, and never runs at
+    // all for reduced-motion users (WCAG 2.2.2: auto-advancing content
+    // must be pausable; the simplest, most reliable way to honor that
+    // for users who've said they want less motion is to not start it).
+    const startAutoRotate = (): void => {
+      if (prefersReducedMotion) return;
+      stopAutoRotate();
+      timer = window.setInterval(next, 6000);
+    };
+
+    dots.forEach((dot, i) => {
+      dot.addEventListener('click', () => {
+        show(i);
+        startAutoRotate();
+      });
+    });
+
+    // Pause on hover/focus so auto-rotation never fights a visitor
+    // trying to read a slide or reach the dots/CTA with a keyboard.
+    root.addEventListener('mouseenter', stopAutoRotate);
+    root.addEventListener('mouseleave', startAutoRotate);
+    root.addEventListener('focusin', stopAutoRotate);
+    root.addEventListener('focusout', startAutoRotate);
+
+    startAutoRotate();
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initHeroSlider);
+  } else {
+    initHeroSlider();
+  }
+</script>
+
+<style>
+  .hero-slider {
+    position: relative;
+  }
+
+  .hero-slider-track {
+    position: relative;
+    aspect-ratio: 4/3;
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    box-shadow: var(--shadow-elevation-3);
+  }
+
+  .hero-slider-slide {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    transition: opacity var(--motion-duration-slow) ease;
+  }
+
+  .hero-slider-slide.is-active {
+    opacity: 1;
+    z-index: 1;
+  }
+
+  .hero-slider-overlay {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    gap: var(--space-2);
+    padding: var(--space-5) var(--space-4) var(--space-4);
+    background: linear-gradient(to top, rgba(20, 42, 32, 0.88) 0%, rgba(20, 42, 32, 0) 65%);
+    color: var(--color-white);
+  }
+
+  .hero-slider-title {
+    margin: 0;
+    font-family: var(--font-family-display);
+    font-size: var(--font-size-xl);
+  }
+
+  .hero-slider-description {
+    margin: 0 0 var(--space-1);
+    color: rgba(255, 255, 255, 0.9);
+    font-size: var(--font-size-base);
+    max-width: 26rem;
+  }
+
+  .hero-slider-overlay .btn {
+    align-self: flex-start;
+  }
+
+  .hero-slider-dots {
+    display: flex;
+    justify-content: center;
+    gap: var(--space-2);
+    margin-block-start: var(--space-3);
+  }
+
+  .hero-slider-dot {
+    width: 0.625rem;
+    height: 0.625rem;
+    padding: 0;
+    border: none;
+    border-radius: var(--radius-full);
+    background-color: var(--color-cream-100);
+    cursor: pointer;
+  }
+
+  .hero-slider-dot[aria-selected='true'] {
+    background-color: var(--color-gold-500);
+  }
+
+  @media (max-width: 900px) {
+    .hero-slider-track {
+      aspect-ratio: 3/2;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .hero-slider-slide {
+      transition: none;
+    }
+  }
+</style>
