@@ -28,3 +28,12 @@ blob-report/
 
 # Docker
 docker-compose.override.yml
+
+# Design source/editing files (never committed - see CLAUDE.md
+# documentation behavior and the GreenCal websites rule: only web-ready
+# exports (PNG/SVG/WebP/JPG) belong in public/assets - not the raw
+# Illustrator/Photoshop/PDF sources they were exported from).
+apps/greencal-website/public/assets/**/*.ai
+apps/greencal-website/public/assets/**/*.psd
+apps/greencal-website/public/assets/**/*.pdf
+apps/greencal-website/public/assets/**/*.eps
