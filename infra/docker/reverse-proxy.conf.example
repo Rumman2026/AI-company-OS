@@ -1,0 +1,15 @@
+# Placeholder reverse-proxy config template — not active. Routes will be
+# filled in once apps/ai-gateway and apps/jervis-api have real HTTP
+# servers and n8n is actually provisioned.
+server {
+    listen 8080;
+
+    location /healthz {
+        return 200 'ok';
+        add_header Content-Type text/plain;
+    }
+
+    # location /n8n/ { proxy_pass http://n8n:5678/; }
+    # location /gateway/ { proxy_pass http://ai-gateway:4100/; }
+    # location /jervis/ { proxy_pass http://jervis-api:4101/; }
+}

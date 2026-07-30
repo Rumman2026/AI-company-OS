@@ -448,10 +448,160 @@ the approved service or city scope.
 
 ---
 
+## ADR-0008: Cost-efficient multi-model cloud infrastructure direction (Hostinger VPS + Docker Compose, provider-neutral AI gateway)
+
+**Status**: Confirmed (direction and repository-preparation scope only —
+see scope note below; provisioning, credentials, and deployment remain
+separately gated)
+
+**Context**: The "Proposed decisions" section below previously listed
+deployment target (Kubernetes via `infra/k8s`, or an alternative) as
+**TBD**. The owner has now explicitly authorized a specific target cloud
+architecture and directed a "Cost-Efficient Multi-Model Cloud
+Infrastructure Preparation Stage": repository structure, provider-neutral
+contracts, placeholder adapters, Docker Compose templates, and
+documentation — explicitly **not** provisioning, credential connection,
+real AI-provider calls, Hostinger setup, or deployment.
+
+A read-only audit of the existing monorepo (apps, packages, infra, CI,
+config, docs) found:
+
+- `apps/worker-service` already exists and is documented in
+  [ARCHITECTURE.md](ARCHITECTURE.md) as "Background job / worker
+  processor" — an empty Phase 1 placeholder.
+- `packages/agent-sdk` already exists and is documented as "Shared AI
+  agent interfaces and plugin contracts" — an empty Phase 1 placeholder.
+- `packages/telemetry` already exists ("Shared telemetry instrumentation
+  helpers") — an empty Phase 1 placeholder.
+- `config/policies/README.md` already documents itself as the planning
+  home for policy/governance guidance.
+- `infra/terraform`, `infra/k8s`, `infra/iam`, `infra/secrets`,
+  `infra/charts` remain planning-only `README.md` stubs; no infrastructure
+  is provisioned anywhere in this repository.
+- `apps/api-gateway` already exists, documented as "API gateway / edge
+  service" for the platform's own APIs — a different concern from an
+  AI-provider routing gateway.
+- No "Hermes" or "Jervis" code exists anywhere in the repository.
+
+**Decision**:
+
+1. **Deployment target**: Resolve the previously open deployment-target
+   decision in favor of a **Hostinger VPS running Docker Compose**
+   (reverse proxy, n8n, PostgreSQL, Redis, an AI gateway, agent workers,
+   monitoring) — **not** Kubernetes. `infra/k8s` and `infra/charts` remain
+   unused planning stubs; this ADR does not activate them. Public
+   websites continue on **Vercel** (already true for
+   `apps/greencal-website` per ADR-0006); business/application data
+   continues toward **Supabase Cloud** where appropriate; **GitHub** and
+   GitHub Actions remain the source of truth for branches, review, and
+   CI/CD gating.
+2. **AI provider set**: Approve exactly seven AI providers for future
+   integration, each with a distinct role: **Anthropic/Claude**
+   (orchestration, architecture, security-sensitive review, final
+   high-impact decisions), **OpenAI** (customer-facing automation,
+   structured tool use, vision, future voice), **Z.AI/GLM** (default
+   low-cost text/data/coding worker), **DeepSeek** (inexpensive fallback
+   and batch analysis), **Perplexity** (current web research only),
+   **Gemini** (image/video/multimodal), **Kimi Code CLI** (restricted
+   secondary coding worker, isolated branches only). Grok/xAI and Sakana
+   AI are explicitly excluded from this and all future integration work.
+3. **Routing model**: A single primary provider is selected per task
+   through a deterministic router (rules/templates/stored facts first,
+   then one AI provider); escalation to Claude is conditional and
+   exception-based (low confidence, conflicting facts, pricing/legal
+   language, upset customer, high-value lead, provider disagreement,
+   security/production impact, policy-engine flag, or owner-approval
+   requirement) — not a chain that calls every provider for every task.
+4. **Reuse over duplication**: Implement agent-worker execution inside
+   the existing `apps/worker-service` rather than creating a new
+   `apps/agent-worker`. Implement provider/agent contracts and capability
+   descriptors inside the existing `packages/agent-sdk` rather than
+   creating a new `packages/agent-contracts`. Both existing
+   apps/packages keep their documented names and current empty state
+   until this work actually lands.
+5. **New, non-duplicating additions**: `apps/ai-gateway` (provider-neutral
+   AI routing gateway, distinct from `apps/api-gateway`), `apps/jervis-api`
+   (control/orchestration API — no prior art exists), `packages/task-router`,
+   `packages/context-builder`, `packages/semantic-cache`,
+   `packages/policy-engine` (runtime companion to the planning guidance in
+   `config/policies/README.md`), `packages/job-queue`,
+   `packages/audit-logger` (a distinct, compliance-oriented audit trail —
+   see trade-offs — not a replacement for `packages/telemetry`),
+   `packages/cost-controller`, `packages/provider-adapters`,
+   `infra/hostinger`, `infra/docker`, `infra/monitoring`, `infra/backups`.
+
+**Alternatives considered**:
+
+1. **Kubernetes deployment target** (`infra/k8s`, already scaffolded as a
+   planning stub). Rejected for this stage: higher operational complexity
+   and cost than justified at current single-VPS, single-business-launch
+   scale, and in tension with the explicit cost-efficiency objective.
+2. **New `apps/agent-worker` and `packages/agent-contracts`** as separate
+   from `apps/worker-service`/`packages/agent-sdk`. Rejected: both
+   existing placeholders already document the exact intended purpose:
+   creating parallel new ones would mean two apps/packages claiming the
+   same stated role, contradicting the requirement to prove no reusable
+   equivalent exists first.
+3. **A provider chain that calls every AI provider for every task, or
+   calling multiple providers redundantly for the same routine task**.
+   Rejected in favor of one selected primary provider per task type with
+   defined, bounded escalation — for cost, latency, and complexity
+   reasons.
+
+**Trade-offs**: Hostinger VPS + Docker Compose is cheaper and simpler to
+operate than Kubernetes but provides no automatic multi-node failover;
+acceptable at current scale, revisit if/when load or availability
+requirements change. Keeping provider/agent contracts inside
+`packages/agent-sdk` grows that package's scope beyond its current empty
+placeholder, which `ARCHITECTURE.md`'s package-boundaries table must
+reflect. Splitting `packages/audit-logger` out from `packages/telemetry`
+adds a second logging-shaped package; justified because audit trails
+(compliance-grade, immutable, security/spend/escalation events) have
+different retention and integrity requirements than general telemetry
+instrumentation, but the two packages' READMEs must cross-reference each
+other so the split reads as deliberate, not accidental.
+
+**Consequences**:
+
+- `ARCHITECTURE.md`'s confirmed application and package boundary tables
+  gain rows for the new apps/packages listed above, at the same Phase 1
+  placeholder fidelity as existing entries (no production business logic,
+  no real provider calls, no real credentials).
+- `ROADMAP.md` gains a new, explicitly in-progress/scaffold phase entry
+  for this cloud-infrastructure-preparation work, additive to and
+  independent of the existing Phase 2/2A/3/4+ entries.
+- `docs/INDEX.md` gains routing entries for the new `docs/cloud/*.md` and
+  `docs/agents/*.md` documents and an extended path-scoped rule covering
+  the new apps/packages.
+- No production system, credential, account connection, real AI-provider
+  API call, or deployment happens as a result of this ADR.
+
+**Scope note**: This ADR authorizes repository structure preparation,
+provider-neutral TypeScript contracts/capability descriptors, placeholder
+(non-network-calling) adapters, Docker Compose templates, and
+documentation only. It does **not** authorize: connecting real provider
+accounts or credentials, real paid API calls, Hostinger VPS provisioning,
+DNS/hosting changes, or any production deployment — each remains a
+separate, explicitly gated future decision requiring its own owner
+authorization.
+
+**Deferred decisions** (still not made by this ADR): Database engine/ORM
+for `packages/db`; exact service-to-service communication pattern
+(REST/gRPC/queue) beyond what the task-router/job-queue placeholders
+assume; real Hostinger VPS provisioning steps; real provider-account
+connection and credential storage; production deployment of any of the
+new apps.
+
+**Related**: [ARCHITECTURE.md](ARCHITECTURE.md), [ROADMAP.md](ROADMAP.md),
+[docs/INDEX.md](docs/INDEX.md), [BUSINESSES.md](BUSINESSES.md),
+[PRODUCT.md](PRODUCT.md), `docs/cloud/CLOUD_ARCHITECTURE.md`,
+[ADR-0006](#adr-0006-vercel-supabase-and-resend-approved-for-appsgreencal-website-live-quote-delivery)
+
+---
+
 ## Proposed decisions (not yet made)
 
 - Database engine and ORM for `packages/db` — **Proposed / TBD**.
-- Service-to-service communication pattern (REST/gRPC/queue) — **Proposed
-  / TBD**.
-- Deployment target (Kubernetes via `infra/k8s`, alternative) — **Proposed
-  / TBD**, planning docs only exist today.
+- Service-to-service communication pattern (REST/gRPC/queue) beyond the
+  new task-router/job-queue placeholders (see ADR-0008) — **Proposed /
+  TBD**.

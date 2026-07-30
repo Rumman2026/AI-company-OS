@@ -1,0 +1,16 @@
+#!/usr/bin/env sh
+# Placeholder backup hook template — not executed by this repository.
+# Intended to run as a scheduled job on the Hostinger VPS once
+# provisioned (see docs/cloud/HOSTINGER_VPS_SETUP.md).
+set -eu
+
+BACKUP_DIR="${BACKUP_DIR:-/var/backups/ai-company-os}"
+TIMESTAMP="$(date -u +%Y%m%dT%H%M%SZ)"
+
+mkdir -p "$BACKUP_DIR"
+pg_dump --dbname "$POSTGRES_URL" --format=custom \
+  --file "$BACKUP_DIR/postgres-$TIMESTAMP.dump"
+
+# Retention: keep the last 14 daily backups. Adjust once real backup
+# volume/frequency needs are known.
+find "$BACKUP_DIR" -name 'postgres-*.dump' -mtime +14 -delete

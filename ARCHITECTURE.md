@@ -32,35 +32,53 @@ content: no verified business claims, no address, no `LocalBusiness`
 structured data, and no quote form. It has no `Dockerfile` (not required for
 this checkpoint) and is not wired into `docker-compose.dev.yml`.
 
-| App                       | Role                                                               | Port (dev) |
-| ------------------------- | ------------------------------------------------------------------ | ---------- |
-| `apps/api-gateway`        | API gateway / edge service                                         | 4000       |
-| `apps/core-api`           | Core business API                                                  | 4001       |
-| `apps/agent-orchestrator` | Agent orchestration engine                                         | 4002       |
-| `apps/worker-service`     | Background job / worker processor                                  | 4003       |
-| `apps/web-console`        | Customer-facing web console (React/TSX)                            | 3000       |
-| `apps/admin-console`      | Internal admin interface (React/TSX)                               | 3001       |
-| `apps/docs-portal`        | Documentation portal (React/TSX)                                   | 3002       |
-| `apps/greencal-website`   | GreenCal Pressure Washing public marketing website (Astro, static) | 4321       |
+| App                       | Role                                                                 | Port (dev)   |
+| ------------------------- | -------------------------------------------------------------------- | ------------ |
+| `apps/api-gateway`        | API gateway / edge service                                           | 4000         |
+| `apps/core-api`           | Core business API                                                    | 4001         |
+| `apps/agent-orchestrator` | Agent orchestration engine                                           | 4002         |
+| `apps/worker-service`     | Background job / worker processor; agent-worker execution (ADR-0008) | 4003         |
+| `apps/web-console`        | Customer-facing web console (React/TSX)                              | 3000         |
+| `apps/admin-console`      | Internal admin interface (React/TSX)                                 | 3001         |
+| `apps/docs-portal`        | Documentation portal (React/TSX)                                     | 3002         |
+| `apps/greencal-website`   | GreenCal Pressure Washing public marketing website (Astro, static)   | 4321         |
+| `apps/ai-gateway`         | Provider-neutral AI routing gateway (ADR-0008)                       | 4100 (cloud) |
+| `apps/jervis-api`         | Owner-facing control API: health, budgets, kill switches (ADR-0008)  | 4101 (cloud) |
 
 Ports and service wiring for the backend/console apps are defined in
 `docker-compose.dev.yml` and `config/env/.env.example`; `apps/greencal-website`
 is not part of that Docker Compose wiring during Checkpoint 1.
+`apps/ai-gateway` and `apps/jervis-api` are not part of local dev Docker
+Compose wiring — their (future) cloud-stack ports/env are defined in
+`infra/docker/docker-compose.cloud.yml` and `infra/docker/.env.cloud.example`
+(see ADR-0008); nothing there is provisioned or deployed.
 
 ## Confirmed: package boundaries
 
-| Package                   | Role                                                |
-| ------------------------- | --------------------------------------------------- |
-| `packages/auth`           | Shared authentication utilities                     |
-| `packages/db`             | Shared database utilities / repository abstractions |
-| `packages/core-models`    | Shared domain types and model definitions           |
-| `packages/agent-sdk`      | Shared AI agent interfaces and plugin contracts     |
-| `packages/toolkit`        | Shared tooling and helper utilities                 |
-| `packages/telemetry`      | Shared telemetry instrumentation helpers            |
-| `packages/platform-utils` | Shared platform utility helpers                     |
-| `packages/ui-kit`         | Shared UI components and design tokens              |
+| Package                      | Role                                                                     |
+| ---------------------------- | ------------------------------------------------------------------------ |
+| `packages/auth`              | Shared authentication utilities                                          |
+| `packages/db`                | Shared database utilities / repository abstractions                      |
+| `packages/core-models`       | Shared domain types and model definitions                                |
+| `packages/agent-sdk`         | Shared AI agent interfaces and provider-neutral contracts (ADR-0008)     |
+| `packages/toolkit`           | Shared tooling and helper utilities                                      |
+| `packages/telemetry`         | Shared telemetry instrumentation helpers                                 |
+| `packages/platform-utils`    | Shared platform utility helpers                                          |
+| `packages/ui-kit`            | Shared UI components and design tokens                                   |
+| `packages/provider-adapters` | Placeholder adapters for the 7 approved AI providers (ADR-0008)          |
+| `packages/task-router`       | Deterministic-first task routing (ADR-0008)                              |
+| `packages/context-builder`   | Compact, task-scoped context packages (ADR-0008)                         |
+| `packages/semantic-cache`    | Normalized-key response cache (ADR-0008)                                 |
+| `packages/policy-engine`     | Escalation and authority rule enforcement (ADR-0008)                     |
+| `packages/job-queue`         | In-memory job queue for agent-worker execution (ADR-0008)                |
+| `packages/audit-logger`      | Secret-redacted audit trail, distinct from telemetry (ADR-0008)          |
+| `packages/cost-controller`   | Per-provider/agent/business budget tracking and kill switches (ADR-0008) |
 
-All packages contain only a placeholder `src/index.ts` — no implementation.
+`packages/auth`, `db`, `toolkit`, `platform-utils`, and `ui-kit` contain
+only a placeholder `src/index.ts` — no implementation. `packages/agent-sdk`
+now contains real provider-neutral contracts (types only, no logic); the
+nine packages added under ADR-0008 contain real, tested placeholder
+logic but make no real AI-provider network call anywhere.
 
 ## Confirmed: platform boundaries
 
@@ -91,9 +109,13 @@ the repository.
 - TypeScript strict mode is enforced repo-wide via `tsconfig.base.json`;
   do not relax it per-package without a recorded decision (see
   [DECISIONS.md](DECISIONS.md)).
-- `infra/` (terraform, k8s, charts, iam, secrets) currently holds only
-  planning `README.md` files — no infrastructure is provisioned or
-  deployed from this repository yet.
+- `infra/terraform`, `infra/k8s`, `infra/charts`, `infra/iam`, and
+  `infra/secrets` currently hold only planning `README.md` files.
+  `infra/hostinger`, `infra/docker`, `infra/monitoring`, and
+  `infra/backups` (added under ADR-0008) hold planning docs plus
+  template files (Docker Compose, Prometheus scrape config, backup
+  script) — no infrastructure is provisioned or deployed from this
+  repository yet, from any `infra/` subdirectory.
 
 ## Proposed / future architecture (not yet implemented)
 
@@ -103,12 +125,19 @@ The following are **proposed**, not present in the repository:
   **TBD**.
 - Database engine and schema for `packages/db` — **TBD**.
 - Kubernetes/Helm deployment topology in `infra/k8s` and `infra/charts` —
-  **Proposed**, planning docs only.
+  **Superseded for the cloud-infrastructure track**: ADR-0008 selects
+  Hostinger VPS + Docker Compose (`infra/hostinger`, `infra/docker`)
+  instead; `infra/k8s`/`infra/charts` remain unused planning stubs.
 - IAM and secrets management approach in `infra/iam` and `infra/secrets` —
   **Proposed**, planning docs only.
 - Per-business modules for GreenCal Mobile Detailing and Navarro Builders —
   **Deferred**, no repository path exists yet. (GreenCal Pressure Washing's
   module, `apps/greencal-website`, now exists as a technical foundation
   only — see ADR-0004 in [DECISIONS.md](DECISIONS.md).)
+- Real Hostinger VPS provisioning, real AI-provider account connections,
+  and any production deployment of `apps/ai-gateway`, `apps/jervis-api`,
+  or the agent-worker role of `apps/worker-service` — **Proposed /
+  authorized-direction-only**, see ADR-0008's scope note. Not provisioned,
+  connected, or deployed.
 
 Do not treat any item in this section as implemented.

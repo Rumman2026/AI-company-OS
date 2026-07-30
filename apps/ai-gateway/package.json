@@ -1,0 +1,26 @@
+{
+  "name": "@ai-company-os/ai-gateway",
+  "version": "0.1.0",
+  "private": true,
+  "main": "src/index.ts",
+  "scripts": {
+    "dev": "tsx src/index.ts",
+    "build": "echo 'No build configured for ai-gateway yet'",
+    "lint": "eslint . --ext .ts,.tsx --no-error-on-unmatched-pattern",
+    "format": "prettier --write .",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@ai-company-os/agent-sdk": "workspace:*",
+    "@ai-company-os/audit-logger": "workspace:*",
+    "@ai-company-os/context-builder": "workspace:*",
+    "@ai-company-os/cost-controller": "workspace:*",
+    "@ai-company-os/policy-engine": "workspace:*",
+    "@ai-company-os/provider-adapters": "workspace:*",
+    "@ai-company-os/semantic-cache": "workspace:*",
+    "@ai-company-os/task-router": "workspace:*"
+  },
+  "devDependencies": {
+    "tsx": "^4.10.0"
+  }
+}

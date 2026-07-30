@@ -24,6 +24,27 @@ needs it.
 | [DECISIONS.md](../DECISIONS.md)           | Architecture decision records                                   | Before revisiting a past decision                                                     | Via the `write-adr` skill only                                                      | New/updated ADRs should reflect what was actually decided, not invented reasoning                                            |
 | [BUSINESS_FACTS.md](../BUSINESS_FACTS.md) | Owner-approved GreenCal service scope and city coverage         | Scoping any GreenCal service/city/navigation/quote-form/SEO work                      | When the owner approves a service or city scope change (with DECISIONS.md ADR-0007) | Requires explicit owner approval — see ADR-0007's future scope-change procedure                                              |
 
+## Cloud infrastructure documents (`docs/cloud/`, `docs/agents/`)
+
+Added under [DECISIONS.md](../DECISIONS.md) ADR-0008 (Cost-Efficient
+Multi-Model Cloud Infrastructure Preparation Stage). Repository-
+preparation scope only — nothing described in these documents is
+provisioned, connected, or deployed.
+
+| Document                                                                                                  | Purpose                                                              | When to read                                                     |
+| --------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------- | ---------------------------------------------------------------- |
+| [docs/cloud/CLOUD_ARCHITECTURE.md](cloud/CLOUD_ARCHITECTURE.md)                                           | Target architecture, service-to-platform assignment, Mermaid diagram | Working on the AI gateway, task router, or Hostinger cloud stack |
+| [docs/cloud/HOSTINGER_VPS_SETUP.md](cloud/HOSTINGER_VPS_SETUP.md)                                         | Manual Hostinger VPS provisioning steps (not yet executed)           | Before any real Hostinger provisioning                           |
+| [docs/cloud/AI_PROVIDER_INTEGRATION.md](cloud/AI_PROVIDER_INTEGRATION.md)                                 | Provider contracts, capability descriptors, adapter design           | Working on `packages/provider-adapters` or `packages/agent-sdk`  |
+| [docs/cloud/AI_ROUTING_AND_TOKEN_POLICY.md](cloud/AI_ROUTING_AND_TOKEN_POLICY.md)                         | Routing sequence, escalation rules, token-efficiency controls        | Working on `packages/task-router` or routing policy              |
+| [docs/cloud/KIMI_INTEGRATION.md](cloud/KIMI_INTEGRATION.md)                                               | Kimi Code CLI restricted secondary-coding-worker design              | Working on Kimi-related workflow/policy                          |
+| [docs/cloud/ZAI_GLM_INTEGRATION.md](cloud/ZAI_GLM_INTEGRATION.md)                                         | Z.AI/GLM default-worker integration design                           | Working on GLM-related workflow/policy                           |
+| [docs/cloud/AGENT_SECURITY_MODEL.md](cloud/AGENT_SECURITY_MODEL.md)                                       | Least-privilege, kill-switch, and authority-rule design              | Working on any agent/provider security boundary                  |
+| [docs/cloud/GITHUB_AGENT_WORKFLOW.md](cloud/GITHUB_AGENT_WORKFLOW.md)                                     | Controlled task→branch→review→PR→merge→deploy pipeline               | Working on CI/CD or agent-authored changes                       |
+| [docs/cloud/COST_CONTROL_POLICY.md](cloud/COST_CONTROL_POLICY.md)                                         | Budget scopes, spending limits, kill switches                        | Working on `packages/cost-controller` or budget policy           |
+| [docs/cloud/IMPLEMENTATION_CHECKLIST.md](cloud/IMPLEMENTATION_CHECKLIST.md)                               | Stage-by-stage status for this track                                 | Checking what's done vs. pending                                 |
+| [docs/agents/GREENCAL_WEBSITE_AND_LEAD_HEALTH_AGENT.md](agents/GREENCAL_WEBSITE_AND_LEAD_HEALTH_AGENT.md) | Design of the first always-on business agent                         | Working on the GreenCal website/lead health agent                |
+
 ## Path-scoped rules (`.claude/rules/`)
 
 Auto-load only when the session touches a matching path.

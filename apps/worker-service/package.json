@@ -10,6 +10,15 @@
     "format": "prettier --write .",
     "typecheck": "tsc --noEmit"
   },
+  "dependencies": {
+    "@ai-company-os/agent-sdk": "workspace:*",
+    "@ai-company-os/audit-logger": "workspace:*",
+    "@ai-company-os/cost-controller": "workspace:*",
+    "@ai-company-os/job-queue": "workspace:*",
+    "@ai-company-os/policy-engine": "workspace:*",
+    "@ai-company-os/provider-adapters": "workspace:*",
+    "@ai-company-os/task-router": "workspace:*"
+  },
   "devDependencies": {
     "tsx": "^4.10.0"
   }

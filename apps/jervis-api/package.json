@@ -1,0 +1,22 @@
+{
+  "name": "@ai-company-os/jervis-api",
+  "version": "0.1.0",
+  "private": true,
+  "main": "src/index.ts",
+  "scripts": {
+    "dev": "tsx src/index.ts",
+    "build": "echo 'No build configured for jervis-api yet'",
+    "lint": "eslint . --ext .ts,.tsx --no-error-on-unmatched-pattern",
+    "format": "prettier --write .",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@ai-company-os/agent-sdk": "workspace:*",
+    "@ai-company-os/audit-logger": "workspace:*",
+    "@ai-company-os/cost-controller": "workspace:*",
+    "@ai-company-os/provider-adapters": "workspace:*"
+  },
+  "devDependencies": {
+    "tsx": "^4.10.0"
+  }
+}

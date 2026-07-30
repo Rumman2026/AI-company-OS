@@ -1,0 +1,19 @@
+# Placeholder Prometheus scrape config for the future Hostinger VPS
+# stack. Not deployed. Copy to prometheus.yml and adjust targets only
+# after infra/docker/docker-compose.cloud.yml is actually running.
+global:
+  scrape_interval: 30s
+
+scrape_configs:
+  - job_name: 'ai-gateway'
+    static_configs:
+      - targets: ['ai-gateway:4100']
+  - job_name: 'worker-service'
+    static_configs:
+      - targets: ['worker-service:4003']
+  - job_name: 'jervis-api'
+    static_configs:
+      - targets: ['jervis-api:4101']
+  - job_name: 'n8n'
+    static_configs:
+      - targets: ['n8n:5678']

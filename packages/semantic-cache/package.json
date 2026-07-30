@@ -1,0 +1,15 @@
+{
+  "name": "@ai-company-os/semantic-cache",
+  "version": "0.1.0",
+  "private": true,
+  "main": "src/index.ts",
+  "scripts": {
+    "lint": "eslint . --ext .ts,.tsx --no-error-on-unmatched-pattern",
+    "format": "prettier --write .",
+    "typecheck": "tsc --noEmit",
+    "test": "tsx --test \"tests/**/*.test.ts\""
+  },
+  "devDependencies": {
+    "tsx": "^4.10.0"
+  }
+}

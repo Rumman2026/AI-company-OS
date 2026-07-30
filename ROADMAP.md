@@ -70,6 +70,29 @@ repository evidence.
   `ProfessionalService` structured data exists, per the unresolved NAP
   restriction in `.claude/rules/websites.md`.
 
+**Cloud infrastructure preparation (in progress) — provider-neutral AI gateway/router scaffold**
+
+- Scope: repository-preparation only. See [DECISIONS.md](DECISIONS.md)
+  ADR-0008 for the full decision record.
+- Implemented with repository evidence: provider-neutral contracts in
+  `packages/agent-sdk`; placeholder (non-network-calling) adapters for
+  the 7 approved AI providers in `packages/provider-adapters`; a
+  deterministic-first task router in `packages/task-router`; supporting
+  packages `context-builder`, `semantic-cache`, `policy-engine`,
+  `job-queue`, `audit-logger`, `cost-controller`; new apps
+  `apps/ai-gateway` and `apps/jervis-api`; agent-worker execution added
+  to the existing `apps/worker-service`; Docker Compose templates for a
+  future Hostinger VPS stack in `infra/docker`, `infra/hostinger`,
+  `infra/monitoring`, `infra/backups`; the GreenCal Website and Lead
+  Health Agent design in `docs/agents/`; and the `docs/cloud/*` reference
+  set.
+- This is additive and independent of Phase 2A (GreenCal website) and
+  the Growth-system domain contracts track below — no shared code with
+  either yet.
+- **Not done**: no AI provider account is connected, no real API call has
+  been made, no Hostinger VPS is provisioned, and nothing in this track
+  is deployed. See ADR-0008's scope note.
+
 **Growth-system domain contracts (in progress) — `packages/core-models`**
 
 - Scope: a first, provider-neutral coding slice for the GreenCal
