@@ -152,6 +152,12 @@ const slides = [
     border-radius: var(--radius-lg);
     overflow: hidden;
     box-shadow: var(--shadow-elevation-3);
+    /* Desktop-only dimensional tilt - see the @media (min-width: 900px)
+       block below, which is where the tilt transform is actually
+       applied. Kept untransformed by default so mobile/tablet (and any
+       reduced-motion context) render a plain, still-premium-via-shadow
+       flat frame. */
+    transition: transform var(--motion-duration-slow) ease;
   }
 
   .hero-slider-slide {
@@ -222,8 +228,32 @@ const slides = [
     }
   }
 
+  @media (min-width: 900px) {
+    .hero-slider-track {
+      transform: var(--depth-tilt-primary);
+    }
+  }
+
+  /* Design-system rule: any perspective/tilt transform must have a
+     reduced-motion fallback that removes the tilt entirely, not just
+     the transition - a static tilt is a compositional choice most
+     users are fine with, but this respects the stricter reading of the
+     redesign brief's accessibility requirement. Must come after the
+     (min-width: 900px) block above so its higher specificity via
+     source order actually wins for users who both qualify for the
+     desktop tilt and have reduced motion enabled. */
+  @media (min-width: 900px) and (prefers-reduced-motion: reduce) {
+    .hero-slider-track {
+      transform: none;
+    }
+  }
+
   @media (prefers-reduced-motion: reduce) {
     .hero-slider-slide {
+      transition: none;
+    }
+
+    .hero-slider-track {
       transition: none;
     }
   }

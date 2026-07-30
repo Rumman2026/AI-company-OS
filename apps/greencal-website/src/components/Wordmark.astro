@@ -56,7 +56,18 @@ const LOGO_SRC = {
   .wordmark-logo {
     display: block;
     width: auto;
-    height: 44px;
+    /* Legibility fix (Final Premium Polish, 2026-07-30): the real logo
+       is a detailed illustrated mark (fine drip/sparkle linework plus a
+       small tagline) - measured directly via a cropped screenshot at
+       the previous 44px height and it read as a soft, illegible smudge.
+       Bumped to 56px, which is still well inside the 72px
+       (--header-height) row and has no nav-row-capacity cost below
+       1280px: at those widths the mobile hamburger toggle is the only
+       other element in the row (see Header.astro's row-capacity
+       comments), so there's no competing content to crowd. The
+       hard-won ≥1280px inline-nav row keeps its existing 52px - that
+       row has no spare width per the documented row-capacity fix. */
+    height: 56px;
   }
 
   @media (min-width: 1280px) {
