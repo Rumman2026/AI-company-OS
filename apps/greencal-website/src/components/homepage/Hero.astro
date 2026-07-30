@@ -73,7 +73,17 @@ const heroMedia = getMediaById('roof-wash-hero-after');
     font-weight: 700;
     letter-spacing: 0.12em;
     text-transform: uppercase;
-    color: var(--color-gold-500);
+    /* Phase 7 (Master Completion Workflow, 2026-07-29): a real WCAG
+       contrast gap, not the shared --color-gold-500 token - verified by
+       sampling the actual rendered pixel color behind this text
+       (~rgb(22,48,36), close to forest-900) at 4.58:1, just barely over
+       AA's 4.5:1 floor for this text's size/weight - and the hero's
+       160deg gradient runs toward the lighter forest-700 at its far
+       edge, where gold-500 drops to 3.25:1 (fails). This lightened value
+       passes AA (4.5:1+) against both gradient stops with real margin,
+       scoped to this component only - --color-gold-500 itself stays
+       unchanged for every other (already-passing) use of it. */
+    color: #d4ad74;
     margin-block-end: var(--space-3);
   }
 
@@ -102,11 +112,22 @@ const heroMedia = getMediaById('roof-wash-hero-after');
     margin-block: 0 var(--space-5);
   }
 
+  /* Phase 5 (Master Completion Workflow, 2026-07-29): dimmed from solid
+     white/font-weight 600 - at full white it read as a near-equal 3rd
+     CTA competing with the two buttons above it. Matches the trust
+     indicators' opacity below it instead, so the visual hierarchy is
+     unambiguous: primary button > secondary button > this tertiary
+     link > trust indicators. */
   .hero-secondary-link a {
-    color: var(--color-white);
+    color: rgba(255, 255, 255, 0.8);
+    font-size: var(--font-size-sm);
     font-weight: 600;
     text-decoration: underline;
     text-underline-offset: 0.2em;
+  }
+
+  .hero-secondary-link a:hover {
+    color: var(--color-white);
   }
 
   .hero-trust-indicators {

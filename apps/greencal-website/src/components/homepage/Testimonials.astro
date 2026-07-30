@@ -1,70 +1,27 @@
 ---
-// No approved real customer reviews exist in this repository. Every
-// ReviewCard below is rendered with isPlaceholder=true and a name/
-// text that is itself visibly marked as a placeholder - per this
-// phase's explicit instruction, this section must never present fake
-// customer names as real, even styled as a finished, non-broken-
-// looking design (not literally blank). Replace with real, owner-
-// approved reviews once available - see
-// docs/GREENCAL_OWNER_VERIFICATION_REQUIRED.md.
-import ReviewCard from './ReviewCard.astro';
+// Master Completion Workflow, Phase 5 (2026-07-29): removed the 3
+// placeholder ReviewCards. They were correctly, visibly labeled
+// "Development placeholder - not a real review" - fully honest - but a
+// "Customer Reviews" section built from 3 fake-named, five-star cards
+// still reads as an unfinished section to a real visitor, working
+// against the premium/trustworthy goal even though nothing was
+// fabricated. ReviewSummary.astro (below) is the section's only content
+// now - a single, intentional, honestly-worded panel - rather than a
+// disclaimer buried under fake-looking cards. ReviewCard.astro is kept
+// (not deleted) for when real, owner-verified reviews exist - it
+// already supports a non-placeholder mode with a verifiedLink.
 import ReviewSummary from './ReviewSummary.astro';
-
-const placeholderReviews = [
-  {
-    displayName: 'Customer Name (Placeholder)',
-    city: 'City (placeholder)',
-    servicePerformed: 'Roof Cleaning',
-    starRating: 5,
-    reviewText: 'Placeholder review text - real, verified customer reviews will appear here.',
-    source: 'Google (placeholder)',
-    date: 'Date (placeholder)',
-  },
-  {
-    displayName: 'Customer Name (Placeholder)',
-    city: 'City (placeholder)',
-    servicePerformed: 'Commercial Concrete Cleaning',
-    starRating: 5,
-    reviewText: 'Placeholder review text - real, verified customer reviews will appear here.',
-    source: 'Google (placeholder)',
-    date: 'Date (placeholder)',
-  },
-  {
-    displayName: 'Customer Name (Placeholder)',
-    city: 'City (placeholder)',
-    servicePerformed: 'HOA Pressure Washing',
-    starRating: 5,
-    reviewText: 'Placeholder review text - real, verified customer reviews will appear here.',
-    source: 'Google (placeholder)',
-    date: 'Date (placeholder)',
-  },
-];
 ---
 
 <section class="testimonials" aria-labelledby="testimonials-heading" id="reviews">
   <div class="container-wide">
     <h2 id="testimonials-heading" class="section-heading">Customer Reviews</h2>
     <ReviewSummary />
-    <div class="review-grid">
-      {placeholderReviews.map((review) => <ReviewCard {...review} isPlaceholder={true} />)}
-    </div>
   </div>
 </section>
 
 <style>
   .testimonials {
     padding-block: var(--space-7);
-  }
-
-  .review-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
-    gap: var(--space-5);
-  }
-
-  @media (min-width: 1024px) {
-    .review-grid {
-      grid-template-columns: repeat(3, 1fr);
-    }
   }
 </style>

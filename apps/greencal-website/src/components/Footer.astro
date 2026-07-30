@@ -3,10 +3,14 @@
 // "Terms," and "Accessibility" pages don't exist yet - omitted rather
 // than linked to nowhere (see
 // docs/GREENCAL_OWNER_VERIFICATION_REQUIRED.md). Business hours,
-// Google Business Profile, Facebook, and Instagram are shown as
-// explicit "not yet connected" notes, never as live-looking dead
-// links. The pre-existing, tested <nav aria-label="Footer"> below is
-// unchanged.
+// Google Business Profile, Facebook, and Instagram are shown as an
+// explicit "not yet published" note, never as live-looking dead links.
+// Master Completion Workflow, Phase 5 (2026-07-29): consolidated from 3
+// separate bullet lines into 1 - three stacked "not yet connected"
+// notes in the contact column read as "this business isn't fully set
+// up" more than the underlying facts warranted; same honest content,
+// less visual weight. The pre-existing, tested <nav aria-label="Footer">
+// below is unchanged.
 import { footerNav } from '../data/navigation';
 import { servicesByCategory } from '../data/services';
 import { siteInfo } from '../data/site';
@@ -61,9 +65,9 @@ const commercialHoaLinks = [
         <li>{siteInfo.businessName}</li>
         <li><a href={siteInfo.phoneHref}>{siteInfo.phoneDisplay}</a></li>
         <li><a href={siteInfo.emailHref}>{siteInfo.emailDisplay}</a></li>
-        <li class="site-footer-note">Business hours: not yet published</li>
-        <li class="site-footer-note">Google Business Profile: not yet connected</li>
-        <li class="site-footer-note">Facebook / Instagram: not yet connected</li>
+        <li class="site-footer-note">
+          Hours, Google Business Profile, and social links: not yet published
+        </li>
       </ul>
     </div>
   </div>

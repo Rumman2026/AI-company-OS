@@ -2,9 +2,27 @@
 // No real Google Business Profile or verified review count exists -
 // never fabricates a star average, review count, or profile link. See
 // docs/GREENCAL_OWNER_VERIFICATION_REQUIRED.md.
+//
+// Master Completion Workflow, Phase 5 (2026-07-29): this is now the
+// entire "Customer Reviews" section's content (Testimonials.astro no
+// longer renders 3 placeholder ReviewCards alongside it - see that
+// file's comment). Redesigned as one intentional, card-styled panel
+// (matching the site's shared card visual vocabulary - white
+// background, border, shadow, radius-lg - see
+// docs/GREENCAL_PUBLIC_WEBSITE_DESIGN_SYSTEM.md) so it reads as a
+// deliberate "building our review base" statement rather than a
+// leftover disclaimer. Wording is unchanged in substance - still
+// honest, still no fabricated rating/count/link.
 ---
 
 <div class="review-summary">
+  <div class="review-summary-icon" aria-hidden="true">
+    <svg viewBox="0 0 20 20" fill="currentColor">
+      <path
+        d="M10 1l2.6 5.6 6.1.6-4.6 4.2 1.3 6.1L10 14.8 4.6 17.5l1.3-6.1L1.3 7.2l6.1-.6z"
+      />
+    </svg>
+  </div>
   <p class="review-summary-status">
     Google review integration is not yet connected. Verified reviews and a live rating summary
     will appear here once available.
@@ -23,22 +41,45 @@
 
 <style>
   .review-summary {
-    padding: var(--space-5);
-    background-color: var(--color-cream-100);
+    max-width: 36rem;
+    padding: var(--space-6) var(--space-5);
+    background-color: var(--color-white);
+    border: 1px solid var(--color-cream-100);
     border-radius: var(--radius-lg);
-    margin-block-end: var(--space-6);
+    box-shadow: var(--shadow-sm);
+    text-align: center;
+  }
+
+  .review-summary-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 3rem;
+    height: 3rem;
+    margin-block-end: var(--space-4);
+    color: var(--color-gold-500);
+    background-color: var(--color-cream-100);
+    border-radius: var(--radius-full);
+  }
+
+  .review-summary-icon svg {
+    width: 1.5rem;
+    height: 1.5rem;
   }
 
   .review-summary-status {
     font-size: var(--font-size-lg);
+    max-width: 28rem;
+    margin-inline: auto;
     margin-block: 0 var(--space-4);
-    color: var(--color-charcoal-600);
+    color: var(--color-charcoal-900);
   }
 
   .review-summary-actions {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
+    justify-content: center;
     gap: var(--space-3);
     margin-block-end: var(--space-3);
   }
@@ -58,6 +99,8 @@
   .review-summary-note {
     font-size: var(--font-size-sm);
     color: var(--color-charcoal-600);
-    margin: 0;
+    max-width: 28rem;
+    margin-inline: auto;
+    margin-block: 0;
   }
 </style>

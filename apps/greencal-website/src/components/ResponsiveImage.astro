@@ -61,12 +61,14 @@ const {
       loading={loading}
       fetchpriority={loading === 'eager' ? 'high' : 'auto'}
       decoding="async"
-      class={fill ? 'responsive-image-fill' : undefined}
+      class={`responsive-image-fade ${fill ? 'responsive-image-fill' : ''}`}
       style={
         fill
           ? undefined
           : `width: 100%; height: auto; aspect-ratio: ${ratio}; object-fit: cover;`
       }
+      onload="this.classList.add('is-loaded')"
+      onerror="this.classList.add('is-loaded')"
     />
   ) : (
     <ImagePlaceholder
@@ -88,5 +90,23 @@ const {
     width: 100%;
     height: 100%;
     object-fit: cover;
+  }
+
+  /* Master Completion Workflow, Phase 5 (2026-07-29): a real photo can
+     still be mid-download when it scrolls into view (confirmed directly
+     during Phase 2 baseline testing - a full-page screenshot caught the
+     Real Results before/after photos before they'd finished loading,
+     rendering as a blank box). A brief opacity fade-in means a slow
+     connection shows a soft transition instead of a hard pop or a
+     blank gap. `prefers-reduced-motion` is already handled globally
+     (global.css collapses all transition durations to ~0), so no
+     separate guard is needed here. */
+  .responsive-image-fade {
+    opacity: 0;
+    transition: opacity var(--motion-duration-slow) ease;
+  }
+
+  .responsive-image-fade.is-loaded {
+    opacity: 1;
   }
 </style>
