@@ -89,7 +89,11 @@
    * --breakpoint-tablet-sm: 640px
    * --breakpoint-tablet: 768px
    * --breakpoint-tablet-lg: 1024px
-   * --breakpoint-desktop: 1280px
+   * --breakpoint-desktop: 1280px - Header nav breakpoint (moved from
+   *   1024px during the Logo Integration Pass, 2026-07-29 - the 7-item
+   *   primary nav + phone + CTA button measured a real ~163px shortfall
+   *   at 1024px that padding/gap tightening alone couldn't close; the
+   *   mobile hamburger disclosure now covers <1280px instead of <1024px)
    */
 
   /* Spacing */

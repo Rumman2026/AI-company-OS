@@ -65,9 +65,9 @@ const quoteCta = headerNav.find((item) => item.label === 'Request a Quote');
 </header>
 
 <script>
-  // Mobile hamburger disclosure. Below 1024px, .mobile-nav-content starts
+  // Mobile hamburger disclosure. Below 1280px, .mobile-nav-content starts
   // CSS-hidden (see <style> below); this script only toggles it open/closed
-  // and keeps aria-expanded in sync. At/above 1024px the CSS forces
+  // and keeps aria-expanded in sync. At/above 1280px the CSS forces
   // .mobile-nav-content visible unconditionally (display: contents) and
   // hides the toggle button entirely, so this script has no visible effect
   // on desktop regardless of click state.
@@ -91,13 +91,37 @@ const quoteCta = headerNav.find((item) => item.label === 'Request a Quote');
     background-color: var(--color-white);
     border-bottom: 1px solid var(--color-cream-100);
     box-shadow: var(--shadow-sm);
+    /* Logo Integration Pass (2026-07-29): overrides the sitewide
+       `header { max-width: var(--container-max-width) }` (960px) rule.
+       A real, pre-existing capacity bug was found here while verifying
+       the new logo at every required breakpoint: the 7-item primary nav
+       plus phone plus CTA button already needed ~1200px to fit on one
+       row (not caused by the new logo, which is smaller than the text
+       wordmark it replaced), so the row was silently wrapping to two
+       lines at 1440/1280/1024px. Widening to match the rest of the
+       page's `--container-wide` (1200px), plus the padding/gap
+       reductions below, fixes 1440/1280px; 1024px still didn't have
+       enough room even tightened, so the "show inline nav" breakpoint
+       itself moved to 1280px (see the mobile-hamburger comment below)
+       rather than cramming the row further. */
+    max-width: var(--container-wide);
+    margin-inline: auto;
+    padding-inline: var(--space-3);
   }
 
   .site-nav {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
-    gap: var(--space-3) var(--space-5);
+    /* Row-capacity fix (see .site-header comment): zero column-gap here
+       - .site-nav-list supplies its own wordmark-to-list spacing below,
+       and .site-nav-actions is already pushed to the far edge by its
+       own margin-inline-start: auto, which reserves far more space than
+       a fixed column-gap would anyway. A blanket column-gap here was
+       being added on *every* adjacent pair, including list-to-actions,
+       which cost real width that auto-margin already provided for
+       free. */
+    gap: var(--space-3) 0;
     min-height: var(--header-height);
   }
 
@@ -105,6 +129,7 @@ const quoteCta = headerNav.find((item) => item.label === 'Request a Quote');
     flex: 1 1 auto;
     font-size: var(--font-size-nav);
     font-weight: 600;
+    margin-inline-start: var(--space-4);
   }
 
   .site-nav-list :global(.nav-dropdown summary) {
@@ -114,13 +139,13 @@ const quoteCta = headerNav.find((item) => item.label === 'Request a Quote');
   .site-nav-actions {
     display: flex;
     align-items: center;
-    gap: var(--space-4);
+    gap: var(--space-3);
     margin-inline-start: auto;
   }
 
-  /* Mobile hamburger disclosure. Below 1024px: .mobile-nav-content starts
+  /* Mobile hamburger disclosure. Below 1280px: .mobile-nav-content starts
      hidden and the button toggles a .is-open class (see <script> above).
-     At/above 1024px: .mobile-nav-content is forced visible unconditionally
+     At/above 1280px: .mobile-nav-content is forced visible unconditionally
      via `display: contents` (collapsing it into .site-nav's flex layout,
      matching the original desktop markup) and the toggle button is hidden
      and removed from tab order entirely. A plain <button>/<div> pair is
@@ -128,7 +153,16 @@ const quoteCta = headerNav.find((item) => item.label === 'Request a Quote');
      known rendering bug where `display: contents` on a closed <details>
      suppresses its content regardless of computed style - verified
      directly by inspecting getBoundingClientRect() (collapsed to 0 width)
-     before switching to this approach. */
+     before switching to this approach.
+
+     Breakpoint moved from 1024px to 1280px (Logo Integration Pass,
+     2026-07-29): measured directly that the 7-item primary nav + phone +
+     CTA button need ~1200px of content width to render on one row - at
+     exactly 1024px viewport width there was a real ~163px shortfall
+     (confirmed via getBoundingClientRect(), not a guess), which no
+     reasonable padding/gap tightening could close without visibly
+     cramming the row. 1280px is the next documented breakpoint
+     (--breakpoint-desktop) and was verified to fit with room to spare. */
   .mobile-nav-toggle {
     display: flex;
     align-items: center;
@@ -174,7 +208,7 @@ const quoteCta = headerNav.find((item) => item.label === 'Request a Quote');
     top: 6px;
   }
 
-  @media (max-width: 1023px) {
+  @media (max-width: 1279px) {
     .mobile-nav-content {
       display: none;
     }
@@ -216,7 +250,7 @@ const quoteCta = headerNav.find((item) => item.label === 'Request a Quote');
     }
   }
 
-  @media (min-width: 1024px) {
+  @media (min-width: 1280px) {
     .mobile-nav-toggle {
       display: none;
     }
@@ -242,5 +276,8 @@ const quoteCta = headerNav.find((item) => item.label === 'Request a Quote');
   .site-nav-cta {
     white-space: nowrap;
     font-size: var(--font-size-base);
+    /* Tightened from .btn's default space-5 (32px) side padding - part
+       of the header row-capacity fix (see .site-header comment). */
+    padding-inline: var(--space-3);
   }
 </style>
