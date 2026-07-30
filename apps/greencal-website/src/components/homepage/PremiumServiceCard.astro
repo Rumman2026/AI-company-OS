@@ -61,7 +61,7 @@ const cardMedia = getMediaById(AFTER_PHOTO_BY_SLUG[service.slug] ?? '');
     border: 1px solid var(--color-cream-100);
     border-radius: var(--radius-lg);
     overflow: hidden;
-    box-shadow: var(--shadow-sm);
+    box-shadow: var(--shadow-elevation-1);
     transition:
       box-shadow var(--motion-duration-base) ease,
       transform var(--motion-duration-base) ease;
@@ -69,8 +69,8 @@ const cardMedia = getMediaById(AFTER_PHOTO_BY_SLUG[service.slug] ?? '');
 
   .premium-service-card:hover,
   .premium-service-card:focus-within {
-    box-shadow: var(--shadow-lg);
-    transform: translateY(-2px);
+    box-shadow: var(--shadow-elevation-3);
+    transform: var(--depth-lift-hover-sm);
   }
 
   .premium-service-card-media {

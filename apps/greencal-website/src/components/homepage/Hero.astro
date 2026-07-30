@@ -8,11 +8,24 @@
 // below) - no separate mobile/tablet image exists or is needed. This
 // is a residential photo - the "REAL GREENCAL PROJECT" label makes no
 // commercial claim.
+//
+// Premium Visual Redesign (2026-07-29): added a dimensional frame
+// (perspective tilt + elevation-3 shadow, desktop-only) around the same
+// hero photo, plus a small floating proof card layered over its corner
+// using the real roof-wash-01 before/after pair (the same photos the
+// Real Results section uses) - not a new asset, not a slider (that
+// interaction is reserved for Real Results itself). The proof card only
+// renders at >=900px: at a compact-enough size to read as premium it
+// doesn't fit legibly on a phone screen without becoming the "tiny
+// proof card" the brief explicitly avoids, so it's simplified away
+// entirely on mobile rather than shrunk.
 import { siteInfo } from '../../data/site';
 import ResponsiveImage from '../ResponsiveImage.astro';
 import { getMediaById } from '../../data/media';
 
 const heroMedia = getMediaById('roof-wash-hero-after');
+const proofBefore = getMediaById('roof-wash-01-before');
+const proofAfter = getMediaById('roof-wash-01-after');
 ---
 
 <section class="hero full-bleed" aria-labelledby="hero-heading">
@@ -38,18 +51,38 @@ const heroMedia = getMediaById('roof-wash-hero-after');
         <li>Property-Conscious Methods</li>
       </ul>
     </div>
-    <div class="hero-media">
-      <ResponsiveImage
-        media={heroMedia}
-        fallbackLabel="Hero photo needed: technician performing exterior cleaning"
-        icon="building"
-        tone="dark"
-        categoryLabel="Exterior Cleaning Project"
-        sizes="(max-width: 900px) 100vw, 50vw"
-        fill
-        loading="eager"
-      />
-      {heroMedia && <span class="hero-media-badge">Real GreenCal Project</span>}
+    <div class="hero-visual">
+      <div class="hero-media">
+        <ResponsiveImage
+          media={heroMedia}
+          fallbackLabel="Hero photo needed: technician performing exterior cleaning"
+          icon="building"
+          tone="dark"
+          categoryLabel="Exterior Cleaning Project"
+          sizes="(max-width: 900px) 100vw, 50vw"
+          fill
+          loading="eager"
+        />
+        {heroMedia && <span class="hero-media-badge">Real GreenCal Project</span>}
+      </div>
+      {
+        proofBefore && proofAfter && (
+          <div class="hero-proof-card" aria-hidden="false">
+            <p class="hero-proof-card-label">Real Before &amp; After</p>
+            <div class="hero-proof-card-images">
+              <div class="hero-proof-thumb">
+                <ResponsiveImage media={proofBefore} fallbackLabel="Before photo" ratio="1/1" />
+                <span class="hero-proof-thumb-tag">Before</span>
+              </div>
+              <div class="hero-proof-thumb">
+                <ResponsiveImage media={proofAfter} fallbackLabel="After photo" ratio="1/1" />
+                <span class="hero-proof-thumb-tag">After</span>
+              </div>
+            </div>
+            <p class="hero-proof-card-caption">Roof Washing - Concrete Tile</p>
+          </div>
+        )
+      }
     </div>
   </div>
 </section>
@@ -92,6 +125,10 @@ const heroMedia = getMediaById('roof-wash-hero-after');
     font-size: var(--font-size-hero);
     line-height: 1.05;
     margin-block: 0 var(--space-4);
+    /* Premium Visual Redesign: a soft depth shadow on the headline
+       itself - reinforces the "dimensional" direction without any
+       layout/motion cost. Subtle enough not to reduce legibility. */
+    text-shadow: 0 2px 24px rgba(0, 0, 0, 0.25);
   }
 
   .hero-subhead {
@@ -157,6 +194,14 @@ const heroMedia = getMediaById('roof-wash-hero-after');
     background-color: var(--color-gold-500);
   }
 
+  /* Premium Visual Redesign: the hero image and its floating proof card
+     both live inside .hero-visual so the proof card can be positioned
+     relative to the whole visual column, overlapping the image's edge
+     rather than being clipped by .hero-media's own overflow:hidden. */
+  .hero-visual {
+    position: relative;
+  }
+
   .hero-media {
     position: relative;
     /* A real, intentional media aspect ratio (4/3) instead of an
@@ -166,7 +211,13 @@ const heroMedia = getMediaById('roof-wash-hero-after');
     aspect-ratio: 4/3;
     border-radius: var(--radius-lg);
     overflow: hidden;
-    box-shadow: var(--shadow-lg);
+    box-shadow: var(--shadow-elevation-3);
+    /* Desktop-only dimensional tilt - see the @media (min-width: 900px)
+       block below, which is where the tilt transform is actually
+       applied. Kept untransformed by default so mobile/tablet (and any
+       reduced-motion context) render a plain, still-premium-via-shadow
+       flat frame. */
+    transition: transform var(--motion-duration-slow) ease;
   }
 
   /* One source photo (roof-wash-hero-after, ~3:2 landscape) at every
@@ -200,6 +251,77 @@ const heroMedia = getMediaById('roof-wash-hero-after');
     border-radius: var(--radius-full);
   }
 
+  /* Floating proof card - hidden by default (mobile/tablet); shown only
+     at >=900px, where there's genuine room for it to read as a
+     considered layered element rather than a cramped afterthought. */
+  .hero-proof-card {
+    display: none;
+  }
+
+  @media (min-width: 900px) {
+    .hero-media {
+      transform: var(--depth-tilt-primary);
+    }
+
+    .hero-proof-card {
+      display: block;
+      position: absolute;
+      left: -1.5rem;
+      bottom: -1.75rem;
+      width: 11rem;
+      padding: var(--space-3);
+      background-color: var(--color-white);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-elevation-2);
+      transform: var(--depth-tilt-secondary);
+      transition: transform var(--motion-duration-base) ease;
+    }
+
+    .hero-proof-card:hover {
+      transform: var(--depth-tilt-secondary) var(--depth-lift-hover-sm);
+    }
+  }
+
+  .hero-proof-card-label {
+    margin: 0 0 var(--space-2);
+    font-size: var(--font-size-xs);
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--color-forest-700);
+  }
+
+  .hero-proof-card-images {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--space-1);
+  }
+
+  .hero-proof-thumb {
+    position: relative;
+    border-radius: var(--radius-sm);
+    overflow: hidden;
+  }
+
+  .hero-proof-thumb-tag {
+    position: absolute;
+    left: 2px;
+    bottom: 2px;
+    padding: 1px var(--space-1);
+    font-size: 0.625rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    color: var(--color-white);
+    background-color: rgba(20, 42, 32, 0.75);
+    border-radius: var(--radius-sm);
+  }
+
+  .hero-proof-card-caption {
+    margin: var(--space-2) 0 0;
+    font-size: var(--font-size-xs);
+    color: var(--color-charcoal-600);
+  }
+
   /* ~48% of the desktop hero is visual (hero-media column plus its
      share of the gap), per the phase's 45-55% requirement. */
   @media (max-width: 900px) {
@@ -207,9 +329,12 @@ const heroMedia = getMediaById('roof-wash-hero-after');
       grid-template-columns: 1fr;
     }
 
+    .hero-visual {
+      order: -1;
+    }
+
     .hero-media {
       aspect-ratio: 3/2;
-      order: -1;
     }
   }
 
@@ -220,6 +345,35 @@ const heroMedia = getMediaById('roof-wash-hero-after');
 
     .hero-actions .btn {
       width: 100%;
+    }
+  }
+
+  /* Design-system rule: any perspective/tilt transform must have a
+     reduced-motion fallback that removes the tilt entirely, not just
+     the transition - a static tilt is a compositional choice most
+     users are fine with, but this respects the stricter reading of the
+     redesign brief's accessibility requirement. Must come after the
+     (min-width: 900px) block above so its higher specificity via
+     source order actually wins for users who both qualify for the
+     desktop tilt and have reduced motion enabled. */
+  @media (min-width: 900px) and (prefers-reduced-motion: reduce) {
+    .hero-media {
+      transform: none;
+    }
+
+    .hero-proof-card {
+      transform: none;
+    }
+
+    .hero-proof-card:hover {
+      transform: none;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .hero-media,
+    .hero-proof-card {
+      transition: none;
     }
   }
 </style>

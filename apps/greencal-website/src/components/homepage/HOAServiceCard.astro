@@ -41,7 +41,22 @@ const { title, description, examples, ctaLabel, ctaHref, icon } = Astro.props;
     border: 1px solid var(--color-cream-100);
     border-radius: var(--radius-lg);
     overflow: hidden;
-    box-shadow: var(--shadow-md);
+    box-shadow: var(--shadow-elevation-2);
+    transition:
+      box-shadow var(--motion-duration-base) ease,
+      transform var(--motion-duration-base) ease;
+  }
+
+  .hoa-card:hover,
+  .hoa-card:focus-within {
+    box-shadow: var(--shadow-elevation-3);
+    transform: var(--depth-lift-hover-sm);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .hoa-card {
+      transition: none;
+    }
   }
 
   /* Editorial, image-led layout at wider widths - deliberate variety

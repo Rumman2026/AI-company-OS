@@ -45,7 +45,28 @@ const { title, description, examples, learnMoreHref, estimateLabel, icon, status
     border: 1px solid var(--color-cream-100);
     border-radius: var(--radius-lg);
     overflow: hidden;
-    box-shadow: var(--shadow-md);
+    box-shadow: var(--shadow-elevation-2);
+    transition:
+      box-shadow var(--motion-duration-base) ease,
+      transform var(--motion-duration-base) ease;
+  }
+
+  /* Premium Visual Redesign (2026-07-29): these 3 cards are the
+     homepage's primary "which pathway am I" decision point - the
+     brief's "make each pathway visually distinct" and general
+     dimensional-hover requirement apply here more than almost anywhere
+     else on the page, but this card had no hover treatment at all
+     before this pass. */
+  .segment-card:hover,
+  .segment-card:focus-within {
+    box-shadow: var(--shadow-elevation-3);
+    transform: var(--depth-lift-hover-sm);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .segment-card {
+      transition: none;
+    }
   }
 
   .segment-card-body {

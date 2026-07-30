@@ -457,10 +457,14 @@ footer {
 
 /* Matches MobileConversionBar.astro's own breakpoint - reserves real
    space at the bottom of every page so the fixed bar can never cover
-   genuine footer content or a form's submit button. */
+   genuine footer content or a form's submit button. Includes
+   --safe-area-bottom (Premium Visual Redesign, 2026-07-29) to match the
+   bar's own now-taller safe-area-aware height on notched devices -
+   without this, the reservation would be too short and the bar would
+   cover the last few pixels of real footer content on those devices. */
 @media (max-width: 768px) {
   body {
-    padding-block-end: var(--mobile-bar-height);
+    padding-block-end: calc(var(--mobile-bar-height) + var(--safe-area-bottom));
   }
 }
 

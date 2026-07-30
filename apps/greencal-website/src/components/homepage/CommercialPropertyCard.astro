@@ -34,7 +34,7 @@ const { title, description, icon } = Astro.props;
     border: 1px solid var(--color-cream-100);
     border-radius: var(--radius-lg);
     overflow: hidden;
-    box-shadow: var(--shadow-sm);
+    box-shadow: var(--shadow-elevation-1);
     transition:
       box-shadow var(--motion-duration-base) ease,
       transform var(--motion-duration-base) ease;
@@ -42,8 +42,8 @@ const { title, description, icon } = Astro.props;
 
   .property-card:hover,
   .property-card:focus-within {
-    box-shadow: var(--shadow-md);
-    transform: translateY(-2px);
+    box-shadow: var(--shadow-elevation-2);
+    transform: var(--depth-lift-hover-sm);
   }
 
   .property-card-body {

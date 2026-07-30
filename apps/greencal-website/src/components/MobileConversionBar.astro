@@ -8,7 +8,7 @@
 import { siteInfo } from '../data/site';
 ---
 
-<div class="mobile-conversion-bar">
+<div class="mobile-conversion-bar" id="mobile-estimate-bar">
   <a href={siteInfo.phoneHref} class="mobile-conversion-action">Call Now</a>
   <a href="/contact-us#quote-form" class="mobile-conversion-action mobile-conversion-primary">Get Estimate</a>
 </div>
@@ -24,8 +24,15 @@ import { siteInfo } from '../data/site';
       position: fixed;
       inset-block-end: 0;
       inset-inline: 0;
-      z-index: 50;
+      z-index: var(--z-mobile-bar);
       height: var(--mobile-bar-height);
+      /* Premium Visual Redesign (2026-07-29): safe-area handling was
+         previously missing - on a notched/home-indicator iOS device the
+         bar sat flush with the physical bottom edge instead of above
+         the home-indicator gesture area. padding-bottom pushes the
+         actual link content up above that area while the bar's
+         background still extends to the true edge (no visible gap). */
+      padding-bottom: var(--safe-area-bottom);
       background-color: var(--color-white);
       border-top: 1px solid var(--color-cream-100);
       box-shadow: var(--shadow-lg);

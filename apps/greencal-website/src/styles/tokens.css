@@ -133,4 +133,38 @@
   --motion-duration-fast: 100ms;
   --motion-duration-base: 200ms;
   --motion-duration-slow: 400ms;
+
+  /*
+   * Dimensional design system (Premium Visual Redesign, 2026-07-29).
+   * Additive only - no existing token above is renamed or removed.
+   * See docs/GREENCAL_DIMENSIONAL_DESIGN_SYSTEM.md for the full rules
+   * (when to use each level, perspective usage, mobile simplification).
+   *
+   * Elevation scale - use the lowest level that achieves the goal.
+   * Level 0 (flat content) uses no shadow at all - not listed here.
+   */
+  --shadow-elevation-1: var(--shadow-sm); /* light card lift (existing cards, unchanged) */
+  --shadow-elevation-2: var(--shadow-md); /* featured service/proof panel */
+  --shadow-elevation-3: 0 32px 56px -16px rgba(20, 42, 32, 0.38), 0 10px 20px rgba(20, 42, 32, 0.2);
+  /* hero / primary conversion element - a real directional shadow (offset down-right), not a generic blur */
+  --shadow-elevation-4: 0 14px 32px rgba(20, 42, 32, 0.32), 0 4px 12px rgba(20, 42, 32, 0.24);
+  /* persistent conversion control (floating/sticky CTAs) - crisp, sits "above" everything */
+
+  /* Perspective/tilt - subtle only; always paired with a reduced-motion
+     and a mobile-simplified fallback where used (see the design-system
+     doc's "mobile depth simplification" rule). */
+  --depth-tilt-primary: perspective(1400px) rotateY(-6deg) rotateX(2deg);
+  --depth-tilt-secondary: perspective(1200px) rotateY(5deg) rotateX(-1.5deg);
+  --depth-lift-hover: translateY(-6px);
+  --depth-lift-hover-sm: translateY(-3px);
+
+  /* z-index scale - every fixed/sticky-positioned element in the app
+     must reference one of these, not a literal number, so stacking
+     order stays a single documented decision. */
+  --z-header: 40;
+  --z-floating-cta: 45;
+  --z-mobile-bar: 50;
+
+  /* iOS/Android safe-area inset, for fixed bottom-edge controls only. */
+  --safe-area-bottom: env(safe-area-inset-bottom, 0px);
 }

@@ -41,7 +41,7 @@ const capabilities = [
 
 <section class="commercial-section" aria-labelledby="commercial-heading" id="commercial">
   <div class="container-wide">
-    <h2 id="commercial-heading" class="section-heading">Commercial Services</h2>
+    <h2 id="commercial-heading" class="section-heading commercial-heading-inverse">Commercial Services</h2>
     <p class="commercial-intro">
       Credible, scheduling-conscious exterior cleaning for property managers, facility managers,
       and business owners.
@@ -69,21 +69,31 @@ const capabilities = [
     </ul>
 
     <div class="commercial-cta">
-      <a href="/contact-us#quote-form" class="btn btn-primary btn-lg">Request a Commercial Site Assessment</a>
-      <a href={siteInfo.phoneHref} class="btn btn-secondary btn-lg">Call {siteInfo.phoneDisplay}</a>
+      <a href="/contact-us#quote-form" class="btn btn-secondary btn-lg">Request a Commercial Site Assessment</a>
+      <a href={siteInfo.phoneHref} class="btn btn-inverse btn-lg">Call {siteInfo.phoneDisplay}</a>
     </div>
   </div>
 </section>
 
 <style>
+  /* Premium Visual Redesign (2026-07-29): switched from cream-50 to a
+     dark forest-900 treatment - Phase 5's "stronger dark or neutral
+     background contrast" requirement, and gives Commercial real visual
+     distinction from the light Residential section above it and the
+     light HOA section below it, rather than three same-toned sections
+     in a row. */
   .commercial-section {
     padding-block: var(--space-7);
-    background-color: var(--color-cream-50);
+    background-color: var(--color-forest-900);
+  }
+
+  .commercial-heading-inverse {
+    color: var(--color-white);
   }
 
   .commercial-intro {
     max-width: 40rem;
-    color: var(--color-charcoal-600);
+    color: rgba(255, 255, 255, 0.82);
     font-size: var(--font-size-lg);
     margin-block-end: var(--space-5);
   }
@@ -110,7 +120,7 @@ const capabilities = [
 
   .commercial-services-label {
     font-weight: 700;
-    color: var(--color-forest-900);
+    color: var(--color-gold-500);
     margin-block-end: var(--space-2);
   }
 

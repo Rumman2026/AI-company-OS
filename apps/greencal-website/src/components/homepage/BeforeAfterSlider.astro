@@ -107,7 +107,28 @@ const {
     aspect-ratio: 4/3;
     border-radius: var(--radius-lg);
     overflow: hidden;
-    box-shadow: var(--shadow-md);
+    box-shadow: var(--shadow-elevation-2);
+    transition:
+      box-shadow var(--motion-duration-base) ease,
+      transform var(--motion-duration-base) ease;
+  }
+
+  /* Premium Visual Redesign (2026-07-29): a hover/focus lift on the
+     whole figure reinforces the "framed panel" feel. No perspective
+     tilt here, deliberately - this is a drag-driven interactive slider,
+     and a rotated container risks making the horizontal drag gesture
+     feel mismatched with the visual tilt. The directional elevation
+     shadow alone already reads as dimensional without that risk. */
+  .baf:hover .baf-frame,
+  .baf:focus-within .baf-frame {
+    box-shadow: var(--shadow-elevation-3);
+    transform: var(--depth-lift-hover-sm);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .baf-frame {
+      transition: none;
+    }
   }
 
   .baf-layer {
@@ -198,6 +219,11 @@ const {
 
   .baf-featured .baf-frame {
     aspect-ratio: 16/9;
+    /* The featured project (roof washing - the brief's "primary visual
+       focus") gets the strongest elevation at rest, not just on hover -
+       it should read as the section's biggest visual moment immediately,
+       without requiring interaction. */
+    box-shadow: var(--shadow-elevation-3);
   }
 
   .baf-featured figcaption h3 {

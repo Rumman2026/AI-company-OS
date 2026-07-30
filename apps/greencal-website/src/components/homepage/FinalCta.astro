@@ -2,7 +2,9 @@
 import { siteInfo } from '../../data/site';
 ---
 
-<section class="final-cta full-bleed" aria-labelledby="final-cta-heading">
+<section class="final-cta full-bleed" aria-labelledby="final-cta-heading" id="final-cta">
+  <div class="final-cta-media" aria-hidden="true"></div>
+  <div class="final-cta-overlay" aria-hidden="true"></div>
   <div class="container-wide final-cta-inner">
     <h2 id="final-cta-heading" class="section-heading">Get the Right Cleaning Plan for Your Property</h2>
     <p>
@@ -22,18 +24,45 @@ import { siteInfo } from '../../data/site';
 
 <style>
   .final-cta {
-    background: linear-gradient(160deg, var(--color-forest-700) 0%, var(--color-forest-900) 100%);
+    position: relative;
     color: var(--color-white);
     text-align: center;
     padding-block: var(--space-8);
+    overflow: hidden;
+  }
+
+  /* Premium Visual Redesign (2026-07-29): a real GreenCal photo layered
+     behind the gradient - "optional real background-image treatment"
+     from the brief. The overlay above it is nearly opaque (94-97%) so
+     text contrast is effectively unchanged from the plain-gradient
+     version; the photo only reads as a subtle sense of real depth, not
+     a loud background image. Reuses the existing concrete-cleaning
+     "after" photo - no new asset, not a new claim (no caption/label
+     implies this is a distinct project from the ones already shown
+     above in Real Results). */
+  .final-cta-media {
+    position: absolute;
+    inset: 0;
+    background-image: url('/assets/greencal/generated/homepage/concrete-cleaning-01-after.webp');
+    background-size: cover;
+    background-position: center;
+  }
+
+  .final-cta-overlay {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(160deg, rgba(31, 74, 52, 0.95) 0%, rgba(20, 42, 32, 0.97) 100%);
   }
 
   .final-cta-inner {
+    position: relative;
+    z-index: 1;
     max-width: 40rem;
   }
 
   .final-cta .section-heading {
     color: var(--color-white);
+    text-shadow: 0 2px 20px rgba(0, 0, 0, 0.3);
   }
 
   .final-cta p {

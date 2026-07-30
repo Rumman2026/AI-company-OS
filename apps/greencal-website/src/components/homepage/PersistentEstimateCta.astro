@@ -1,0 +1,171 @@
+---
+// Premium Visual Redesign (2026-07-29), Phase 8. Homepage-only (not
+// sitewide like MobileConversionBar) - its show/hide logic targets
+// #final-cta, which only exists on this page. Desktop-only by CSS
+// (min-width: 769px) - the exact complement of MobileConversionBar's
+// own (max-width: 768px), so the two never render at the same viewport
+// width and cannot visually collide. Links reuse the site's single
+// existing estimate destination (/contact-us#quote-form) and phone
+// action (siteInfo.phoneHref) - no second form, no new destination.
+import { siteInfo } from '../../data/site';
+---
+
+<div class="persistent-estimate-cta" id="persistent-estimate-cta" inert>
+  <a href={siteInfo.phoneHref} class="persistent-cta-call" id="sticky-call-cta" aria-label={`Call ${siteInfo.businessName} at ${siteInfo.phoneDisplay}`}>
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+      <path
+        d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.362 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.338 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      />
+    </svg>
+  </a>
+  <a href="/contact-us#quote-form" class="btn btn-primary persistent-cta-estimate" id="sticky-estimate-cta">
+    Get a Free Estimate
+  </a>
+</div>
+
+<script>
+  // Show after the visitor scrolls past the hero; hide/minimize once
+  // the homepage's own final CTA section is in view - the brief's own
+  // wording allows targeting either the estimate form or the final CTA,
+  // and the real quote-form only exists on a separate page
+  // (/contact-us), so #final-cta is the correct in-page target.
+  function initPersistentEstimateCta(): void {
+    const container = document.getElementById('persistent-estimate-cta');
+    const hero = document.querySelector<HTMLElement>('.hero');
+    const finalCta = document.getElementById('final-cta');
+    if (!container || !hero) return;
+
+    const applyState = (): void => {
+      // Recomputed fresh from live geometry on every call - deliberately
+      // NOT IntersectionObserver-based. An earlier version used
+      // IntersectionObserver's enter/exit events and had a real bug
+      // (caught directly during Phase 10 QA): the observer only fires on
+      // threshold *crossings*, so a fast/instant scroll (e.g. clicking a
+      // footer anchor link, or a very quick manual scroll) can jump
+      // straight past #final-cta between two observer callbacks and
+      // never register the "now past it" transition - the widget stayed
+      // visible and interactive all the way through the footer.
+      // getBoundingClientRect() has no such gap: it reflects the current
+      // scroll position exactly, however it was reached.
+      const heroPastViewport = hero.getBoundingClientRect().bottom <= 0;
+      const atOrPastFinalCta = finalCta ? finalCta.getBoundingClientRect().top <= window.innerHeight : false;
+      const shouldShow = heroPastViewport && !atOrPastFinalCta;
+
+      container.classList.toggle('is-visible', shouldShow);
+      // `inert` (not just aria-hidden/opacity) so a keyboard user can
+      // never tab into a control that's currently invisible - it's
+      // removed from both the accessibility tree and the tab order
+      // whenever the widget isn't actually shown on screen.
+      if (shouldShow) {
+        container.removeAttribute('inert');
+      } else {
+        container.setAttribute('inert', '');
+      }
+    };
+
+    let ticking = false;
+    const onScrollOrResize = (): void => {
+      if (ticking) return;
+      ticking = true;
+      requestAnimationFrame(() => {
+        applyState();
+        ticking = false;
+      });
+    };
+
+    applyState();
+    window.addEventListener('scroll', onScrollOrResize, { passive: true });
+    window.addEventListener('resize', onScrollOrResize, { passive: true });
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initPersistentEstimateCta);
+  } else {
+    initPersistentEstimateCta();
+  }
+</script>
+
+<style>
+  .persistent-estimate-cta {
+    display: none;
+  }
+
+  @media (min-width: 769px) {
+    .persistent-estimate-cta {
+      display: flex;
+      align-items: center;
+      gap: var(--space-2);
+      position: fixed;
+      right: var(--space-4);
+      bottom: var(--space-4);
+      z-index: var(--z-floating-cta);
+      /* Hidden by default (before scroll-state JS runs, and whenever
+         .is-visible is absent) - opacity/transform only, so this never
+         participates in layout shift and always degrades to "not
+         interactable" (pointer-events: none) rather than an invisible
+         but clickable ghost element. */
+      opacity: 0;
+      transform: translateY(12px);
+      pointer-events: none;
+      transition:
+        opacity var(--motion-duration-slow) ease,
+        transform var(--motion-duration-slow) ease;
+    }
+
+    .persistent-estimate-cta.is-visible {
+      opacity: 1;
+      transform: translateY(0);
+      pointer-events: auto;
+    }
+  }
+
+  .persistent-cta-call {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 48px;
+    height: 48px;
+    flex: none;
+    color: var(--color-forest-700);
+    background-color: var(--color-white);
+    border-radius: var(--radius-full);
+    box-shadow: var(--shadow-elevation-4);
+    transition: transform var(--motion-duration-base) ease;
+  }
+
+  .persistent-cta-call svg {
+    width: 22px;
+    height: 22px;
+  }
+
+  .persistent-cta-call:hover,
+  .persistent-cta-call:focus-visible {
+    transform: var(--depth-lift-hover-sm);
+  }
+
+  .persistent-cta-estimate {
+    box-shadow: var(--shadow-elevation-4);
+    white-space: nowrap;
+    transition:
+      transform var(--motion-duration-base) ease,
+      box-shadow var(--motion-duration-base) ease;
+  }
+
+  .persistent-cta-estimate:hover,
+  .persistent-cta-estimate:focus-visible {
+    transform: var(--depth-lift-hover-sm);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .persistent-estimate-cta {
+      transition: none;
+    }
+
+    .persistent-cta-call,
+    .persistent-cta-estimate {
+      transition: none;
+    }
+  }
+</style>

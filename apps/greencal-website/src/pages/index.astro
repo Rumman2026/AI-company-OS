@@ -5,6 +5,7 @@
 // structure changed; every other route is unchanged this stage.
 import BaseLayout from '../layouts/BaseLayout.astro';
 import Hero from '../components/homepage/Hero.astro';
+import PersistentEstimateCta from '../components/homepage/PersistentEstimateCta.astro';
 import TrustStrip from '../components/homepage/TrustStrip.astro';
 import CustomerSegmentSection from '../components/homepage/CustomerSegmentSection.astro';
 import ServiceGridSection from '../components/homepage/ServiceGridSection.astro';
@@ -27,6 +28,7 @@ const residential = servicesByCategory('residential');
 
 <BaseLayout title={title} description={description} path="/">
   <Hero />
+  <PersistentEstimateCta />
   <TrustStrip />
   <CustomerSegmentSection />
 
