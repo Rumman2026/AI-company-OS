@@ -15,22 +15,53 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
+
+      - name: Enable pnpm
+        uses: pnpm/action-setup@v4
+
       - name: Set up Node.js
         uses: actions/setup-node@v6
         with:
           node-version: 24
-      - name: Enable pnpm
-        run: |
-          npm install --global corepack@latest
-          corepack enable
-          corepack prepare pnpm@11.12.0 --activate
-          pnpm --version
+          cache: 'pnpm'
+
       - run: pnpm install --frozen-lockfile
+
+      # Formatting is enforced as part of lint (eslint-plugin-prettier's
+      # prettier/prettier rule runs inside every workspace's own `lint`
+      # script, see .eslintrc.js) — there is no separate `--check` step
+      # because each package's `format` script uses `--write`, which
+      # would mutate files rather than gate CI.
       - run: pnpm lint
+
       - run: pnpm typecheck
+
+      # Package/app test suites, repo-wide except apps/greencal-website
+      # (which has its own dedicated Playwright steps below with browser
+      # install — running it here too would duplicate that work and fail
+      # without the browser binaries). --if-present skips any workspace
+      # that doesn't define a "test" script (most placeholder apps and
+      # shared packages still don't).
+      - run: pnpm --filter "@ai-company-os/**" --filter "!@ai-company-os/greencal-website" -r --if-present run test
+
+      # Build scripts for every other app (mostly placeholder echoes
+      # today) — kept as its own isolated step, deliberately not run
+      # concurrently with apps/greencal-website's real Astro/Vercel
+      # build below, to avoid interleaving a real build with unrelated
+      # workspace scripts. Packages have no build script and are skipped
+      # via --if-present.
+      - run: pnpm --filter "@ai-company-os/**" --filter "!@ai-company-os/greencal-website" -r --if-present run build
+
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('apps/greencal-website/package.json') }}
+
       # Scoped to apps/greencal-website only — no other workspace has a
       # real build or test suite yet (see DECISIONS.md ADR-0004). This is
-      # not repo-wide build/test coverage.
+      # not repo-wide build/test coverage. Kept as its own sequential
+      # block, isolated from the other apps' build step above.
       - run: pnpm --filter @ai-company-os/greencal-website run build
       - run: pnpm --filter @ai-company-os/greencal-website exec playwright install --with-deps chromium
       - run: pnpm --filter @ai-company-os/greencal-website run test
