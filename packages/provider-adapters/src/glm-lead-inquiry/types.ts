@@ -32,6 +32,10 @@ export interface LeadInquiryClassificationRequest {
 
 export interface LeadInquiryClassificationResult {
   intentCategory: LeadIntentCategory;
+  /** Short free-text description of the property, e.g. "single-story residential home", "HOA community with multiple buildings". */
+  propertyType: string;
+  /** Short free-text description of the specific service requested, e.g. "recurring sidewalk and common-area pressure washing". */
+  serviceIntent: string;
   summary: string;
   missingInformation: string[];
   recommendedTemplateId: ApprovedResponseTemplateId;

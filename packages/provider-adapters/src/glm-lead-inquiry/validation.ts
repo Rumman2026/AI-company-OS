@@ -125,6 +125,12 @@ export function validateLeadInquiryClassificationResult(
   ) {
     errors.push(`intentCategory must be one of: ${[...INTENT_CATEGORIES].join(', ')}`);
   }
+  if (typeof candidate.propertyType !== 'string' || candidate.propertyType.trim().length === 0) {
+    errors.push('propertyType must be a non-empty string');
+  }
+  if (typeof candidate.serviceIntent !== 'string' || candidate.serviceIntent.trim().length === 0) {
+    errors.push('serviceIntent must be a non-empty string');
+  }
   if (typeof candidate.summary !== 'string' || candidate.summary.trim().length === 0) {
     errors.push('summary must be a non-empty string');
   }
@@ -163,6 +169,8 @@ export function validateLeadInquiryClassificationResult(
   if (errors.length === 0) {
     const freeTextFields = [
       candidate.summary as string,
+      candidate.propertyType as string,
+      candidate.serviceIntent as string,
       ...((candidate.missingInformation as string[] | undefined) ?? []),
     ];
     for (const field of freeTextFields) {

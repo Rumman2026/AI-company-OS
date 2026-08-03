@@ -53,14 +53,34 @@ owner action required to release it), and a $0.50 alert threshold
 [docs/cloud/GLM_SANDBOX_PILOT.md](GLM_SANDBOX_PILOT.md) Stage 2 for the
 full derivation of each figure from confirmed GLM-4.5-Air pricing.
 
+## Real-call budget enforcement (single-call pilot)
+
+`executeRealPilotCall()`
+(`packages/provider-adapters/src/glm-lead-inquiry/real-pilot-runner.ts`)
+reuses the exact same `glm-lead-inquiry-pilot` budget scope and the
+unmodified `classifyLeadInquiry()` budget check — the real call is
+blocked (`status: 'budget-denied'`, no network request made) exactly
+like a mocked call if the scope's budget is already exceeded. Proven
+with a mocked network in
+`packages/provider-adapters/tests/glm-real-pilot-runner.test.ts`; not
+yet exercised against a real API response (no credential has been used
+yet — see [docs/cloud/GLM_SANDBOX_PILOT.md](GLM_SANDBOX_PILOT.md)
+"Credential checkpoint").
+
 ## What this does not do yet
 
-- No real spend exists — every provider adapter is a placeholder
-  returning `estimatedCostUsd: 0`, so `recordSpend()` is never actually
-  invoked with a nonzero amount in this stage.
+- No real spend has occurred yet in production use — every general
+  provider adapter remains a placeholder returning `estimatedCostUsd: 0`;
+  the one real-call pathway that exists (the GLM sandbox pilot) has been
+  proven only against a mocked network so far, pending the credential
+  checkpoint above.
 - No persistent ledger — budgets and spend records are in-memory only;
   a Redis/Postgres-backed ledger on the Hostinger VPS is future work.
 - No real per-token cost calculation from actual provider usage
-  responses — `ProviderCapabilityDescriptor.costPerInputTokenUsd`/
-  `.costPerOutputTokenUsd` are illustrative placeholders (see
-  [docs/cloud/AI_PROVIDER_INTEGRATION.md](AI_PROVIDER_INTEGRATION.md)).
+  responses in the general adapters — `ProviderCapabilityDescriptor.costPerInputTokenUsd`/
+  `.costPerOutputTokenUsd` remain confirmed-but-flat-rate placeholders
+  (see [docs/cloud/AI_PROVIDER_INTEGRATION.md](AI_PROVIDER_INTEGRATION.md)).
+  The GLM real-call pathway captures real `usage.prompt_tokens`/
+  `completion_tokens` from the API response separately (see
+  `RealPilotCallMeta`), distinct from the adapter's own deterministic
+  estimate used for its internal budget accounting.

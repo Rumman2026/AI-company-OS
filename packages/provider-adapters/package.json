@@ -7,7 +7,8 @@
     "lint": "eslint . --ext .ts,.tsx --no-error-on-unmatched-pattern",
     "format": "prettier --write .",
     "typecheck": "tsc --noEmit",
-    "test": "tsx --test \"tests/**/*.test.ts\""
+    "test": "tsx --test \"tests/**/*.test.ts\"",
+    "pilot:glm:real": "tsx scripts/run-glm-real-pilot.ts"
   },
   "dependencies": {
     "@ai-company-os/agent-sdk": "workspace:*",

@@ -57,11 +57,20 @@ actually exists — do not mark a stage done without it (see
       the only provider prepared for pilot activation — OpenAI,
       Anthropic API, Gemini, DeepSeek, Perplexity, and Kimi remain
       unconnected.
-- [ ] **Real provider connection** — not started; requires separate
-      explicit owner authorization (ADR-0008 scope note), and — for
-      GLM specifically — the exact information listed in
-      `docs/cloud/GLM_SANDBOX_PILOT.md`'s completion report before any
-      real API call.
+- [~] **Real Z.AI/GLM Sandbox Credential and Single-Call Pilot**:
+  official endpoint/auth/model confirmed against docs.z.ai
+  (`packages/provider-adapters/src/glm-lead-inquiry/real-client.ts`);
+  `real-pilot-runner.ts` + `scripts/run-glm-real-pilot.ts` built and
+  proven end-to-end against a mocked network (10 new tests, 42
+  total in the package) — exactly one call, correct escalation,
+  kill switch engaged and verified afterward, no secret ever
+  exposed. **Paused at the credential checkpoint** — no real
+  credential has been used and no real API call has been made; see
+  `docs/cloud/GLM_SANDBOX_PILOT.md` "Credential checkpoint" for
+  exact resume steps.
+- [ ] **Real provider connection (any provider)** — not started;
+      requires separate explicit owner authorization (ADR-0008 scope
+      note) and, for GLM, completion of the credential checkpoint above.
 - [ ] **Hostinger VPS provisioning** — not started; see
       `docs/cloud/HOSTINGER_VPS_SETUP.md`.
 - [ ] **Any deployment** — not started.

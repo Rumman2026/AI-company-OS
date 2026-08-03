@@ -3,7 +3,16 @@ node_modules/
 .env
 .env.local
 .env.*.local
+.env.cloud
 .DS_Store
+
+# Credentials / secrets / runtime logs — never commit real values
+# (see CLAUDE.md "Security and Git boundaries" and
+# docs/cloud/GLM_SANDBOX_PILOT.md "Credential checkpoint")
+*.pem
+*.key
+*.log
+logs/
 
 # Build output
 dist/

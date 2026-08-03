@@ -1,11 +1,14 @@
 # GLM Sandbox Pilot — `lead_inquiry_classification`
 
-Status: durable reference for the AI Provider Configuration Validation
-and GLM Sandbox Pilot Preparation stage. Repository-preparation only —
-see the scope note at the end of this document. No real Z.AI/GLM
-account is connected, no real API call has been made, and no other
-provider (OpenAI, Anthropic API, Gemini, DeepSeek, Perplexity, Kimi) is
-activated by this stage.
+Status: durable reference covering two stages — (1) AI Provider
+Configuration Validation and GLM Sandbox Pilot Preparation, and (2) the
+Real Z.AI/GLM Sandbox Credential and Single-Call Pilot. As of the most
+recent update, the pipeline is fully built and mocked-tested end to end
+and is **paused at the credential checkpoint** — no real Z.AI/GLM
+account is connected and no real API call has been made yet. See
+"Credential checkpoint" below for exact resume steps. No other provider
+(OpenAI, Anthropic API, Gemini, DeepSeek, Perplexity, Kimi) is activated
+by this or any prior stage.
 
 ## Stage 1 — Configuration audit
 
@@ -149,11 +152,122 @@ No CI changes were needed. `.github/workflows/ci.yml`'s existing step
 existing `test` script — the two new test files run in CI automatically,
 with no duplicated or new command.
 
+## Real credential and single-call pilot
+
+### Official API facts (docs.z.ai, fetched 2026-08-03)
+
+| Fact                        | Value                                                                 | Category                                                                         |
+| --------------------------- | --------------------------------------------------------------------- | -------------------------------------------------------------------------------- |
+| Endpoint                    | `https://api.z.ai/api/paas/v4/chat/completions`                       | 1. Confirmed                                                                     |
+| Authentication              | `Authorization: Bearer <api-key>` header                              | 1. Confirmed                                                                     |
+| Required body fields        | `model`, `messages` (array of `{role, content}`)                      | 1. Confirmed                                                                     |
+| Structured/JSON output      | `response_format: { "type": "json_object" }`                          | 1. Confirmed                                                                     |
+| Model for this pilot        | `glm-4.5-air`                                                         | 1. Confirmed (see Stage 1 above)                                                 |
+| Optional request fields     | `max_tokens`, `stream`, `thinking`, `tools`, `Accept-Language` header | 1. Confirmed (not all used by this pilot)                                        |
+| Real per-account rate limit | —                                                                     | 4. Blocked — still not publicly documented; unconfirmable without a real account |
+
+### Code added
+
+- `packages/provider-adapters/src/glm-lead-inquiry/real-client.ts` — the
+  transport layer only: builds the exact request (`buildGlmChatCompletionRequestPlan`),
+  a strict classification system prompt (`buildClassificationSystemPrompt`),
+  redacted headers for logging (`redactedRequestHeaders` — the real key
+  never appears), and `callRealGlmChatCompletion()`, which makes exactly
+  one HTTP call with an `AbortController`-based timeout and parses
+  `id`/`usage.prompt_tokens`/`usage.completion_tokens`/`choices[0].message.content`
+  from the response. No safety gate lives here — it is a thin, honest
+  transport, nothing more.
+- `packages/provider-adapters/src/glm-lead-inquiry/real-pilot-runner.ts` —
+  `dryRunRealPilotCall()` (assembles and reports the request plan, zero
+  network calls, no credential read or required) and
+  `executeRealPilotCall()` (routes through the existing, unmodified
+  `classifyLeadInquiry()` — reusing all of Stage 4's hardening
+  unchanged — then immediately engages the kill switch and runs a
+  verification call proving a second attempt is blocked with zero
+  further network access).
+- `packages/provider-adapters/scripts/run-glm-real-pilot.ts` — the
+  runnable entry point. Defaults to dry-run; requires **both** a real
+  `ZAI_GLM_API_KEY` present **and** an explicit `--confirm-real-call`
+  flag before making any real call — two independent gates, not one.
+  Never logs the credential.
+- Schema extended (`types.ts`/`validation.ts`/`fixtures.ts`): added
+  `propertyType` and `serviceIntent` as required string fields on
+  `LeadInquiryClassificationResult`, both covered by the existing
+  forbidden-claim scan.
+
+### Credential checkpoint
+
+Not yet resolved — resume only after the owner confirms local setup.
+
+1. **Environment variable name**: `ZAI_GLM_API_KEY` (already declared,
+   empty, in `.env.example` and `config/env/.env.example`).
+2. **Local storage location**: a repository-root file named
+   `.env.local` (already excluded by `.gitignore` — see verification
+   below), containing one line: `ZAI_GLM_API_KEY=<your real key>`. This
+   file is loaded automatically by
+   `packages/provider-adapters/scripts/run-glm-real-pilot.ts` via
+   Node's built-in `process.loadEnvFile('.env.local')` — no new
+   dependency required.
+3. **Setup command** (run in your own terminal, not through Claude
+   Code chat):
+   ```
+   echo ZAI_GLM_API_KEY=your-real-key-here > .env.local
+   ```
+   Replace `your-real-key-here` with the real key obtained from your
+   Z.ai account dashboard.
+4. **Git-exclusion confirmation**: `.gitignore` already lists `.env`,
+   `.env.local`, and `.env.*.local` (verified — see the file directly);
+   this stage additionally added `.env.cloud`, `*.pem`, `*.key`, `*.log`,
+   and `logs/` as defensive coverage for other secret shapes.
+5. **Safe existence check** (proves the variable is set without ever
+   printing its value):
+   ```
+   node -e "console.log(process.env.ZAI_GLM_API_KEY ? 'present, length=' + process.env.ZAI_GLM_API_KEY.length : 'missing')"
+   ```
+6. Resume by telling Claude Code the credential is stored and the
+   existence check above returned `present`. Claude Code will not ask
+   you to paste the key into chat, will not display or echo it, and
+   will run
+   `pnpm --filter @ai-company-os/provider-adapters run pilot:glm:real -- --confirm-real-call`
+   only after that confirmation.
+
+### Dry-run result (executed, no network call)
+
+```
+$ pnpm --filter @ai-company-os/provider-adapters run pilot:glm:real
+No ZAI_GLM_API_KEY found in the environment. Running a dry run only (no network call).
+{
+  "mode": "dry-run",
+  "endpoint": "https://api.z.ai/api/paas/v4/chat/completions",
+  "model": "glm-4.5-air",
+  "outcome": null,
+  "realCallMeta": null,
+  "auditEventId": null,
+  "killSwitchEngagedAfter": false,
+  "killSwitchVerified": false
+}
+```
+
+### Mocked end-to-end proof
+
+`packages/provider-adapters/tests/glm-real-client.test.ts` and
+`glm-real-pilot-runner.test.ts` (10 additional tests, 42 total in the
+package) exercise the entire real-call pipeline with a mocked
+`global.fetch` standing in for the network: correct endpoint/body/
+structured-output request; real `usage`/`id` parsing; non-ok-status and
+missing-content error handling; timeout abort; and a full
+`executeRealPilotCall()` run against the exact HOA Orange County
+synthetic inquiry proving exactly one fetch call, correct escalation
+(`pricing-scope-warranty-or-contract`, no price ever stated), kill
+switch engaged and verified afterward with zero further network access,
+and no API key anywhere in the returned report.
+
 ## Scope note
 
 This document, and everything it describes, is repository preparation
 only. No Hostinger connection, no real credential, no paid API call, no
 deployment, and no change to `apps/greencal-website` occurred as part of
-this stage. See "Exact information required before a real GLM API call"
-in the stage completion report for what remains before any real
-activation.
+this or the prior stage — the pipeline is fully built and proven against
+a mocked network only, and is stopped at the credential checkpoint above
+pending the owner's local key setup and explicit confirmation to
+resume.

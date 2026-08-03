@@ -68,6 +68,14 @@ owner attention rather than escalating automatically to a second paid
 provider. This is a deliberate, narrower exception to the general
 routing sequence above, scoped to this one low-risk pilot only.
 
+A real (non-mocked) transport for this one pilot task now exists
+(`packages/provider-adapters/src/glm-lead-inquiry/real-client.ts` +
+`real-pilot-runner.ts`) — confirmed official endpoint/auth/model, proven
+against a mocked network, paused at the credential checkpoint before any
+real call. No other task type or provider has a real transport; every
+other routing path in this document remains fully mocked/placeholder.
+See [docs/cloud/GLM_SANDBOX_PILOT.md](GLM_SANDBOX_PILOT.md).
+
 ## What this does not do yet
 
 No real token counting, no real provider billing reconciliation, no
