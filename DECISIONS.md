@@ -1022,6 +1022,46 @@ directly on this.
 
 ---
 
+## ADR-0013: Lead → Estimate → Booking → Job creation workflow (CRM Cluster 5)
+
+**Status**: Confirmed (implemented; one design limitation documented,
+not fixed this cluster)
+
+**Context**: Cluster 4 (ADR-0012) added persistence for `Estimate`/
+`Booking`/`Job` but no way to actually create one. This cluster adds the
+real creation path in `apps/admin-console`.
+
+**Decision**: Creating a `Booking` from an `Estimate` immediately also
+creates that `Booking`'s `Job` (at `draft`) and links them
+(`bookings.job_id`), then best-effort attempts the `draft` → `scheduled`
+transition using the real logged-in user's actual `MembershipRole`. A
+rejected transition (wrong role) is surfaced honestly on the Lead detail
+page - the `Job` still exists, just not yet scheduled - never hidden or
+silently retried as a different actor.
+
+**Alternatives considered**: Auto-approving the `scheduled` transition
+regardless of the calling user's role (e.g., using a synthetic
+`automation` actor). Rejected: `transitionJob()`'s authorization rules
+exist specifically to require a human with the right role for this
+step; bypassing them with a fake actor would defeat the purpose of
+having role-based authorization at all.
+
+**Known limitation, surfaced not fixed**: `memberships`' unique
+constraint is `(business_id, user_id)` - one role per user per business.
+An `owner-admin`-only account (the only membership that exists today)
+cannot also act as `office-manager` for day-to-day Job/Lead progression.
+Two real paths exist (change the existing row's role, accepting the
+trade-off of losing owner-only actions; or a future multi-role schema
+change) - neither implemented here, since resolving it is a real design
+decision requiring the owner's input, not a bug to quietly patch.
+
+**Consequences**: `docs/crm/CRM_ARCHITECTURE.md` gains a Cluster 5
+section documenting this and the limitation above.
+
+**Related**: [ADR-0012](#adr-0012-estimatebookingjob-persistence-crm-cluster-4).
+
+---
+
 ## Proposed decisions (not yet made)
 
 - Service-to-service communication pattern (REST/gRPC/queue) beyond the

@@ -23,3 +23,4 @@ export { FormField } from './components/FormField';
 export type { FormFieldProps } from './components/FormField';
 
 export { leadStatusTone } from './lead-status-tone';
+export { jobStatusTone } from './job-status-tone';

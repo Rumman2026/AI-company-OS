@@ -23,21 +23,52 @@ ADR-0012.
 | `EstimateRepository`, `BookingRepository`, `JobRepository`                            | Implemented and unit-tested (29/29 `packages/db` tests passing, tenant-isolation cases included) |
 | `JobRepository.transitionJobStatus`                                                   | Routes through core-models' `transitionJob()`, mirrors `LeadRepository` exactly                  |
 
-**Classification: IMPLEMENTED AND TESTED LOCALLY.** Not yet run against
-the live database (owner action - see below). **No UI and no creation
-workflow yet** - `EstimateRepository.createEstimate` is never called by
-any app, so there is currently no way to actually produce an Estimate
-(and therefore a Booking or Job) through any user-facing surface. This
-is intentionally persistence-first, matching the exact sequencing
-already used for Contact/Lead/multi-tenant/admin-console.
+**Classification: LIVE (schema).** Migration 003 has been run against
+the real `Greencal-production` Supabase project (owner-confirmed).
 
-**Owner action**: run `packages/db/migrations/003-job-pipeline-foundation.sql`
-in the Supabase SQL Editor (additive, safe anytime, after migration 002).
+## Cluster 5: Lead → Estimate → Booking → Job creation workflow
 
-**Next**: the actual Lead → Estimate → Booking → Job creation workflow
-and admin-console UI for all three, as one cohesive next cluster (a
-half-built Jobs list with no way to ever populate it would be a hollow
-addition).
+Adds the actual creation path, closing the gap Cluster 4 left open:
+
+- Lead detail page (`apps/admin-console`) gains an "Add estimate" form
+  (dollar amount + summary, parsed via a pure, tested
+  `parseDollarsToMinorUnits()` - rejects malformed input rather than
+  guessing) and lists existing Estimates.
+- A "Create booking + job" form on the same page: creates the `Booking`,
+  then immediately creates its `Job` (at `draft`), links
+  `booking.job_id`, and best-effort attempts the `draft` → `scheduled`
+  transition using the real logged-in user's actual role.
+- **Real, surfaced constraint**: `transitionJob()`'s `draft` → `scheduled`
+  edge only allows `office-manager`/`dispatcher` - an `owner-admin`-only
+  membership (the only one that exists today) will see the Job created
+  successfully but left at `draft`, with an honest on-page note
+  explaining why, never a fabricated "scheduled" state.
+- New **Jobs** module: list (status filter) + detail + status-transition,
+  mirroring the Leads module exactly. Same honest-rejection behavior for
+  any transition the current role isn't authorized for.
+- `packages/ui-kit` gains `jobStatusTone` (mirrors `leadStatusTone`).
+
+**Classification: IMPLEMENTED AND TESTED LOCALLY.** Lint, typecheck, a
+local production build, and pure-logic unit tests (amount parsing,
+job-status validation) all pass. Not yet deployed live (same admin-console
+deployment gap as Milestone 3) - the actual create-estimate → create-booking
+→ auto-create-job → best-effort-schedule chain has not been exercised
+against a real browser session.
+
+**Known limitation, not silently worked around**: a single Supabase Auth
+user can hold exactly one `role` per business (`memberships`' unique
+constraint is `(business_id, user_id)`). The owner's `owner-admin`
+membership cannot also act as `office-manager` day-to-day - most Job/Lead
+transitions require that role. Two real options exist if the owner wants
+one account to do both: (a) change the existing membership row's `role`
+to `office-manager` (trading away owner-only actions like marking
+something `lost`/`canceled`), or (b) a future schema change allowing
+multiple roles per business per user - not built, since it's a real
+design decision, not a bug fix.
+
+**Next**: persistence + UI for the entities still with none - `Company`
+first (needs a new `packages/core-models` type, since none exists),
+or `Task`/`Appointment`/`Note` (also need new types).
 
 ## What "CRM" means in this repository today
 

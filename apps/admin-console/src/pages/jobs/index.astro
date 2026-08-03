@@ -1,0 +1,107 @@
+---
+import AdminLayout from '../../layouts/AdminLayout.astro';
+import { getCurrentMembership } from '../../lib/auth/membership';
+import { createSupabaseJobRepository, createSupabaseAuditLogRepository } from '@ai-company-os/db';
+import { jobStatusTone } from '@ai-company-os/ui-kit';
+import type { JobStatus } from '@ai-company-os/core-models';
+
+const user = Astro.locals.user!;
+const membership = await getCurrentMembership(Astro.locals.supabase, user.id);
+
+const statusFilter = Astro.url.searchParams.get('status') as JobStatus | null;
+
+let jobs: Array<{ id: string; status: JobStatus; scheduledAt?: string; createdAt: string }> = [];
+let loadError: string | null = null;
+
+if (membership) {
+  const auditLog = createSupabaseAuditLogRepository(Astro.locals.supabase);
+  const jobRepo = createSupabaseJobRepository(Astro.locals.supabase, auditLog);
+  const result = await jobRepo.listJobs(membership.businessId, { status: statusFilter ?? undefined });
+  if (result.ok) {
+    jobs = result.jobs.map((j) => ({
+      id: j.id,
+      status: j.status,
+      scheduledAt: j.scheduledAt,
+      createdAt: j.createdAt,
+    }));
+  } else {
+    loadError = result.error;
+  }
+}
+
+const ALL_STATUSES: JobStatus[] = [
+  'draft',
+  'scheduled',
+  'assigned',
+  'in-progress',
+  'service-completed',
+  'awaiting-office-review',
+  'completed',
+  'follow-up-required',
+  'canceled',
+];
+---
+
+<AdminLayout title="Jobs" membership={membership}>
+  <h1>Jobs</h1>
+
+  <form method="GET" style="margin-bottom: 1rem; max-width: 240px;">
+    <div class="uikit-form-field">
+      <label for="status">Filter by status</label>
+      <select id="status" name="status" onchange="this.form.submit()">
+        <option value="">All statuses</option>
+        {
+          ALL_STATUSES.map((status) => (
+            <option value={status} selected={status === statusFilter}>
+              {status}
+            </option>
+          ))
+        }
+      </select>
+    </div>
+  </form>
+
+  {
+    loadError ? (
+      <div class="uikit-error-banner" role="alert">
+        Could not load jobs: {loadError}
+      </div>
+    ) : jobs.length === 0 ? (
+      <div class="uikit-empty-state">
+        <p class="uikit-empty-state__title">No jobs found</p>
+        <p class="uikit-empty-state__description">
+          {statusFilter
+            ? `No jobs with status "${statusFilter}".`
+            : 'Jobs are created automatically once a Lead\'s estimate is booked - see a Lead\'s detail page.'}
+        </p>
+      </div>
+    ) : (
+      <div class="uikit-table-scroll">
+        <table class="uikit-table">
+          <thead>
+            <tr>
+              <th>Status</th>
+              <th>Scheduled</th>
+              <th>Created</th>
+              <th />
+            </tr>
+          </thead>
+          <tbody>
+            {jobs.map((job) => (
+              <tr>
+                <td>
+                  <span class={`uikit-badge uikit-badge--${jobStatusTone(job.status)}`}>{job.status}</span>
+                </td>
+                <td>{job.scheduledAt ? new Date(job.scheduledAt).toLocaleString() : '—'}</td>
+                <td>{new Date(job.createdAt).toLocaleString()}</td>
+                <td>
+                  <a href={`/jobs/${job.id}`}>View</a>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    )
+  }
+</AdminLayout>

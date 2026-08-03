@@ -1,8 +1,16 @@
 ---
 import AdminLayout from '../../layouts/AdminLayout.astro';
 import { getCurrentMembership } from '../../lib/auth/membership';
-import { createSupabaseLeadRepository, createSupabaseContactRepository, createSupabaseAuditLogRepository } from '@ai-company-os/db';
+import {
+  createSupabaseLeadRepository,
+  createSupabaseContactRepository,
+  createSupabaseAuditLogRepository,
+  createSupabaseEstimateRepository,
+  createSupabaseBookingRepository,
+  createSupabaseJobRepository,
+} from '@ai-company-os/db';
 import { leadStatusTone } from '@ai-company-os/ui-kit';
+import { formatMinorUnitsAsDollars } from '../../lib/estimates/parse-amount';
 import type { LeadStatus } from '@ai-company-os/core-models';
 
 const user = Astro.locals.user!;
@@ -27,8 +35,17 @@ let lead: { id: string; status: LeadStatus; createdAt: string; contactId: string
 let contactName: string | null = null;
 let notFound = false;
 let loadError: string | null = null;
+let estimates: Array<{
+  id: string;
+  summary: string;
+  proposedAmount: { amountMinorUnits: number; currency: string };
+  createdAt: string;
+}> = [];
+let bookings: Array<{ id: string; estimateId: string; jobId?: string; scheduledAt: string }> = [];
+let jobsById = new Map<string, { id: string; status: string }>();
 
 const transitionError = Astro.url.searchParams.get('error');
+const infoMessage = Astro.url.searchParams.get('info');
 
 if (membership && id) {
   const auditLog = createSupabaseAuditLogRepository(Astro.locals.supabase);
@@ -45,6 +62,20 @@ if (membership && id) {
     const contacts = createSupabaseContactRepository(Astro.locals.supabase);
     const contactResult = await contacts.getContact(membership.businessId, lead.contactId);
     if (contactResult.ok) contactName = contactResult.contact.displayName;
+
+    const estimateRepo = createSupabaseEstimateRepository(Astro.locals.supabase);
+    const estimatesResult = await estimateRepo.listEstimates(membership.businessId, { leadId: id });
+    if (estimatesResult.ok) estimates = estimatesResult.estimates;
+
+    const bookingRepo = createSupabaseBookingRepository(Astro.locals.supabase);
+    const bookingsResult = await bookingRepo.listBookings(membership.businessId, { leadId: id });
+    if (bookingsResult.ok) bookings = bookingsResult.bookings;
+
+    const jobRepo = createSupabaseJobRepository(Astro.locals.supabase, auditLog);
+    const jobsResult = await jobRepo.listJobs(membership.businessId, { leadId: id });
+    if (jobsResult.ok) {
+      jobsById = new Map(jobsResult.jobs.map((j) => [j.id, { id: j.id, status: j.status }]));
+    }
   } else {
     notFound = true;
     loadError = result.error;
@@ -73,13 +104,18 @@ if (membership && id) {
 
         {transitionError ? (
           <div class="uikit-error-banner" role="alert">
-            Could not change status: {transitionError}
+            {transitionError}
+          </div>
+        ) : null}
+        {infoMessage ? (
+          <div class="uikit-badge uikit-badge--warning" style="display: block; padding: 0.75rem 1rem; margin-bottom: 1rem;">
+            {infoMessage}
           </div>
         ) : null}
 
         <form method="POST" action={`/api/leads/${lead.id}/transition`} style="max-width: 320px;">
           <div class="uikit-form-field">
-            <label for="requestedStatus">Change status to</label>
+            <label for="requestedStatus">Change lead status to</label>
             <select id="requestedStatus" name="requestedStatus">
               {ALL_STATUSES.filter((s) => s !== lead!.status).map((status) => (
                 <option value={status}>{status}</option>
@@ -94,6 +130,74 @@ if (membership && id) {
             Update status
           </button>
         </form>
+
+        <h2>Estimates</h2>
+        {estimates.length === 0 ? (
+          <div class="uikit-empty-state">
+            <p class="uikit-empty-state__title">No estimates yet</p>
+          </div>
+        ) : (
+          <ul>
+            {estimates.map((e) => (
+              <li>
+                {formatMinorUnitsAsDollars(e.proposedAmount.amountMinorUnits, e.proposedAmount.currency)} -{' '}
+                {e.summary} ({new Date(e.createdAt).toLocaleDateString()})
+              </li>
+            ))}
+          </ul>
+        )}
+        <form method="POST" action={`/api/leads/${lead.id}/estimates`} style="max-width: 400px;">
+          <div class="uikit-form-field">
+            <label for="proposedAmount">Proposed amount (USD)</label>
+            <input id="proposedAmount" name="proposedAmount" type="text" placeholder="450.00" required />
+          </div>
+          <div class="uikit-form-field">
+            <label for="summary">Summary</label>
+            <input id="summary" name="summary" type="text" required />
+          </div>
+          <button type="submit" class="uikit-button uikit-button--secondary">
+            Add estimate
+          </button>
+        </form>
+
+        <h2>Bookings &amp; Jobs</h2>
+        {bookings.length === 0 ? (
+          <div class="uikit-empty-state">
+            <p class="uikit-empty-state__title">No bookings yet</p>
+            <p class="uikit-empty-state__description">
+              Add an estimate above, then book it below to create its Job.
+            </p>
+          </div>
+        ) : (
+          <ul>
+            {bookings.map((b) => {
+              const job = b.jobId ? jobsById.get(b.jobId) : undefined;
+              return (
+                <li>
+                  Scheduled {new Date(b.scheduledAt).toLocaleString()}
+                  {job ? (
+                    <>
+                      {' '}
+                      &middot; Job:{' '}
+                      <a href={`/jobs/${job.id}`}>{job.status}</a>
+                    </>
+                  ) : null}
+                </li>
+              );
+            })}
+          </ul>
+        )}
+        {estimates.length > 0 ? (
+          <form method="POST" action={`/api/estimates/${estimates[0].id}/bookings`} style="max-width: 400px;">
+            <div class="uikit-form-field">
+              <label for="scheduledAt">Schedule the most recent estimate for</label>
+              <input id="scheduledAt" name="scheduledAt" type="datetime-local" required />
+            </div>
+            <button type="submit" class="uikit-button uikit-button--secondary">
+              Create booking + job
+            </button>
+          </form>
+        ) : null}
       </>
     ) : (
       <div class="uikit-error-banner" role="alert">

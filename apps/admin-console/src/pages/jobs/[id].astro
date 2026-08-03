@@ -1,0 +1,106 @@
+---
+import AdminLayout from '../../layouts/AdminLayout.astro';
+import { getCurrentMembership } from '../../lib/auth/membership';
+import { createSupabaseJobRepository, createSupabaseAuditLogRepository } from '@ai-company-os/db';
+import { jobStatusTone } from '@ai-company-os/ui-kit';
+import type { JobStatus } from '@ai-company-os/core-models';
+
+const user = Astro.locals.user!;
+const membership = await getCurrentMembership(Astro.locals.supabase, user.id);
+const { id } = Astro.params;
+
+const ALL_STATUSES: JobStatus[] = [
+  'draft',
+  'scheduled',
+  'assigned',
+  'in-progress',
+  'service-completed',
+  'awaiting-office-review',
+  'completed',
+  'follow-up-required',
+  'canceled',
+];
+
+let job: { id: string; status: JobStatus; scheduledAt?: string; createdAt: string; leadId: string } | null =
+  null;
+let notFound = false;
+
+const transitionError = Astro.url.searchParams.get('error');
+
+if (membership && id) {
+  const auditLog = createSupabaseAuditLogRepository(Astro.locals.supabase);
+  const jobRepo = createSupabaseJobRepository(Astro.locals.supabase, auditLog);
+  const result = await jobRepo.getJob(membership.businessId, id);
+
+  if (result.ok) {
+    job = {
+      id: result.job.id,
+      status: result.job.status,
+      scheduledAt: result.job.scheduledAt,
+      createdAt: result.job.createdAt,
+      leadId: result.job.leadId,
+    };
+  } else {
+    notFound = true;
+  }
+}
+---
+
+<AdminLayout title="Job detail" membership={membership}>
+  <p><a href="/jobs">&larr; Back to jobs</a></p>
+  {
+    notFound ? (
+      <div class="uikit-error-banner" role="alert">
+        Job not found.
+      </div>
+    ) : job ? (
+      <>
+        <h1>
+          Job <span class={`uikit-badge uikit-badge--${jobStatusTone(job.status)}`}>{job.status}</span>
+        </h1>
+        <dl>
+          <dt>Lead</dt>
+          <dd>
+            <a href={`/leads/${job.leadId}`}>{job.leadId}</a>
+          </dd>
+          <dt>Scheduled</dt>
+          <dd>{job.scheduledAt ? new Date(job.scheduledAt).toLocaleString() : '—'}</dd>
+          <dt>Created</dt>
+          <dd>{new Date(job.createdAt).toLocaleString()}</dd>
+        </dl>
+
+        {transitionError ? (
+          <div class="uikit-error-banner" role="alert">
+            Could not change status: {transitionError}
+          </div>
+        ) : null}
+
+        <form method="POST" action={`/api/jobs/${job.id}/transition`} style="max-width: 320px;">
+          <div class="uikit-form-field">
+            <label for="requestedStatus">Change status to</label>
+            <select id="requestedStatus" name="requestedStatus">
+              {ALL_STATUSES.filter((s) => s !== job!.status).map((status) => (
+                <option value={status}>{status}</option>
+              ))}
+            </select>
+          </div>
+          <div class="uikit-form-field">
+            <label for="reason">Reason (required for some transitions)</label>
+            <input id="reason" name="reason" type="text" />
+          </div>
+          <button type="submit" class="uikit-button uikit-button--primary">
+            Update status
+          </button>
+        </form>
+        <p style="color: var(--color-text-muted); font-size: 0.875rem;">
+          Most transitions require an office-manager, dispatcher, or technician role - an
+          owner-admin-only account will see an honest rejection for those, by design.
+        </p>
+      </>
+    ) : (
+      <div class="uikit-error-banner" role="alert">
+        Your account has no business membership yet.
+      </div>
+    )
+  }
+</AdminLayout>
