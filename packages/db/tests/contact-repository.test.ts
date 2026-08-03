@@ -113,3 +113,64 @@ test('finds an existing contact by email when phone is not provided', async () =
     assert.equal(result.contact.id, 'existing-2');
   }
 });
+
+test('getContact returns a contact scoped to the business, and rejects a cross-tenant lookup', async () => {
+  const { repo } = setup([
+    {
+      id: 'contact-1',
+      business_id: BUSINESS_A,
+      display_name: 'Jane Doe',
+      phone: '5551234567',
+      email: 'jane@example.com',
+      created_at: '2025-01-01T00:00:00.000Z',
+    },
+  ]);
+
+  const own = await repo.getContact(BUSINESS_A, 'contact-1');
+  assert.equal(own.ok, true);
+
+  const crossTenant = await repo.getContact(BUSINESS_B, 'contact-1');
+  assert.equal(crossTenant.ok, false);
+});
+
+test("listContacts returns only the calling business's contacts, and supports a search filter", async () => {
+  const { repo } = setup([
+    {
+      id: 'contact-1',
+      business_id: BUSINESS_A,
+      display_name: 'Jane Doe',
+      phone: '5551234567',
+      email: 'jane@example.com',
+      created_at: '2025-01-01T00:00:00.000Z',
+    },
+    {
+      id: 'contact-2',
+      business_id: BUSINESS_A,
+      display_name: 'John Smith',
+      phone: null,
+      email: 'john@example.com',
+      created_at: '2025-01-02T00:00:00.000Z',
+    },
+    {
+      id: 'contact-3',
+      business_id: BUSINESS_B,
+      display_name: 'Other Tenant Contact',
+      phone: null,
+      email: null,
+      created_at: '2025-01-03T00:00:00.000Z',
+    },
+  ]);
+
+  const all = await repo.listContacts(BUSINESS_A);
+  assert.equal(all.ok, true);
+  if (all.ok) {
+    assert.equal(all.contacts.length, 2, "must never include another business's contact");
+  }
+
+  const searched = await repo.listContacts(BUSINESS_A, { search: 'jane' });
+  assert.equal(searched.ok, true);
+  if (searched.ok) {
+    assert.equal(searched.contacts.length, 1);
+    assert.equal(searched.contacts[0].id, 'contact-1');
+  }
+});

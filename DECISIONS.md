@@ -843,6 +843,134 @@ see BUSINESSES.md), or persistence for any entity beyond
 
 ---
 
+## ADR-0011: Admin-console architecture (Astro SSR + Supabase Auth session, RLS-enforced data access) — CRM Milestone 3
+
+**Status**: Confirmed (login/session, dashboard, Leads and Contacts
+modules implemented this sprint; Companies/Estimates/Jobs/Tasks/
+Appointments/Notes/Media explicitly deferred — see scope note)
+
+**Context**: `apps/admin-console` was a fully empty Phase 1 placeholder
+(no framework installed at all — see `.claude/rules/frontend.md`) before
+this milestone. The owner's directive requires an authenticated,
+tenant-aware admin UI covering nine entity types. A repository check at
+the start of this milestone found only `Contact` and `Lead` have any
+persistence (`packages/db`, ADR-0009/ADR-0010); `Job` and `Estimate`
+exist as `packages/core-models` types with no repository; `Company`,
+`Task`, `Appointment`, and `Note` have no type or repository at all.
+Building UI CRUD for entities with no data model would mean fabricating
+one under time pressure or faking the UI against nothing real — both
+explicitly forbidden by the owner's own completion standard. This ADR
+therefore scopes Milestone 3 to what can be real: authentication,
+session handling, and the two entities that already have genuine
+persistence.
+
+**Decision**:
+
+1. **Framework**: Astro with `output: 'server'` (every page is
+   authenticated/dynamic, unlike `apps/greencal-website`'s
+   mostly-static site) plus `@astrojs/vercel` and `@astrojs/react` for
+   interactive islands — reusing the only framework/deployment pattern
+   already proven in this repository, while still satisfying
+   `ARCHITECTURE.md`'s "React/TSX" description for `admin-console`
+   through React islands rather than introducing a second framework
+   (Next.js, etc.) into the repository for the first time.
+2. **Session**: `@supabase/ssr`'s cookie-based server client — secure,
+   httpOnly session cookies refreshed by `src/middleware.ts` on every
+   request; a route not in the allow-list (`/login`,
+   `/forgot-password`, `/reset-password`, their API routes) redirects
+   to `/login` without a valid session.
+3. **Data access uses the anon key, not the service-role key**: unlike
+   `packages/db`'s existing repositories (constructed with the
+   service-role key for GreenCal's trusted server-side intake path),
+   admin-console constructs its Supabase client with the anon key plus
+   the authenticated user's session, so every query is subject to
+   ADR-0010's tenant-scoped RLS policies at the database level - not
+   just the repository layer's own `businessId` filtering. The same
+   `ContactRepository`/`LeadRepository` functions are reused unchanged
+   (they're generic over `MinimalSupabaseClient`); only the client
+   construction differs. Both layers - RLS and repository filtering -
+   now independently enforce tenant isolation for this path.
+4. **`businessId` is never client-supplied**: every admin-console page
+   and API route resolves the current user's business from their real
+   `memberships` row (`user_id = auth.uid()`, enforced by the
+   `memberships_own_select` RLS policy) — never from a query
+   parameter, form field, or request body. This closes the
+   tenant-escalation risk a naive implementation could introduce.
+5. **Audit-safe actions**: a Lead status change made through
+   admin-console records the _real_ authenticated user as `actorId` and
+   maps their `memberships.role` (a `MembershipRole`) directly to
+   `TransitionContext.actorCategory` — no service-account or generic
+   "system" actor is used for a human-initiated action.
+6. **`packages/ui-kit` gains its first real content**: `Button`, `Badge`,
+   `Table`, `EmptyState`, `ErrorBanner`, `LoadingSpinner`, and
+   `FormField` React components plus a small design-token set — per
+   `.claude/rules/frontend.md`'s existing instruction to put shared UI
+   in `ui-kit` rather than duplicating it per app. `admin-console` is
+   the first real consumer; `web-console`/`docs-portal` remain
+   untouched placeholders.
+7. **No public self-registration**: `admin-console` has a login page,
+   not a signup page. The owner's own first user account is created via
+   the Supabase dashboard (Authentication → Users), consistent with
+   normal practice for an internal admin tool serving multiple tenants —
+   self-serve signup would need its own invitation/approval design this
+   ADR does not scope.
+
+**Alternatives considered**:
+
+1. **Next.js (or another framework new to this repository).** Rejected:
+   Astro + `@astrojs/vercel` is the only server-deployment pattern
+   already proven end-to-end here (including the hard-won Vercel
+   packaging fixes documented in `apps/greencal-website/astro.config.mjs`)
+   — introducing a second framework for one app adds real risk and
+   maintenance surface for no clear benefit at this scale.
+2. **Using the service-role key in admin-console, filtering only in the
+   repository layer (as GreenCal's intake path already does).**
+   Rejected: an authenticated, multi-tenant, human-facing admin surface
+   is exactly the scenario RLS exists for — using the anon key here
+   makes tenant isolation a database-enforced guarantee, not just an
+   application-code convention, for the path most likely to eventually
+   need per-role permission nuance.
+3. **Building all nine requested CRUD modules in this milestone,
+   inventing minimal stand-in types/tables for Company/Task/Appointment/
+   Note on the spot.** Rejected: the owner's own completion standard
+   forbids presenting placeholder or mocked work as complete, and a
+   rushed, same-day data model for four new entities would not receive
+   the same design rigor `packages/core-models`' existing entities did.
+
+**Trade-offs**: Deferring seven of nine requested modules means this
+milestone does not fulfill the full original request in one pass —
+mitigated by making the sequencing explicit (see Scope note) rather than
+silently shipping less than asked. Using the anon key plus RLS for every
+admin-console query adds a small amount of session-plumbing complexity
+(middleware, cookie handling) compared to the simpler service-role
+approach, in exchange for a materially stronger tenant-isolation
+guarantee.
+
+**Consequences**:
+
+- `docs/crm/CRM_ARCHITECTURE.md` gains a Milestone 3 section.
+- `ARCHITECTURE.md`'s `apps/admin-console`/`packages/ui-kit` rows are
+  corrected to reflect real implementation.
+- Future CRM milestones (Jobs, Estimates, then Company/Task/Appointment/
+  Note once those gain real `packages/core-models` types and
+  `packages/db` repositories) build UI directly on this same
+  authentication/session/RLS-client pattern.
+
+**Scope note**: This ADR and Milestone 3 authorize: admin-console's
+Astro/Vercel/Supabase-Auth bootstrap, login/logout/password-reset,
+session middleware, the dashboard, and full Lead (list/detail/status
+transition) and Contact (list/detail, read-only) modules. It does
+**not** authorize: Company, Estimate, Job, Task, Appointment, Note, or
+Media persistence or UI (none exist yet - see Context), a live Vercel
+deployment of admin-console (not yet provisioned - see Owner Actions),
+or onboarding GreenCal Mobile Detailing/Navarro Builders as real tenants.
+
+**Related**: [ADR-0009](#adr-0009-packagesdb-persistence-engine-and-crm-milestone-1-scope-leadcontact-persistence-for-the-existing-growth-system-domain-model),
+[ADR-0010](#adr-0010-multi-tenant-crm-foundation-businessesmemberships-tenant-scoped-rls),
+`docs/crm/CRM_ARCHITECTURE.md`, `.claude/rules/frontend.md`.
+
+---
+
 ## Proposed decisions (not yet made)
 
 - Service-to-service communication pattern (REST/gRPC/queue) beyond the

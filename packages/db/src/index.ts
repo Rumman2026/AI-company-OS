@@ -16,10 +16,20 @@ export type {
   ContactRepository,
   FindOrCreateContactInput,
   FindOrCreateContactResult,
+  GetContactResult,
+  ListContactsResult,
+  ListContactsOptions,
 } from './contact-repository';
 
 export { createSupabaseLeadRepository } from './lead-repository';
-export type { LeadRepository, CreateLeadResult, TransitionLeadResult } from './lead-repository';
+export type {
+  LeadRepository,
+  CreateLeadResult,
+  TransitionLeadResult,
+  GetLeadResult,
+  ListLeadsResult,
+  ListLeadsOptions,
+} from './lead-repository';
 
 export { createSupabaseAuditLogRepository } from './audit-log-repository';
 export type { AuditLogRepository, WriteAuditRecordResult } from './audit-log-repository';

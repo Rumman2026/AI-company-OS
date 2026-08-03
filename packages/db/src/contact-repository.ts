@@ -11,6 +11,15 @@ export interface FindOrCreateContactInput {
 export type FindOrCreateContactResult =
   { ok: true; contact: Contact; created: boolean } | { ok: false; error: string };
 
+export type GetContactResult = { ok: true; contact: Contact } | { ok: false; error: string };
+export type ListContactsResult = { ok: true; contacts: Contact[] } | { ok: false; error: string };
+
+export interface ListContactsOptions {
+  readonly search?: string;
+  readonly limit?: number;
+  readonly offset?: number;
+}
+
 export interface ContactRepository {
   /**
    * Looks up an existing contact by phone or email (whichever is
@@ -19,6 +28,10 @@ export interface ContactRepository {
    * application-layer dedup, not a database unique constraint.
    */
   findOrCreateContact(input: FindOrCreateContactInput): Promise<FindOrCreateContactResult>;
+  /** A single Contact, scoped to `businessId`. */
+  getContact(businessId: string, contactId: string): Promise<GetContactResult>;
+  /** Every Contact for `businessId`, optionally filtered by a display-name substring search. */
+  listContacts(businessId: string, options?: ListContactsOptions): Promise<ListContactsResult>;
 }
 
 interface ContactRow {
@@ -84,6 +97,41 @@ export function createSupabaseContactRepository(client: MinimalSupabaseClient): 
       }
 
       return { ok: true, contact: toContact(inserted as ContactRow), created: true };
+    },
+
+    async getContact(businessId, contactId) {
+      const { data, error } = await client
+        .from('contacts')
+        .select('id, display_name, phone, email, created_at')
+        .eq('id', contactId)
+        .eq('business_id', businessId)
+        .single();
+
+      if (error || !data) {
+        return { ok: false, error: error?.message ?? 'contact_not_found' };
+      }
+      return { ok: true, contact: toContact(data as ContactRow) };
+    },
+
+    async listContacts(businessId, options = {}) {
+      let query = client
+        .from('contacts')
+        .select('id, display_name, phone, email, created_at')
+        .eq('business_id', businessId)
+        .order('display_name', { ascending: true });
+
+      if (options.search) query = query.ilike('display_name', `%${options.search}%`);
+      if (typeof options.limit === 'number') {
+        const from = options.offset ?? 0;
+        query = query.range(from, from + options.limit - 1);
+      }
+
+      const { data, error } = await query;
+
+      if (error || !data) {
+        return { ok: false, error: error?.message ?? 'contact_list_failed' };
+      }
+      return { ok: true, contacts: (data as ContactRow[]).map(toContact) };
     },
   };
 }

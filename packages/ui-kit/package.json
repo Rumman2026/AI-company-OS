@@ -6,6 +6,18 @@
   "scripts": {
     "lint": "eslint . --ext .ts,.tsx --no-error-on-unmatched-pattern",
     "format": "prettier --write .",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "tsx --test \"tests/**/*.test.ts\""
+  },
+  "peerDependencies": {
+    "react": "^18.3.0"
+  },
+  "dependencies": {
+    "@ai-company-os/core-models": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.0",
+    "react": "^18.3.0",
+    "tsx": "^4.10.0"
   }
 }

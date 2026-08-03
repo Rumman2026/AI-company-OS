@@ -22,7 +22,28 @@ export function createFakeSupabaseClient(tables: Record<string, FakeTable>) {
   }
 
   function makeSelectChain(rows: Array<Record<string, unknown>>) {
-    let filtered = rows;
+    let filtered = [...rows];
+    let sortCol: string | null = null;
+    let sortAscending = true;
+    let rangeFrom: number | null = null;
+    let rangeTo: number | null = null;
+
+    function materialize() {
+      let result = filtered;
+      if (sortCol) {
+        const col = sortCol;
+        result = [...result].sort((a, b) => {
+          const av = String(a[col]);
+          const bv = String(b[col]);
+          return sortAscending ? av.localeCompare(bv) : bv.localeCompare(av);
+        });
+      }
+      if (rangeFrom !== null && rangeTo !== null) {
+        result = result.slice(rangeFrom, rangeTo + 1);
+      }
+      return result;
+    }
+
     const chain = {
       eq(col: string, value: unknown) {
         filtered = filtered.filter((r) => String(r[col]) === String(value));
@@ -33,16 +54,40 @@ export function createFakeSupabaseClient(tables: Record<string, FakeTable>) {
         filtered = filtered.filter((r) => conditions.some((c) => String(r[c.col]) === c.value));
         return chain;
       },
+      ilike(col: string, pattern: string) {
+        const needle = pattern.replace(/%/g, '').toLowerCase();
+        filtered = filtered.filter((r) =>
+          String(r[col] ?? '')
+            .toLowerCase()
+            .includes(needle),
+        );
+        return chain;
+      },
       limit(_n: number) {
         return chain;
       },
+      order(col: string, opts?: { ascending?: boolean }) {
+        sortCol = col;
+        sortAscending = opts?.ascending ?? true;
+        return chain;
+      },
+      range(from: number, to: number) {
+        rangeFrom = from;
+        rangeTo = to;
+        return chain;
+      },
       async maybeSingle() {
-        return { data: filtered[0] ?? null, error: null };
+        const result = materialize();
+        return { data: result[0] ?? null, error: null };
       },
       async single() {
-        return filtered[0]
-          ? { data: filtered[0], error: null }
+        const result = materialize();
+        return result[0]
+          ? { data: result[0], error: null }
           : { data: null, error: { message: 'not found' } };
+      },
+      then(resolve: (result: { data: Array<Record<string, unknown>>; error: null }) => void) {
+        resolve({ data: materialize(), error: null });
       },
     };
     return chain;

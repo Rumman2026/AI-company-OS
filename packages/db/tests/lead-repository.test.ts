@@ -180,3 +180,69 @@ test('a non-existent lead id is reported as a typed error', async () => {
 
   assert.equal(result.ok, false);
 });
+
+test('getLead returns a lead scoped to the business, and rejects a cross-tenant lookup', async () => {
+  const { repo } = setup([
+    {
+      id: 'lead-1',
+      business_id: BUSINESS_A,
+      contact_id: 'contact-1',
+      status: 'new',
+      attribution: fixtureAttribution,
+      duplicate_of_lead_id: null,
+      created_at: '2026-01-01T00:00:00.000Z',
+    },
+  ]);
+
+  const own = await repo.getLead(BUSINESS_A, 'lead-1');
+  assert.equal(own.ok, true);
+
+  const crossTenant = await repo.getLead(BUSINESS_B, 'lead-1');
+  assert.equal(crossTenant.ok, false);
+});
+
+test("listLeads returns only the calling business's leads, most recent first, and supports a status filter", async () => {
+  const { repo } = setup([
+    {
+      id: 'lead-1',
+      business_id: BUSINESS_A,
+      contact_id: 'contact-1',
+      status: 'new',
+      attribution: fixtureAttribution,
+      duplicate_of_lead_id: null,
+      created_at: '2026-01-01T00:00:00.000Z',
+    },
+    {
+      id: 'lead-2',
+      business_id: BUSINESS_A,
+      contact_id: 'contact-2',
+      status: 'qualified',
+      attribution: fixtureAttribution,
+      duplicate_of_lead_id: null,
+      created_at: '2026-01-02T00:00:00.000Z',
+    },
+    {
+      id: 'lead-3',
+      business_id: BUSINESS_B,
+      contact_id: 'contact-3',
+      status: 'new',
+      attribution: fixtureAttribution,
+      duplicate_of_lead_id: null,
+      created_at: '2026-01-03T00:00:00.000Z',
+    },
+  ]);
+
+  const all = await repo.listLeads(BUSINESS_A);
+  assert.equal(all.ok, true);
+  if (all.ok) {
+    assert.equal(all.leads.length, 2, "must never include another business's lead");
+    assert.ok(all.leads.every((l) => l.id !== 'lead-3'));
+  }
+
+  const qualifiedOnly = await repo.listLeads(BUSINESS_A, { status: 'qualified' });
+  assert.equal(qualifiedOnly.ok, true);
+  if (qualifiedOnly.ok) {
+    assert.equal(qualifiedOnly.leads.length, 1);
+    assert.equal(qualifiedOnly.leads[0].id, 'lead-2');
+  }
+});

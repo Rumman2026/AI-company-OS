@@ -16,6 +16,16 @@ export type CreateLeadResult = { ok: true; lead: Lead } | { ok: false; error: st
 export type TransitionLeadResult =
   { ok: true; result: TransitionResult<LeadStatus, Lead> } | { ok: false; error: string };
 
+export type GetLeadResult = { ok: true; lead: Lead } | { ok: false; error: string };
+export type ListLeadsResult = { ok: true; leads: Lead[] } | { ok: false; error: string };
+
+export interface ListLeadsOptions {
+  readonly status?: LeadStatus;
+  readonly contactId?: string;
+  readonly limit?: number;
+  readonly offset?: number;
+}
+
 export interface LeadRepository {
   /**
    * Inserts a new Lead at its initial 'new' status, scoped to
@@ -45,6 +55,10 @@ export interface LeadRepository {
     requestedStatus: LeadStatus,
     context: TransitionContext,
   ): Promise<TransitionLeadResult>;
+  /** A single Lead, scoped to `businessId`. */
+  getLead(businessId: string, leadId: string): Promise<GetLeadResult>;
+  /** Every Lead for `businessId`, most recent first, optionally filtered by status. */
+  listLeads(businessId: string, options?: ListLeadsOptions): Promise<ListLeadsResult>;
 }
 
 interface LeadRow {
@@ -119,6 +133,42 @@ export function createSupabaseLeadRepository(
       await auditLog.writeAuditRecord(businessId, result.auditRecord);
 
       return { ok: true, result };
+    },
+
+    async getLead(businessId, leadId) {
+      const { data, error } = await client
+        .from('leads')
+        .select('id, contact_id, status, attribution, duplicate_of_lead_id, created_at')
+        .eq('id', leadId)
+        .eq('business_id', businessId)
+        .single();
+
+      if (error || !data) {
+        return { ok: false, error: error?.message ?? 'lead_not_found' };
+      }
+      return { ok: true, lead: toLead(data as LeadRow) };
+    },
+
+    async listLeads(businessId, options = {}) {
+      let query = client
+        .from('leads')
+        .select('id, contact_id, status, attribution, duplicate_of_lead_id, created_at')
+        .eq('business_id', businessId)
+        .order('created_at', { ascending: false });
+
+      if (options.status) query = query.eq('status', options.status);
+      if (options.contactId) query = query.eq('contact_id', options.contactId);
+      if (typeof options.limit === 'number') {
+        const from = options.offset ?? 0;
+        query = query.range(from, from + options.limit - 1);
+      }
+
+      const { data, error } = await query;
+
+      if (error || !data) {
+        return { ok: false, error: error?.message ?? 'lead_list_failed' };
+      }
+      return { ok: true, leads: (data as LeadRow[]).map(toLead) };
     },
   };
 }
