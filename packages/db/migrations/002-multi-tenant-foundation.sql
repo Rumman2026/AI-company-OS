@@ -101,41 +101,61 @@ create index if not exists audit_log_business_id_idx on audit_log (business_id);
 -- Auth users - the future admin-console). The service-role key continues
 -- to bypass RLS entirely, as it does today - these policies only ever
 -- apply to a real logged-in user's session.
-create policy if not exists businesses_member_select on businesses
+--
+-- CREATE POLICY has no IF NOT EXISTS clause in PostgreSQL (unlike CREATE
+-- TABLE/INDEX/EXTENSION) - DROP POLICY IF EXISTS + CREATE POLICY is the
+-- correct idempotent pattern, used throughout below. An earlier version
+-- of this file used the invalid `create policy if not exists` syntax,
+-- which is a parse error - and because the Supabase SQL Editor runs a
+-- pasted multi-statement script as one implicit transaction, that error
+-- rolled back everything earlier in the same paste too (businesses,
+-- memberships, the seed row, the business_id columns/backfill), even
+-- though those statements had executed without error up to that point.
+
+drop policy if exists businesses_member_select on businesses;
+create policy businesses_member_select on businesses
   for select to authenticated
   using (id in (select business_id from memberships where user_id = auth.uid()));
 
-create policy if not exists memberships_own_select on memberships
+drop policy if exists memberships_own_select on memberships;
+create policy memberships_own_select on memberships
   for select to authenticated
   using (user_id = auth.uid());
 
-create policy if not exists contacts_tenant_select on contacts
+drop policy if exists contacts_tenant_select on contacts;
+create policy contacts_tenant_select on contacts
   for select to authenticated
   using (business_id in (select business_id from memberships where user_id = auth.uid()));
 
-create policy if not exists contacts_tenant_insert on contacts
+drop policy if exists contacts_tenant_insert on contacts;
+create policy contacts_tenant_insert on contacts
   for insert to authenticated
   with check (business_id in (select business_id from memberships where user_id = auth.uid()));
 
-create policy if not exists contacts_tenant_update on contacts
+drop policy if exists contacts_tenant_update on contacts;
+create policy contacts_tenant_update on contacts
   for update to authenticated
   using (business_id in (select business_id from memberships where user_id = auth.uid()))
   with check (business_id in (select business_id from memberships where user_id = auth.uid()));
 
-create policy if not exists leads_tenant_select on leads
+drop policy if exists leads_tenant_select on leads;
+create policy leads_tenant_select on leads
   for select to authenticated
   using (business_id in (select business_id from memberships where user_id = auth.uid()));
 
-create policy if not exists leads_tenant_insert on leads
+drop policy if exists leads_tenant_insert on leads;
+create policy leads_tenant_insert on leads
   for insert to authenticated
   with check (business_id in (select business_id from memberships where user_id = auth.uid()));
 
-create policy if not exists leads_tenant_update on leads
+drop policy if exists leads_tenant_update on leads;
+create policy leads_tenant_update on leads
   for update to authenticated
   using (business_id in (select business_id from memberships where user_id = auth.uid()))
   with check (business_id in (select business_id from memberships where user_id = auth.uid()));
 
-create policy if not exists audit_log_tenant_select on audit_log
+drop policy if exists audit_log_tenant_select on audit_log;
+create policy audit_log_tenant_select on audit_log
   for select to authenticated
   using (business_id in (select business_id from memberships where user_id = auth.uid()));
 
