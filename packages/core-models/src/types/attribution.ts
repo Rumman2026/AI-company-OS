@@ -15,7 +15,16 @@ export type AttributionChannel =
   | 'referral'
   | 'direct'
   | 'ai-search-referral'
-  | 'offline';
+  | 'offline'
+  /**
+   * No attribution/UTM instrumentation was in place to capture a real
+   * channel for this Lead - distinct from `direct`, which asserts the
+   * more specific (and unverifiable without real referrer/UTM data) claim
+   * that the visitor arrived with no referrer at all. Added for
+   * DECISIONS.md ADR-0009's GreenCal intake wiring, which has no
+   * UTM/referrer capture today - see `channel` field docs.
+   */
+  | 'unknown';
 
 export interface LeadAttribution {
   readonly firstUtmSource?: string;

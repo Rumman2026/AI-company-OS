@@ -45,6 +45,16 @@ provisioned, connected, or deployed.
 | [docs/cloud/IMPLEMENTATION_CHECKLIST.md](cloud/IMPLEMENTATION_CHECKLIST.md)                               | Stage-by-stage status for this track                                 | Checking what's done vs. pending                                 |
 | [docs/agents/GREENCAL_WEBSITE_AND_LEAD_HEALTH_AGENT.md](agents/GREENCAL_WEBSITE_AND_LEAD_HEALTH_AGENT.md) | Design of the first always-on business agent                         | Working on the GreenCal website/lead health agent                |
 
+## CRM documents (`docs/crm/`)
+
+Added under [DECISIONS.md](../DECISIONS.md) ADR-0009. Milestone 1 is real
+and wired into GreenCal's live production intake (not a mock or plan) —
+see the document itself for the honest done-vs-deferred breakdown.
+
+| Document                                                | Purpose                                                                                                                       | When to read                                                                  |
+| ------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------- |
+| [docs/crm/CRM_ARCHITECTURE.md](crm/CRM_ARCHITECTURE.md) | What's implemented (Contact/Lead persistence + GreenCal intake wiring) vs. deferred (everything else in the CRM feature list) | Working on `packages/db`, `packages/core-models`, or any future CRM milestone |
+
 ## Path-scoped rules (`.claude/rules/`)
 
 Auto-load only when the session touches a matching path.

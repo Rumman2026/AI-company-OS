@@ -18,7 +18,10 @@ import type {
   InsertLeadResult,
   QuoteLeadInsertRow,
 } from '../src/lib/quote-form/lead-store';
-import { createSupabaseResendAdapter } from '../src/lib/quote-form/supabase-resend-adapter';
+import {
+  createSupabaseResendAdapter,
+  type CrmIntake,
+} from '../src/lib/quote-form/supabase-resend-adapter';
 import type { NormalizedQuoteInput } from '../src/lib/quote-form/types';
 
 // Pure-logic tests for the Stage 4A quote-delivery orchestration. No real
@@ -175,16 +178,19 @@ function createFakeLeadStore(
   notificationCalls: unknown[];
   customerConfirmationCalls: unknown[];
   testLeadCalls: string[];
+  crmLinkCalls: Array<{ leadId: string; crmLeadId: string }>;
 } {
   const insertCalls: QuoteLeadInsertRow[] = [];
   const notificationCalls: unknown[] = [];
   const customerConfirmationCalls: unknown[] = [];
   const testLeadCalls: string[] = [];
+  const crmLinkCalls: Array<{ leadId: string; crmLeadId: string }> = [];
   return {
     insertCalls,
     notificationCalls,
     customerConfirmationCalls,
     testLeadCalls,
+    crmLinkCalls,
     async insertLead(row) {
       insertCalls.push(row);
       if (behavior.insert) return behavior.insert(row);
@@ -198,6 +204,25 @@ function createFakeLeadStore(
     },
     async markTestLead(leadId) {
       testLeadCalls.push(leadId);
+    },
+    async linkCrmLead(leadId, crmLeadId) {
+      crmLinkCalls.push({ leadId, crmLeadId });
+    },
+  };
+}
+
+function createFakeCrmIntake(
+  result: { ok: true; crmLeadId: string } | { ok: false; error: string } = {
+    ok: true,
+    crmLeadId: 'crm-lead-1',
+  },
+): CrmIntake & { calls: Array<{ fullName: string; phone: string; email: string }> } {
+  const calls: Array<{ fullName: string; phone: string; email: string }> = [];
+  return {
+    calls,
+    async recordLead(input) {
+      calls.push(input);
+      return result;
     },
   };
 }
@@ -392,6 +417,82 @@ test.describe('createSupabaseResendAdapter - approved delivery policy', () => {
       const result = await adapter.submit(VALID_INPUT, context);
       expect(result.status).not.toBe('success');
     }
+  });
+
+  test('with no CrmIntake injected, behavior is unchanged (backward compatible)', async () => {
+    const store = createFakeLeadStore();
+    const notifier = createFakeNotifier({ ok: true, providerId: 'resend-1' });
+    const adapter = createSupabaseResendAdapter(store, notifier);
+
+    const result = await adapter.submit(VALID_INPUT, context);
+
+    expect(result.status).toBe('success');
+    expect(store.crmLinkCalls).toHaveLength(0);
+  });
+
+  test('a fresh store with a CrmIntake injected records exactly one CRM lead and links it', async () => {
+    const store = createFakeLeadStore();
+    const notifier = createFakeNotifier({ ok: true, providerId: 'resend-1' });
+    const crm = createFakeCrmIntake({ ok: true, crmLeadId: 'crm-lead-42' });
+    const adapter = createSupabaseResendAdapter(store, notifier, crm);
+
+    const result = await adapter.submit(VALID_INPUT, context);
+
+    expect(result.status).toBe('success');
+    expect(crm.calls).toEqual([
+      { fullName: VALID_INPUT.fullName, phone: VALID_INPUT.phone, email: VALID_INPUT.email },
+    ]);
+    expect(store.crmLinkCalls).toHaveLength(1);
+    expect(store.crmLinkCalls[0].crmLeadId).toBe('crm-lead-42');
+    if (result.status === 'success') {
+      expect(store.crmLinkCalls[0].leadId).toBe(result.leadId);
+    }
+  });
+
+  test('an idempotent replay never creates a second CRM lead', async () => {
+    const store = createFakeLeadStore({
+      insert: () => ({
+        ok: true,
+        row: { leadId: 'existing-lead-id', createdAt: '2026-01-01T00:00:00.000Z' },
+        duplicate: true,
+      }),
+    });
+    const notifier = createFakeNotifier({ ok: true, providerId: 'resend-1' });
+    const crm = createFakeCrmIntake();
+    const adapter = createSupabaseResendAdapter(store, notifier, crm);
+
+    await adapter.submit(VALID_INPUT, context);
+
+    expect(crm.calls).toHaveLength(0);
+    expect(store.crmLinkCalls).toHaveLength(0);
+  });
+
+  test('a CrmIntake failure never affects the returned result and never links a lead', async () => {
+    const store = createFakeLeadStore();
+    const notifier = createFakeNotifier({ ok: true, providerId: 'resend-1' });
+    const crm = createFakeCrmIntake({ ok: false, error: 'crm insert failed' });
+    const adapter = createSupabaseResendAdapter(store, notifier, crm);
+
+    const result = await adapter.submit(VALID_INPUT, context);
+
+    expect(result.status).toBe('success');
+    expect(crm.calls).toHaveLength(1);
+    expect(store.crmLinkCalls).toHaveLength(0);
+  });
+
+  test('a CrmIntake that throws never affects the returned result', async () => {
+    const store = createFakeLeadStore();
+    const notifier = createFakeNotifier({ ok: true, providerId: 'resend-1' });
+    const throwingCrm: CrmIntake = {
+      async recordLead() {
+        throw new Error('unexpected CRM failure');
+      },
+    };
+    const adapter = createSupabaseResendAdapter(store, notifier, throwingCrm);
+
+    const result = await adapter.submit(VALID_INPUT, context);
+
+    expect(result.status).toBe('success');
   });
 
   test('generates a fresh, well-formed lead id and ISO timestamp for a new lead', async () => {

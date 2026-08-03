@@ -599,9 +599,140 @@ new apps.
 
 ---
 
+## ADR-0009: `packages/db` persistence engine, and CRM Milestone 1 scope (Lead/Contact persistence for the existing Growth System domain model)
+
+**Status**: Confirmed (Milestone 1 implemented this sprint; remaining CRM
+feature scope explicitly deferred — see scope note)
+
+**Context**: The owner's "Master Scope Consolidation" directive requires
+advancing an internal CRM (System 3) as the next highest-priority,
+non-blocked system, following GreenCal's production launch. A repository
+audit before starting this work found that `packages/core-models` is
+**not** the empty placeholder `ARCHITECTURE.md` describes — it already
+contains a complete, tested, pure domain model (README: "GreenCal
+Lead-to-Job-to-Content growth system") covering ~28 typed entities
+(`Lead`, `Contact`, `Customer`, `Estimate`, `Booking`, `Job`, `Invoice`,
+`Payment`, `ReviewRequest`, `ContentDraft`, `PublishedProject`,
+`FormSubmission`, `CallRecord`, `AuditLog`, and more) and five full state
+machines (Lead, Job, Invoice, Content, Review Request) with authorization
+rules, precondition checks, and typed audit-record output — built from a
+prior "GreenCal Phase 2A" planning conversation this session has no
+transcript of. That package's own README is explicit that persistence,
+API routes, UI, and authentication were **deliberately excluded** from
+that slice. `packages/db` remained a literal one-line placeholder
+(`export const dbPlaceholder = 'db placeholder'`), and ADR-0008 explicitly
+left "database engine/ORM for `packages/db`" as a deferred TBD.
+
+This ADR resolves that TBD and scopes the first real CRM milestone as
+**persistence for the existing `Lead`/`Contact` domain model**, not a new
+domain model — building a second, competing set of lead/contact types
+would violate the repository's own reuse requirement and would discard
+already-tested authorization/audit logic.
+
+**Decision**:
+
+1. **Persistence engine**: `packages/db` uses **Supabase/Postgres**, via
+   `@supabase/supabase-js`, with plain, hand-written, owner-run SQL
+   migration files — no ORM, no migration-runner tool. This matches the
+   only persistence pattern already proven in production
+   (`apps/greencal-website`'s `quote_leads` table and its
+   `supabase-schema.sql`/`supabase-migration-002-*.sql` files), keeps one
+   database technology across the platform, and avoids introducing a
+   second, inconsistent persistence convention.
+2. **New tables, not a rewrite of `quote_leads`**: `contacts`, `leads`,
+   and `audit_log` are new tables implementing `packages/core-models`'
+   existing `Contact`/`Lead`/`AuditLog` shapes exactly (same status enum,
+   same field names translated to snake_case). `quote_leads` (GreenCal's
+   live, revenue-critical form-submission record) is left completely
+   unmodified except one new, additive, nullable `lead_id` column — it
+   plays the role of the existing `FormSubmission` type (raw intake
+   record, optionally linked to a `Lead`), not the CRM `Lead` entity
+   itself.
+3. **State transitions only through the existing state machine**: the new
+   `LeadRepository.transitionLead()` calls `core-models`'
+   `transitionLead()` for every status change and persists exactly the
+   `entity`/`auditRecord` it returns — it never writes a raw status column
+   directly. An illegal or unauthorized transition request is rejected
+   before touching the database, preserving the guarantees
+   `packages/core-models`' tests already established.
+4. **Best-effort, non-breaking intake wiring**: GreenCal's real production
+   lead-submission path (`supabase-resend-adapter.ts`) gains one
+   best-effort, try/catch-wrapped call — after a successful fresh
+   `quote_leads` insert, find-or-create the `Contact`, create the `Lead`,
+   and link `quote_leads.lead_id` — using the exact same never-fail
+   pattern already established for `markTestLead`/
+   `markCustomerConfirmationStatus`. A failure here can never change the
+   customer-facing `QuoteSubmissionResult` or risk the already-working
+   insert path.
+5. **Authorization model for now**: only the Supabase service-role key
+   (server-only) can access the new tables — RLS enabled, no
+   anon/authenticated policies yet. An authenticated owner-role UI
+   (`apps/admin-console`) is explicitly **deferred** to a later milestone;
+   building real Supabase Auth wiring, RBAC, and a deployed console in the
+   same pass as the data model was judged too large for one bounded
+   cluster (see Scope note).
+
+**Alternatives considered**:
+
+1. **Design a new, parallel CRM data model from scratch.** Rejected:
+   `packages/core-models` already has a more rigorous, tested design
+   (typed state machines, authorization rules, audit contracts) than
+   anything that could be safely written in one pass — reusing it is both
+   less work and higher quality.
+2. **Extend `quote_leads` itself into the CRM `Lead` entity** (add
+   `contact_id`, full state-machine columns directly onto it). Rejected:
+   conflates the raw, revenue-critical form-submission record with the
+   richer CRM entity, and the master directive itself says "reuse
+   production lead records — do not create a second lead database," which
+   this ADR satisfies via linkage (`quote_leads.lead_id`) rather than
+   duplication or in-place mutation of a table already serving production
+   traffic.
+3. **An ORM (Prisma/Drizzle) for `packages/db`.** Rejected for this
+   milestone: introduces a second persistence convention alongside the
+   proven hand-written-SQL pattern, for no benefit at current scale;
+   revisit only if a real need (complex query composition, cross-table
+   type generation at scale) appears later.
+
+**Trade-offs**: Hand-written SQL migrations mean no automatic schema-drift
+detection or rollback tooling — acceptable at current scale and
+consistent with the existing GreenCal precedent. Deferring the
+authenticated owner UI means Milestone 1 is real, tested, and wired into
+production intake, but not yet something the owner can see or act on
+through a web page — it currently updates only via direct Supabase table
+access or a future admin-console milestone.
+
+**Consequences**:
+
+- `ARCHITECTURE.md`'s package-boundaries table entries for
+  `packages/core-models` and `packages/db` are corrected to reflect actual
+  repository state (the former was significantly underdescribed).
+- `docs/crm/CRM_ARCHITECTURE.md` is created, documenting what is actually
+  implemented (persistence + intake wiring) versus the full CRM feature
+  list from the master directive, classified honestly.
+- Every future CRM milestone (companies, deals, jobs, estimates,
+  appointments, calls, tasks, campaigns, the authenticated `admin-console`
+  UI, search/filter/CSV export/reporting) builds on this same
+  `packages/core-models` domain model and `packages/db` persistence
+  convention rather than introducing new ones.
+
+**Scope note**: This ADR and this sprint's Milestone 1 authorize only:
+the `contacts`/`leads`/`audit_log` tables, their RLS (service-role only),
+`packages/db`'s repository implementation and tests, and the best-effort
+GreenCal intake wiring described above. It does **not** authorize: an
+authenticated admin-console UI, companies/deals/jobs/estimates/
+appointments/calls/tasks/campaigns persistence, CSV export, reporting, or
+any change to `quote_leads`' existing columns beyond the one additive
+`lead_id` link.
+
+**Related**: [ARCHITECTURE.md](ARCHITECTURE.md),
+`docs/crm/CRM_ARCHITECTURE.md`,
+[ADR-0008](#adr-0008-cost-efficient-multi-model-cloud-infrastructure-direction-hostinger-vps--docker-compose-provider-neutral-ai-gateway),
+`apps/greencal-website/src/lib/quote-form/README.md`.
+
+---
+
 ## Proposed decisions (not yet made)
 
-- Database engine and ORM for `packages/db` — **Proposed / TBD**.
 - Service-to-service communication pattern (REST/gRPC/queue) beyond the
   new task-router/job-queue placeholders (see ADR-0008) — **Proposed /
   TBD**.

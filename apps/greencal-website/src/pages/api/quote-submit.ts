@@ -5,6 +5,7 @@ import { getServerConfig } from '../../lib/quote-form/server-config';
 import { createSupabaseLeadStore } from '../../lib/quote-form/lead-store';
 import { createResendNotificationSender } from '../../lib/quote-form/notification-sender';
 import { createSupabaseResendAdapter } from '../../lib/quote-form/supabase-resend-adapter';
+import { createSupabaseCrmIntake } from '../../lib/quote-form/crm-intake-adapter';
 import type { QuoteSubmissionResult } from '../../lib/quote-form/types';
 
 // The single on-demand route in this otherwise fully static app - see
@@ -62,6 +63,7 @@ export const POST: APIRoute = async ({ request }) => {
           serverConfig.resendFromAddress,
           serverConfig.notificationRecipientEmail,
         ),
+        createSupabaseCrmIntake(serverConfig.supabaseUrl, serverConfig.supabaseServiceRoleKey),
       )
     : unavailableAdapter;
 

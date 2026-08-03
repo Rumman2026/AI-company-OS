@@ -430,6 +430,21 @@ pre-existing `markNotificationStatus`. No admin UI exists yet to update
 `status` after the fact - use the Supabase table editor directly, or
 build a future admin tool.
 
+## CRM intake linking (DECISIONS.md ADR-0009)
+
+`crm-intake-adapter.ts` best-effort creates a `Contact`+`Lead` record in
+the new `packages/db`-backed CRM tables (`contacts`, `leads`,
+`audit_log` - see `docs/crm/CRM_ARCHITECTURE.md`) for every fresh, real
+submission, and links it back via `quote_leads.lead_id`
+(`supabase-migration-003-crm-link.sql`, run once after
+`packages/db/migrations/001-crm-foundation.sql`). Every Lead status
+change after creation routes through `packages/core-models`'
+`transitionLead()` state machine, never a raw column write. This is
+entirely additive: a missing table, a linking failure, or the
+`CrmIntake` parameter being omitted all leave lead storage, owner
+notification, and customer confirmation completely unaffected - see the
+`supabase-resend-adapter.ts` tests covering this.
+
 ## Remaining owner setup actions
 
 1. ~~Provision/confirm the GreenCal-owned Supabase project and run
@@ -452,6 +467,10 @@ build a future admin tool.
    `notification_status` is `failed` (the lead is safely stored but the
    email didn't go out - see "Approved delivery and success policy" #6).
 5. Decide a data-retention policy for `quote_leads`.
+6. Run `packages/db/migrations/001-crm-foundation.sql` then
+   `supabase-migration-003-crm-link.sql` (both additive, safe at any
+   time) to activate CRM intake linking - see "CRM intake linking"
+   above and `docs/crm/CRM_ARCHITECTURE.md`.
 
 ## Production verification record (2026-07-26)
 

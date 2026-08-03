@@ -99,14 +99,35 @@ repository evidence.
   Lead-to-Job-to-Content growth system's domain layer — branded IDs, a
   floating-point-free `Money` type, and full state-machine behavior (typed
   transitions, actor authorization, precondition evidence) for five
-  lifecycles: Lead, Job, Invoice, Content, and Review Request. No database,
+  lifecycles: Lead, Job, Invoice, Content, and Review Request. Still no
   API, UI, or provider integration.
-- This is a separate track from Phase 2A (the GreenCal website) — it
-  does not touch `apps/greencal-website`, and the website does not yet
-  consume it.
 - This is the first repository evidence toward Phase 2's "core domain
   models" component below. Phase 2 as a whole is **not** complete — auth
-  and the database layer remain unimplemented placeholders.
+  remains an unimplemented placeholder.
+
+**CRM Milestone 1 (in progress) — persistence + GreenCal intake wiring (`packages/db`, ADR-0009)**
+
+- Scope: see [DECISIONS.md](DECISIONS.md) ADR-0009 and
+  `docs/crm/CRM_ARCHITECTURE.md` for the full, honest done-vs-deferred
+  breakdown.
+- Implemented with repository evidence: real Supabase-backed
+  `ContactRepository`/`LeadRepository`/`AuditLogRepository` in
+  `packages/db` (11/11 unit tests passing, hand-written SQL migration);
+  every Lead status change routes through `packages/core-models`'
+  existing `transitionLead()` state machine, never a raw column write.
+  `apps/greencal-website`'s live production intake path
+  (`supabase-resend-adapter.ts`) gained a best-effort, non-breaking call
+  that creates a `Contact`+`Lead` for every fresh real submission and
+  links it back via `quote_leads.lead_id` — this is the first place
+  `packages/core-models` is actually consumed outside its own tests.
+- **Not done**: the two new migrations have not yet been run against the
+  real Supabase project (owner action — see
+  `docs/crm/CRM_ARCHITECTURE.md`), so no real `contacts`/`leads` row
+  exists in production yet. No authenticated owner interface exists
+  (`apps/admin-console` remains an empty Phase 1 placeholder) — viewing
+  or changing CRM data today requires direct Supabase table access.
+  Companies, deals, jobs, estimates, appointments, calls, tasks,
+  campaigns, search/filter/reporting, and RBAC are all unimplemented.
 
 ## Proposed future phases
 

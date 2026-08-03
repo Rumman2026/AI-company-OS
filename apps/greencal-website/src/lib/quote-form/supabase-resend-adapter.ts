@@ -6,6 +6,24 @@ import type { QuoteSubmissionAdapter, QuoteSubmissionContext } from './adapter';
 import type { NormalizedQuoteInput, QuoteSubmissionResult } from './types';
 
 /**
+ * The narrow, fake-testable boundary this adapter depends on for CRM
+ * intake (see packages/db and DECISIONS.md ADR-0009) - deliberately not a
+ * direct reference to @ai-company-os/db's repositories, so this file
+ * stays unit-testable with a simple fake and has no real Supabase SDK
+ * reference of its own (matching the LeadStore/NotificationSender
+ * pattern already used here). Optional: when omitted, no CRM record is
+ * created and the quote-form pipeline behaves exactly as before this
+ * milestone.
+ */
+export interface CrmIntake {
+  recordLead(input: {
+    fullName: string;
+    phone: string;
+    email: string;
+  }): Promise<{ ok: true; crmLeadId: string } | { ok: false; error: string }>;
+}
+
+/**
  * The approved delivery/success policy, implemented as pure orchestration
  * over injected LeadStore/NotificationSender dependencies - no real
  * Supabase or Resend SDK reference here, so this is fully unit-testable
@@ -30,10 +48,15 @@ import type { NormalizedQuoteInput, QuoteSubmissionResult } from './types';
  *    safely stored and the owner path already governs delivery_failed
  *    vs success; the customer confirmation is a best-effort courtesy on
  *    top of that, not a second delivery-critical channel.
+ * 7. For a fresh store, also best-effort create a CRM Lead/Contact record
+ *    (see DECISIONS.md ADR-0009) when a CrmIntake was injected. Its
+ *    outcome never changes the returned QuoteSubmissionResult, same
+ *    rationale as the customer confirmation above.
  */
 export function createSupabaseResendAdapter(
   store: LeadStore,
   notifier: NotificationSender,
+  crm?: CrmIntake,
 ): QuoteSubmissionAdapter {
   return {
     name: 'supabase-resend',
@@ -71,6 +94,26 @@ export function createSupabaseResendAdapter(
         // owner notification or a second customer confirmation for the
         // same content.
         return { status: 'success', leadId: row.leadId, submittedAt: row.createdAt };
+      }
+
+      // Best-effort, non-blocking CRM record creation for a fresh store
+      // (see DECISIONS.md ADR-0009) - never affects the returned
+      // QuoteSubmissionResult, and only runs when a CrmIntake was
+      // actually injected (see src/pages/api/quote-submit.ts).
+      if (crm) {
+        try {
+          const crmResult = await crm.recordLead({
+            fullName: input.fullName,
+            phone: input.phone,
+            email: input.email,
+          });
+          if (crmResult.ok) {
+            await store.linkCrmLead(row.leadId, crmResult.crmLeadId);
+          }
+        } catch {
+          // Best-effort only - a CRM-intake failure must never affect
+          // lead storage, notification, or the returned result.
+        }
       }
 
       const notificationPayload = {

@@ -21,6 +21,8 @@
   },
   "dependencies": {
     "@astrojs/vercel": "^11.0.3",
+    "@ai-company-os/core-models": "workspace:*",
+    "@ai-company-os/db": "workspace:*",
     "@supabase/supabase-js": "^2.110.8",
     "resend": "^6.18.0",
     "tslib": "^2.8.1"

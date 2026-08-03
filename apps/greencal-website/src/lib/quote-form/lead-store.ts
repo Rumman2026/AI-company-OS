@@ -50,6 +50,15 @@ export interface LeadStore {
    * run) must never affect the returned QuoteSubmissionResult.
    */
   markTestLead(leadId: string): Promise<void>;
+  /**
+   * Best-effort link from this quote_leads row to the new CRM `leads`
+   * table (see packages/db and DECISIONS.md ADR-0009). Tolerant of the
+   * `lead_id` column not existing yet (before
+   * supabase-migration-003-crm-link.sql is run) or the linking attempt
+   * failing for any other reason - never breaks the insert path or the
+   * returned result.
+   */
+  linkCrmLead(leadId: string, crmLeadId: string): Promise<void>;
 }
 
 const POSTGRES_UNIQUE_VIOLATION = '23505';
@@ -215,6 +224,14 @@ export function createSupabaseLeadStore(url: string, serviceRoleKey: string): Le
         // Best-effort only - tolerant of the is_test_lead column not
         // existing yet. Never breaks the insert path or the returned
         // result.
+      }
+    },
+
+    async linkCrmLead(leadId, crmLeadId) {
+      try {
+        await client.from('quote_leads').update({ lead_id: crmLeadId }).eq('lead_id', leadId);
+      } catch {
+        // Best-effort only, same rationale as markTestLead above.
       }
     },
   };

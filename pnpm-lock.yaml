@@ -114,6 +114,12 @@ importers:
 
   apps/greencal-website:
     dependencies:
+      '@ai-company-os/core-models':
+        specifier: workspace:*
+        version: link:../../packages/core-models
+      '@ai-company-os/db':
+        specifier: workspace:*
+        version: link:../../packages/db
       '@astrojs/vercel':
         specifier: ^11.0.3
         version: 11.0.3(astro@7.0.7(@emnapi/core@1.11.1)(@emnapi/runtime@1.11.2)(@types/node@20.19.43)(@vercel/functions@3.7.5)(tsx@4.23.0)(yaml@2.9.0))
@@ -232,7 +238,18 @@ importers:
         specifier: ^4.10.0
         version: 4.23.0
 
-  packages/db: {}
+  packages/db:
+    dependencies:
+      '@ai-company-os/core-models':
+        specifier: workspace:*
+        version: link:../core-models
+      '@supabase/supabase-js':
+        specifier: ^2.110.8
+        version: 2.110.8
+    devDependencies:
+      tsx:
+        specifier: ^4.10.0
+        version: 4.23.0
 
   packages/job-queue:
     devDependencies:

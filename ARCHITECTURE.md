@@ -55,30 +55,35 @@ Compose wiring — their (future) cloud-stack ports/env are defined in
 
 ## Confirmed: package boundaries
 
-| Package                      | Role                                                                     |
-| ---------------------------- | ------------------------------------------------------------------------ |
-| `packages/auth`              | Shared authentication utilities                                          |
-| `packages/db`                | Shared database utilities / repository abstractions                      |
-| `packages/core-models`       | Shared domain types and model definitions                                |
-| `packages/agent-sdk`         | Shared AI agent interfaces and provider-neutral contracts (ADR-0008)     |
-| `packages/toolkit`           | Shared tooling and helper utilities                                      |
-| `packages/telemetry`         | Shared telemetry instrumentation helpers                                 |
-| `packages/platform-utils`    | Shared platform utility helpers                                          |
-| `packages/ui-kit`            | Shared UI components and design tokens                                   |
-| `packages/provider-adapters` | Placeholder adapters for the 7 approved AI providers (ADR-0008)          |
-| `packages/task-router`       | Deterministic-first task routing (ADR-0008)                              |
-| `packages/context-builder`   | Compact, task-scoped context packages (ADR-0008)                         |
-| `packages/semantic-cache`    | Normalized-key response cache (ADR-0008)                                 |
-| `packages/policy-engine`     | Escalation and authority rule enforcement (ADR-0008)                     |
-| `packages/job-queue`         | In-memory job queue for agent-worker execution (ADR-0008)                |
-| `packages/audit-logger`      | Secret-redacted audit trail, distinct from telemetry (ADR-0008)          |
-| `packages/cost-controller`   | Per-provider/agent/business budget tracking and kill switches (ADR-0008) |
+| Package                      | Role                                                                                                                                                                                                                                                |
+| ---------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `packages/auth`              | Shared authentication utilities                                                                                                                                                                                                                     |
+| `packages/db`                | Persistence (Supabase/Postgres) for the domain model in `packages/core-models` - real `Contact`/`Lead`/`AuditLog` repositories as of DECISIONS.md ADR-0009                                                                                          |
+| `packages/core-models`       | Real, tested, pure domain model for a GreenCal-originated "Lead-to-Job-to-Content growth system" - ~28 typed entities and five state machines (Lead, Job, Invoice, Content, Review Request); no persistence, API, or UI of its own (see its README) |
+| `packages/agent-sdk`         | Shared AI agent interfaces and provider-neutral contracts (ADR-0008)                                                                                                                                                                                |
+| `packages/toolkit`           | Shared tooling and helper utilities                                                                                                                                                                                                                 |
+| `packages/telemetry`         | Shared telemetry instrumentation helpers                                                                                                                                                                                                            |
+| `packages/platform-utils`    | Shared platform utility helpers                                                                                                                                                                                                                     |
+| `packages/ui-kit`            | Shared UI components and design tokens                                                                                                                                                                                                              |
+| `packages/provider-adapters` | Placeholder adapters for the 7 approved AI providers (ADR-0008)                                                                                                                                                                                     |
+| `packages/task-router`       | Deterministic-first task routing (ADR-0008)                                                                                                                                                                                                         |
+| `packages/context-builder`   | Compact, task-scoped context packages (ADR-0008)                                                                                                                                                                                                    |
+| `packages/semantic-cache`    | Normalized-key response cache (ADR-0008)                                                                                                                                                                                                            |
+| `packages/policy-engine`     | Escalation and authority rule enforcement (ADR-0008)                                                                                                                                                                                                |
+| `packages/job-queue`         | In-memory job queue for agent-worker execution (ADR-0008)                                                                                                                                                                                           |
+| `packages/audit-logger`      | Secret-redacted audit trail, distinct from telemetry (ADR-0008)                                                                                                                                                                                     |
+| `packages/cost-controller`   | Per-provider/agent/business budget tracking and kill switches (ADR-0008)                                                                                                                                                                            |
 
-`packages/auth`, `db`, `toolkit`, `platform-utils`, and `ui-kit` contain
-only a placeholder `src/index.ts` — no implementation. `packages/agent-sdk`
-now contains real provider-neutral contracts (types only, no logic); the
-nine packages added under ADR-0008 contain real, tested placeholder
-logic but make no real AI-provider network call anywhere.
+`packages/auth`, `toolkit`, `platform-utils`, and `ui-kit` contain only a
+placeholder `src/index.ts` — no implementation. `packages/agent-sdk` now
+contains real provider-neutral contracts (types only, no logic); the nine
+packages added under ADR-0008 contain real, tested placeholder logic but
+make no real AI-provider network call anywhere. `packages/core-models`
+contains a real, tested, pure domain model (no persistence/API/UI - see
+its README); `packages/db` contains real Supabase-backed persistence for
+a first slice of that model (`Contact`, `Lead`, `AuditLog`) as of
+DECISIONS.md ADR-0009 — see `docs/crm/CRM_ARCHITECTURE.md` for what is
+and is not implemented.
 
 ## Confirmed: platform boundaries
 
@@ -97,9 +102,19 @@ logic but make no real AI-provider network call anywhere.
 
 ## Present data and integration architecture
 
-None implemented yet. `packages/db` and `packages/core-models` are
-placeholders with no schema, migrations, or ORM configuration present in
-the repository.
+- **GreenCal's live production lead pipeline**: Supabase/Postgres
+  `quote_leads` table (`apps/greencal-website`, see ADR-0006 and
+  `supabase-schema.sql`), reached only from a trusted Vercel serverless
+  function using the service-role key.
+- **CRM foundation (Milestone 1, ADR-0009)**: `packages/core-models`
+  defines the domain model (`Contact`, `Lead`, and 26 other typed
+  entities, five state machines); `packages/db` persists a first slice
+  of it (`contacts`, `leads`, `audit_log` tables, hand-written SQL
+  migrations, no ORM) in the same Supabase project. GreenCal's
+  `quote_leads` table gained one additive `lead_id` link column;
+  everything else about it is unchanged. See
+  `docs/crm/CRM_ARCHITECTURE.md` for exactly what is and is not
+  implemented.
 
 ## Architectural constraints
 
