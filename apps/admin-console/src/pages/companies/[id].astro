@@ -1,7 +1,13 @@
 ---
 import AdminLayout from '../../layouts/AdminLayout.astro';
+import NotesSection from '../../components/NotesSection.astro';
+import {
+  createSupabaseCompanyRepository,
+  createSupabaseContactRepository,
+  createSupabaseNoteRepository,
+} from '@ai-company-os/db';
 import { getCurrentMembership } from '../../lib/auth/membership';
-import { createSupabaseCompanyRepository, createSupabaseContactRepository } from '@ai-company-os/db';
+import type { Note } from '@ai-company-os/core-models';
 
 const user = Astro.locals.user!;
 const membership = await getCurrentMembership(Astro.locals.supabase, user.id);
@@ -9,6 +15,7 @@ const { id } = Astro.params;
 
 let company: { id: string; name: string } | null = null;
 let contacts: Array<{ id: string; displayName: string; phone?: string; email?: string }> = [];
+let notes: Note[] = [];
 let notFound = false;
 
 if (membership && id) {
@@ -20,6 +27,13 @@ if (membership && id) {
     const contactRepo = createSupabaseContactRepository(Astro.locals.supabase);
     const contactsResult = await contactRepo.listContacts(membership.businessId, { companyId: id });
     if (contactsResult.ok) contacts = contactsResult.contacts;
+
+    const noteRepo = createSupabaseNoteRepository(Astro.locals.supabase);
+    const notesResult = await noteRepo.listNotes(membership.businessId, {
+      entityType: 'company',
+      entityId: id,
+    });
+    if (notesResult.ok) notes = notesResult.notes;
   } else {
     notFound = true;
   }
@@ -71,6 +85,13 @@ if (membership && id) {
             </table>
           </div>
         )}
+
+        <NotesSection
+          entityType="company"
+          entityId={company.id}
+          notes={notes}
+          redirectTo={`/companies/${company.id}`}
+        />
       </>
     ) : (
       <div class="uikit-error-banner" role="alert">

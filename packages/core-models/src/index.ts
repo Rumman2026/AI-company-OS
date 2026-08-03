@@ -43,6 +43,7 @@ export {
   createAuditRecordId,
   createCorrelationId,
   createPublishedProjectSlug,
+  createNoteId,
 } from './ids';
 export type {
   LeadId,
@@ -77,6 +78,7 @@ export type {
   AuditRecordId,
   CorrelationId,
   PublishedProjectSlug,
+  NoteId,
 } from './ids';
 
 export { createCurrencyCode, createMoney } from './money';
@@ -127,6 +129,7 @@ export type {
 } from './types/conversion';
 export type { CallRecord, FormSubmission } from './types/call-form';
 export type { AuditLog } from './types/audit';
+export type { Note, NotableEntityType } from './types/note';
 
 export { transitionLead } from './state-machines/lead';
 export { transitionJob } from './state-machines/job';

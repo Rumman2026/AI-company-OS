@@ -160,6 +160,11 @@ export function createFormSubmissionId(value: string): FormSubmissionId {
   return createBrandedString('FormSubmissionId', value);
 }
 
+export type NoteId = Branded<string, 'NoteId'>;
+export function createNoteId(value: string): NoteId {
+  return createBrandedString('NoteId', value);
+}
+
 export type AuditRecordId = Branded<string, 'AuditRecordId'>;
 export function createAuditRecordId(value: string): AuditRecordId {
   return createBrandedString('AuditRecordId', value);

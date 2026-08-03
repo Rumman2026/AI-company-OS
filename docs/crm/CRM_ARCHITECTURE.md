@@ -1,10 +1,10 @@
 # CRM Architecture
 
-Status: durable record of CRM Milestones 1-3 and Clusters 4-6 (this
+Status: durable record of CRM Milestones 1-3 and Clusters 4-7 (this
 sprint). See [DECISIONS.md](../../DECISIONS.md) ADR-0009 (persistence),
 ADR-0010 (multi-tenant foundation), ADR-0011 (admin-console),
-ADR-0012 (Estimate/Booking/Job), and ADR-0014 (Company) for the full
-rationale, and
+ADR-0012 (Estimate/Booking/Job), ADR-0014 (Company), and ADR-0015
+(Note) for the full rationale, and
 [`packages/core-models`](../../packages/core-models/README.md) /
 [`packages/db`](../../packages/db/README.md) /
 [`apps/admin-console`](../../apps/admin-console/README.md) for
@@ -105,8 +105,39 @@ project (owner action required, same as every migration - the owner
 runs these manually via the SQL Editor). Not yet deployed live (same
 admin-console deployment gap as Milestones 3/Cluster 5).
 
-**Next**: persistence + UI for the entities still with none -
-`Task`/`Appointment`/`Note` (also need new `packages/core-models` types).
+## Cluster 7: Note persistence (polymorphic Lead/Contact/Company/Job attachment)
+
+Adds `Note` - a single, entity-agnostic note type rather than one table
+per entity. See DECISIONS.md ADR-0015 for the full rationale, including
+why a generic `notes` table was chosen over `lead_notes`/`contact_notes`/
+etc.
+
+- `Note` (`packages/core-models/src/types/note.ts`): `id`, `entityType`
+  (closed union `'lead' | 'contact' | 'company' | 'job'`), `entityId`,
+  `body`, `authorId?`, `createdAt`. **No state machine.**
+- `notes` table (`migrations/005-note-foundation.sql`), tenant-scoped
+  RLS, **append-only** (select/insert policies only - no update/delete,
+  matching the `audit_log` precedent). `entity_type` is enforced by a
+  `check` constraint, since Postgres cannot express a real foreign key
+  across a polymorphic reference.
+- `NoteRepository` (`createNote`/`listNotes`), unit-tested
+  (`packages/db`, 36/36 tests passing).
+- `apps/admin-console`: a single reusable `NotesSection.astro` component
+  (list + add-note form) embedded on the Lead, Contact, Company, and Job
+  detail pages - one implementation, not four.
+
+**Classification: IMPLEMENTED AND TESTED LOCALLY.** Lint, typecheck, a
+local production build, and unit tests all pass. Migration 005 has NOT
+yet been run against the real `Greencal-production` Supabase project
+(owner action required). Not yet deployed live (same admin-console
+deployment gap as every prior cluster).
+
+**Next**: persistence + UI for the entities still with none - `Task`
+(also needs a new `packages/core-models` type). `Appointment` was
+evaluated and found to already be covered by the existing `Booking`
+entity (which has its own `scheduledAt` field) - no separate
+`Appointment` type is planned unless a real, owner-approved need for a
+non-estimate-linked scheduled event appears.
 
 ## What "CRM" means in this repository today
 

@@ -77,3 +77,12 @@ export type {
   ListJobsResult,
   ListJobsOptions,
 } from './job-repository';
+
+export { createSupabaseNoteRepository } from './note-repository';
+export type {
+  NoteRepository,
+  CreateNoteInput,
+  CreateNoteResult,
+  ListNotesResult,
+  ListNotesOptions,
+} from './note-repository';

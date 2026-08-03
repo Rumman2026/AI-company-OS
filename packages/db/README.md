@@ -66,14 +66,25 @@ no state machine, unlike every other entity in this package.
 `CompanyRepository` is create/get/list only. `ContactRepository` gained a
 `companyId` list filter and a `linkCompany()` method.
 
+## Cluster 7: Note persistence (polymorphic Lead/Contact/Company/Job attachment)
+
+`migrations/005-note-foundation.sql` adds a single `notes` table
+(tenant-scoped, append-only - select/insert RLS policies only) rather
+than a table per entity. See DECISIONS.md ADR-0015 for why `entityType`
+is a closed union enforced by a `check` constraint (Postgres cannot
+express a real foreign key across the polymorphic `entity_type`/
+`entity_id` reference - the repository layer is responsible for only
+ever writing an `entity_id` that refers to a real, tenant-scoped row).
+`NoteRepository` is create/list only.
+
 ## What is deliberately excluded
 
-An authenticated owner interface for Estimates/Bookings (Jobs and
-Companies now have one), full RBAC UI, tasks/appointments/notes/media
-persistence, search/filtering/CSV export/reporting. GreenCal Mobile
-Detailing and Navarro Builders are not onboarded as real tenants - only
-the schema's capacity to support them exists. See
-`docs/crm/CRM_ARCHITECTURE.md` for the full status breakdown.
+An authenticated owner interface for Estimates/Bookings (Jobs, Companies,
+and Notes now have one), full RBAC UI, task/media persistence,
+search/filtering/CSV export/reporting. GreenCal Mobile Detailing and
+Navarro Builders are not onboarded as real tenants - only the schema's
+capacity to support them exists. See `docs/crm/CRM_ARCHITECTURE.md` for
+the full status breakdown.
 
 ## Security model
 

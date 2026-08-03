@@ -1101,6 +1101,56 @@ existing filters.
 
 ---
 
+## ADR-0015: Note persistence as a polymorphic, entity-agnostic attachment (CRM Cluster 7)
+
+**Status**: Confirmed (implemented)
+
+**Context**: The owner's "Master Scope Consolidation" directive lists
+Notes among the HubSpot-comparable CRM capabilities still missing. A
+Note needs to attach to any of several different CRM entities (Lead,
+Contact, Company, Job) - the alternative of a separate `lead_notes`,
+`contact_notes`, `company_notes`, `job_notes` table per entity was
+considered and rejected as needless duplication for a feature with
+identical shape and behavior across all four.
+
+**Decision**: `Note` is a new `packages/core-models` type (`id`,
+`entityType`, `entityId`, `body`, `authorId?`, `createdAt`) - **no state
+machine**, same treatment as `Company` (ADR-0014). `entityType` is a
+closed union (`NotableEntityType = 'lead' | 'contact' | 'company' |
+'job'`), not a free-form string - unlike `AuditLog.entityType` (which is
+deliberately free-form since it describes an arbitrary future persisted
+record), a `Note` is constructed directly by application code and
+benefits from compile-time protection against a typo'd entity type. A
+single `notes` table stores all four, with a `(entity_type, entity_id)`
+composite index; Postgres cannot enforce a real foreign key across a
+polymorphic reference, so a `check` constraint restricts `entity_type`
+to the same four values, and the repository layer (not the database) is
+responsible for only ever writing an `entity_id` that refers to a real,
+tenant-scoped row. Notes are **append-only** - the migration adds
+`select`/`insert` RLS policies only, no `update`/`delete`, matching the
+existing `audit_log` precedent (a note, once written, is not silently
+editable).
+
+**Alternatives considered**: One table per entity type (`lead_notes`,
+`contact_notes`, etc.) - rejected as duplicated schema/repository code
+for no behavioral difference. A free-form `entityType: string` matching
+`AuditLog`'s pattern - rejected in favor of the closed union for the
+stronger compile-time guarantee, since `Note` (unlike `AuditLog`) is
+meant to be constructed by hand throughout the codebase.
+
+**Consequences**: `docs/crm/CRM_ARCHITECTURE.md` gains a Cluster 7
+section. `apps/admin-console` gains a single reusable `NotesSection`
+component embedded on the Lead, Contact, Company, and Job detail pages,
+rather than four separate implementations. Extending Notes to a future
+fifth entity type requires updating the `NotableEntityType` union, the
+migration's `check` constraint, and the admin-console API route's
+allow-list together - documented here so that three-way update isn't
+missed.
+
+**Related**: [ADR-0014](#adr-0014-company-persistence-and-contactcompany-linking-crm-cluster-6).
+
+---
+
 ## Proposed decisions (not yet made)
 
 - Service-to-service communication pattern (REST/gRPC/queue) beyond the

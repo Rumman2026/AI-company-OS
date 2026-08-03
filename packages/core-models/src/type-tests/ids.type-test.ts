@@ -19,6 +19,7 @@ import type {
   InvoiceId,
   JobId,
   LeadId,
+  NoteId,
   PublishedProjectId,
   PublishedProjectSlug,
 } from '../ids';
@@ -28,10 +29,12 @@ import {
   createContactId,
   createJobId,
   createLeadId,
+  createNoteId,
   createPublishedProjectSlug,
 } from '../ids';
 import type { Job } from '../types/job';
 import type { Contact } from '../types/contact';
+import type { NotableEntityType } from '../types/note';
 import type { ActorCategory } from '../transition';
 import type { Money, CurrencyCode } from '../money';
 import { createCurrencyCode } from '../money';
@@ -84,6 +87,17 @@ const wrongCompanyId = createContactId('contact-1');
 const contactWithWrongCompanyId: Pick<Contact, 'companyId'> = { companyId: wrongCompanyId };
 void contactWithWrongCompanyId;
 
+// NoteId must not be assignable to ContactId.
+const noteId: NoteId = createNoteId('note-1');
+// @ts-expect-error NoteId and ContactId are distinct branded types and must never be interchangeable.
+const noteIdAsContactId: ContactId = noteId;
+void noteIdAsContactId;
+
+// Note.entityType requires a NotableEntityType literal, not an arbitrary string.
+// @ts-expect-error 'not-a-real-entity-type' is not one of the approved NotableEntityType literals.
+const invalidNotableEntityType: NotableEntityType = 'not-a-real-entity-type';
+void invalidNotableEntityType;
+
 // Transition context requires a valid ActorCategory literal, not an
 // arbitrary string.
 // @ts-expect-error 'not-a-real-actor' is not one of the approved ActorCategory literals.
@@ -107,3 +121,5 @@ const validJobLeadId: Pick<Job, 'leadId'> = { leadId };
 void validJobLeadId;
 const validContactCompanyId: Pick<Contact, 'companyId'> = { companyId };
 void validContactCompanyId;
+const validNotableEntityType: NotableEntityType = 'lead';
+void validNotableEntityType;

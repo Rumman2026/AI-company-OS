@@ -1,0 +1,45 @@
+---
+import type { Note } from '@ai-company-os/core-models';
+
+interface Props {
+  entityType: 'lead' | 'contact' | 'company' | 'job';
+  entityId: string;
+  notes: Note[];
+  redirectTo: string;
+}
+
+const { entityType, entityId, notes, redirectTo } = Astro.props;
+---
+
+<h2>Notes</h2>
+{
+  notes.length === 0 ? (
+    <div class="uikit-empty-state">
+      <p class="uikit-empty-state__title">No notes yet</p>
+    </div>
+  ) : (
+    <ul>
+      {notes.map((note) => (
+        <li>
+          {note.body}
+          <span style="color: var(--color-text-muted); font-size: 0.8125rem;">
+            {' '}
+            &middot; {new Date(note.createdAt).toLocaleString()}
+          </span>
+        </li>
+      ))}
+    </ul>
+  )
+}
+<form method="POST" action="/api/notes" style="max-width: 400px;">
+  <input type="hidden" name="entityType" value={entityType} />
+  <input type="hidden" name="entityId" value={entityId} />
+  <input type="hidden" name="redirectTo" value={redirectTo} />
+  <div class="uikit-form-field">
+    <label for="body">Add a note</label>
+    <textarea id="body" name="body" rows={3} required />
+  </div>
+  <button type="submit" class="uikit-button uikit-button--secondary">
+    Add note
+  </button>
+</form>

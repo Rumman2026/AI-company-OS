@@ -4,6 +4,7 @@ import {
   createLeadId,
   createJobId,
   createCompanyId,
+  createNoteId,
   createPublishedProjectSlug,
   createCorrelationId,
 } from '../src/ids';
@@ -40,6 +41,12 @@ test('createCompanyId brands a valid, non-empty string', () => {
   const companyId = createCompanyId('company-123');
   assert.equal(companyId, 'company-123');
   assert.throws(() => createCompanyId(''), DomainValidationError);
+});
+
+test('createNoteId brands a valid, non-empty string', () => {
+  const noteId = createNoteId('note-123');
+  assert.equal(noteId, 'note-123');
+  assert.throws(() => createNoteId(''), DomainValidationError);
 });
 
 test('slug constructor accepts a lowercase hyphenated value', () => {

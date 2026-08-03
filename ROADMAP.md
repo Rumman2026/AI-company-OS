@@ -229,6 +229,25 @@ repository evidence.
   (owner action). Not deployed live (same admin-console deployment gap
   as Milestone 3/Cluster 5).
 
+**CRM Cluster 7 (implemented, tested locally) — Note persistence (ADR-0015)**
+
+- Scope: see [DECISIONS.md](DECISIONS.md) ADR-0015 and
+  `docs/crm/CRM_ARCHITECTURE.md`.
+- Implemented with repository evidence: `Note` is a new
+  `packages/core-models` type (`entityType`/`entityId`/`body`/
+  `authorId?` - no state machine); a single, polymorphic `notes` table
+  (`packages/db/migrations/005-note-foundation.sql`, tenant-scoped,
+  append-only RLS) rather than one table per entity; `NoteRepository`
+  (36/36 `packages/db` tests passing total); a reusable `NotesSection`
+  component embedded on the Lead, Contact, Company, and Job detail pages
+  in `apps/admin-console`.
+- Lint, typecheck, a local production build, and unit tests all pass.
+- **Not done**: migration 005 has not yet been run against production
+  (owner action). Not deployed live (same admin-console deployment gap
+  as every prior cluster). `Appointment` was evaluated and found to
+  already be covered by the existing `Booking` entity - not built as a
+  separate type.
+
 ## Proposed future phases
 
 The following are **proposed** and not scheduled or committed:
