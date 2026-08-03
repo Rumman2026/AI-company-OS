@@ -18,20 +18,29 @@ export type TransitionLeadResult =
 
 export interface LeadRepository {
   /**
-   * Inserts a new Lead at its initial 'new' status. Creation is a
+   * Inserts a new Lead at its initial 'new' status, scoped to
+   * `businessId` (see DECISIONS.md ADR-0010). Creation is a
    * repository-level concern, not a state-machine transition - see
    * packages/core-models' fixtures (a Lead is always constructed already
    * at 'new', never reached via transitionLead()).
    */
-  createLead(contactId: ContactId, attribution: LeadAttribution): Promise<CreateLeadResult>;
+  createLead(
+    businessId: string,
+    contactId: ContactId,
+    attribution: LeadAttribution,
+  ): Promise<CreateLeadResult>;
   /**
    * The only way any caller in this repository may change a Lead's
    * status - always routes through packages/core-models' transitionLead()
    * so illegal transitions, unauthorized actors, and missing preconditions
    * are rejected before anything is written, and a successful transition's
    * audit record is persisted via the injected AuditLogRepository.
+   * `businessId` scopes the lookup/update - defense in depth against a
+   * cross-tenant bug even though this repository is only ever called
+   * from the trusted service-role path, which bypasses RLS.
    */
   transitionLeadStatus(
+    businessId: string,
     leadId: string,
     requestedStatus: LeadStatus,
     context: TransitionContext,
@@ -65,10 +74,10 @@ export function createSupabaseLeadRepository(
   auditLog: AuditLogRepository,
 ): LeadRepository {
   return {
-    async createLead(contactId, attribution) {
+    async createLead(businessId, contactId, attribution) {
       const { data, error } = await client
         .from('leads')
-        .insert({ contact_id: contactId, status: 'new', attribution })
+        .insert({ business_id: businessId, contact_id: contactId, status: 'new', attribution })
         .select('id, contact_id, status, attribution, duplicate_of_lead_id, created_at')
         .single();
 
@@ -78,11 +87,12 @@ export function createSupabaseLeadRepository(
       return { ok: true, lead: toLead(data as LeadRow) };
     },
 
-    async transitionLeadStatus(leadId, requestedStatus, context) {
+    async transitionLeadStatus(businessId, leadId, requestedStatus, context) {
       const { data, error } = await client
         .from('leads')
         .select('id, contact_id, status, attribution, duplicate_of_lead_id, created_at')
         .eq('id', leadId)
+        .eq('business_id', businessId)
         .single();
 
       if (error || !data) {
@@ -99,13 +109,14 @@ export function createSupabaseLeadRepository(
       const { error: updateError } = await client
         .from('leads')
         .update({ status: result.nextState })
-        .eq('id', leadId);
+        .eq('id', leadId)
+        .eq('business_id', businessId);
 
       if (updateError) {
         return { ok: false, error: updateError.message ?? 'lead_update_failed' };
       }
 
-      await auditLog.writeAuditRecord(result.auditRecord);
+      await auditLog.writeAuditRecord(businessId, result.auditRecord);
 
       return { ok: true, result };
     },

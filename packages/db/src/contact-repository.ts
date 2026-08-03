@@ -2,6 +2,7 @@ import { createContactId, type Contact, type ContactId } from '@ai-company-os/co
 import type { MinimalSupabaseClient } from './supabase-client';
 
 export interface FindOrCreateContactInput {
+  readonly businessId: string;
   readonly displayName: string;
   readonly phone?: string;
   readonly email?: string;
@@ -45,9 +46,16 @@ export function createSupabaseContactRepository(client: MinimalSupabaseClient): 
       if (input.email) orFilters.push(`email.eq.${input.email}`);
 
       if (orFilters.length > 0) {
+        // Scoped to this business - a phone/email match belonging to a
+        // different tenant must never be returned (see DECISIONS.md
+        // ADR-0010). RLS enforces this too for an authenticated caller,
+        // but the service-role path (GreenCal's intake wiring) bypasses
+        // RLS, so this filter is the only thing preventing a cross-tenant
+        // leak there.
         const { data: existing, error: findError } = await client
           .from('contacts')
           .select('id, display_name, phone, email, created_at')
+          .eq('business_id', input.businessId)
           .or(orFilters.join(','))
           .limit(1)
           .maybeSingle();
@@ -63,6 +71,7 @@ export function createSupabaseContactRepository(client: MinimalSupabaseClient): 
       const { data: inserted, error: insertError } = await client
         .from('contacts')
         .insert({
+          business_id: input.businessId,
           display_name: input.displayName,
           phone: input.phone ?? null,
           email: input.email ?? null,

@@ -63,7 +63,16 @@ export const POST: APIRoute = async ({ request }) => {
           serverConfig.resendFromAddress,
           serverConfig.notificationRecipientEmail,
         ),
-        createSupabaseCrmIntake(serverConfig.supabaseUrl, serverConfig.supabaseServiceRoleKey),
+        // Optional: CRM intake linking only runs once CRM_BUSINESS_ID is
+        // configured (see server-config.ts and DECISIONS.md ADR-0010) -
+        // never blocks the quote-form pipeline when absent.
+        serverConfig.crmBusinessId
+          ? createSupabaseCrmIntake(
+              serverConfig.supabaseUrl,
+              serverConfig.supabaseServiceRoleKey,
+              serverConfig.crmBusinessId,
+            )
+          : undefined,
       )
     : unavailableAdapter;
 

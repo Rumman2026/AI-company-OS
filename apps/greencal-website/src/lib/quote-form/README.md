@@ -220,14 +220,15 @@ store-and-notify that both succeeded).
 
 ## Environment variables
 
-| Variable                       | Scope       | Required                 | Purpose                                                      |
-| ------------------------------ | ----------- | ------------------------ | ------------------------------------------------------------ |
-| `PUBLIC_GTM_CONTAINER_ID`      | Public      | No (Stage 4 tracking)    | GTM container id                                             |
-| `SUPABASE_URL`                 | Server-only | Yes, with the other four | GreenCal Supabase project URL                                |
-| `SUPABASE_SERVICE_ROLE_KEY`    | Server-only | Yes, with the other four | Privileged Supabase access for the trusted server route only |
-| `RESEND_API_KEY`               | Server-only | Yes, with the other four | Resend API authentication                                    |
-| `RESEND_FROM_ADDRESS`          | Server-only | Yes, with the other four | Verified Resend sender identity                              |
-| `NOTIFICATION_RECIPIENT_EMAIL` | Server-only | Yes, with the other four | Approved lead-notification recipient                         |
+| Variable                       | Scope       | Required                 | Purpose                                                                                                        |
+| ------------------------------ | ----------- | ------------------------ | -------------------------------------------------------------------------------------------------------------- |
+| `PUBLIC_GTM_CONTAINER_ID`      | Public      | No (Stage 4 tracking)    | GTM container id                                                                                               |
+| `SUPABASE_URL`                 | Server-only | Yes, with the other four | GreenCal Supabase project URL                                                                                  |
+| `SUPABASE_SERVICE_ROLE_KEY`    | Server-only | Yes, with the other four | Privileged Supabase access for the trusted server route only                                                   |
+| `RESEND_API_KEY`               | Server-only | Yes, with the other four | Resend API authentication                                                                                      |
+| `RESEND_FROM_ADDRESS`          | Server-only | Yes, with the other four | Verified Resend sender identity                                                                                |
+| `NOTIFICATION_RECIPIENT_EMAIL` | Server-only | Yes, with the other four | Approved lead-notification recipient                                                                           |
+| `CRM_BUSINESS_ID`              | Server-only | No (CRM intake linking)  | GreenCal's row id in the multi-tenant `businesses` table (see DECISIONS.md ADR-0010) - never hardcoded in code |
 
 All five Stage 4A variables are required **together** - `getServerConfig()`
 returns `null` (triggering the honest `pending_configuration` fallback)
@@ -253,6 +254,7 @@ use. None are needed in Development scope unless someone chooses to run
 | `RESEND_API_KEY`               | Not needed  | Required | Required   | Yes                             |
 | `RESEND_FROM_ADDRESS`          | Not needed  | Required | Required   | Yes                             |
 | `NOTIFICATION_RECIPIENT_EMAIL` | Not needed  | Required | Required   | Yes                             |
+| `CRM_BUSINESS_ID`              | Not needed  | Optional | Optional   | Yes                             |
 
 Vercel bakes environment variables into a deployment at build/runtime
 start - saving a new value in Project Settings does **not** change any
@@ -430,7 +432,7 @@ pre-existing `markNotificationStatus`. No admin UI exists yet to update
 `status` after the fact - use the Supabase table editor directly, or
 build a future admin tool.
 
-## CRM intake linking (DECISIONS.md ADR-0009)
+## CRM intake linking (DECISIONS.md ADR-0009, ADR-0010)
 
 `crm-intake-adapter.ts` best-effort creates a `Contact`+`Lead` record in
 the new `packages/db`-backed CRM tables (`contacts`, `leads`,
@@ -444,6 +446,15 @@ entirely additive: a missing table, a linking failure, or the
 `CrmIntake` parameter being omitted all leave lead storage, owner
 notification, and customer confirmation completely unaffected - see the
 `supabase-resend-adapter.ts` tests covering this.
+
+The platform is multi-tenant (ADR-0010): every `Contact`/`Lead`/audit
+record belongs to a `business_id`. GreenCal's own business row is seeded
+by `packages/db/migrations/002-multi-tenant-foundation.sql`
+(`slug = 'greencal-pressure-washing'`) - its id must be set as the
+`CRM_BUSINESS_ID` environment variable (see "Environment variables"
+above) for CRM intake linking to activate. This id is configuration, not
+a hardcoded literal in code, so the same `crm-intake-adapter.ts` code
+could serve a different business with a different `CRM_BUSINESS_ID`.
 
 ## Remaining owner setup actions
 
@@ -467,10 +478,14 @@ notification, and customer confirmation completely unaffected - see the
    `notification_status` is `failed` (the lead is safely stored but the
    email didn't go out - see "Approved delivery and success policy" #6).
 5. Decide a data-retention policy for `quote_leads`.
-6. Run `packages/db/migrations/001-crm-foundation.sql` then
-   `supabase-migration-003-crm-link.sql` (both additive, safe at any
-   time) to activate CRM intake linking - see "CRM intake linking"
-   above and `docs/crm/CRM_ARCHITECTURE.md`.
+6. Run, in order, `packages/db/migrations/001-crm-foundation.sql`,
+   `supabase-migration-003-crm-link.sql`, then
+   `packages/db/migrations/002-multi-tenant-foundation.sql` (all
+   additive, safe at any time). Then set the `CRM_BUSINESS_ID`
+   environment variable in Vercel (Preview + Production) to the seeded
+   business row's id (`select id from businesses where slug =
+'greencal-pressure-washing'`) to activate CRM intake linking - see
+   "CRM intake linking" above and `docs/crm/CRM_ARCHITECTURE.md`.
 
 ## Production verification record (2026-07-26)
 

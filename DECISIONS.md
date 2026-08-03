@@ -731,6 +731,118 @@ any change to `quote_leads`' existing columns beyond the one additive
 
 ---
 
+## ADR-0010: Multi-tenant CRM foundation (`businesses`/`memberships`, tenant-scoped RLS)
+
+**Status**: Confirmed (schema, RLS policies, and repository-layer scoping
+implemented this sprint; authenticated admin-console UI explicitly
+deferred to the next milestone)
+
+**Context**: The owner's "Master Scope Consolidation" directive requires
+the platform's CRM to serve GreenCal Pressure Washing, GreenCal Auto
+Detailing, Navarro Builders, and future clients on shared infrastructure
+with strict tenant isolation, and explicitly forbids hardcoding GreenCal
+business facts into shared platform code. CRM Milestone 1 (ADR-0009)
+shipped `contacts`/`leads`/`audit_log` with no tenant concept at all —
+every row implicitly belonged to "the one business with data." Building
+an authenticated, RLS-verified admin-console UI on top of that schema
+would have meant redoing the RLS/data-access work as soon as a second
+tenant existed, so this ADR resolves tenancy first, as its own bounded
+milestone, before any UI work begins.
+
+**Decision**:
+
+1. **New tables**: `businesses` (id, name, slug) and `memberships`
+   (business_id, user_id referencing `auth.users`, role) — see
+   `packages/db/migrations/002-multi-tenant-foundation.sql`.
+2. **`business_id` added to every existing CRM table** (`contacts`,
+   `leads`, `audit_log`), nullable first, backfilled to one seeded
+   business row (`slug = 'greencal-pressure-washing'` — the only tenant
+   with real data today), then set `NOT NULL`. Same additive-then-backfill
+   pattern already proven in
+   `apps/greencal-website/src/lib/quote-form/supabase-migration-002-lead-status.sql`.
+   The one seed `INSERT` is real business data in a migration file, not a
+   hardcoded fact in application code — every repository function,
+   adapter, and UI component this ADR touches takes `businessId` as a
+   parameter and contains no GreenCal-specific literal.
+3. **`MembershipRole`** (`packages/db/src/membership-types.ts`) is a
+   human-actor subset of `packages/core-models`' existing `ActorCategory`
+   union (`owner-admin`, `office-manager`, `dispatcher`, `technician`),
+   enforced identical at the SQL `CHECK` constraint and the TypeScript
+   type level (a compile-time assertion keeps them in sync). This means a
+   membership row maps directly to a `TransitionContext.actorCategory`
+   with no translation table when the admin-console eventually calls
+   `transitionLeadStatus()`.
+4. **RLS**: every CRM table's `authenticated`-role policies are scoped to
+   `business_id in (select business_id from memberships where user_id =
+auth.uid())`. `audit_log` gets a `select` policy only — no
+   `authenticated` insert policy exists, so an audit record can only ever
+   be written by the trusted service-role path (a real state-machine
+   transition), never directly by a client. The service-role key
+   continues to bypass RLS entirely, as it already did.
+5. **Repository-layer defense in depth**: `ContactRepository` and
+   `LeadRepository` now require `businessId` on every call and filter by
+   it explicitly (not just relying on RLS), because GreenCal's intake
+   wiring runs through the service-role key, which bypasses RLS — without
+   an explicit filter, a bug there could leak or corrupt another tenant's
+   data even though RLS itself is correctly configured.
+6. **GreenCal's own business id is configuration, not code**: a new,
+   optional `CRM_BUSINESS_ID` environment variable (see
+   `apps/greencal-website/src/lib/quote-form/server-config.ts`) — when
+   absent, CRM intake linking is skipped entirely (already-tested
+   behavior from ADR-0009), never a hardcoded fallback.
+
+**Alternatives considered**:
+
+1. **A single shared `business_id` constant hardcoded in `packages/db` or
+   `crm-intake-adapter.ts`.** Rejected: directly violates the owner's
+   explicit instruction and would require a code change (not just a
+   config change) to onboard the next business.
+2. **Row-level tenancy via a separate schema-per-tenant instead of a
+   shared-schema `business_id` column.** Rejected for this scale: far
+   higher operational complexity (per-tenant migrations, connection
+   routing) for a platform currently serving one real tenant with a
+   second and third still not incorporated as repository modules at all
+   (see BUSINESSES.md) — revisit only if real multi-tenant scale someday
+   demands it.
+3. **Building the admin-console UI in the same milestone as the tenancy
+   schema.** Rejected: the master directive's own operating rules say not
+   to attempt everything in one pass, and UI built against a
+   soon-to-change schema would be wasted work — see the Scope note.
+
+**Trade-offs**: Every future CRM table (companies, deals, jobs, estimates,
+etc.) must now include `business_id` and tenant-scoped RLS from the
+start, adding a small, fixed amount of boilerplate to each — accepted as
+the cost of not having to retrofit tenancy again later. The backfill
+migration assumes exactly one real tenant exists today, which is true;
+if that assumption were ever wrong, the backfill would silently
+misattribute rows — mitigated by this being a one-time, reviewed
+migration file, not a repeatable code path.
+
+**Consequences**:
+
+- `packages/db`'s `ContactRepository.findOrCreateContact` and
+  `LeadRepository.createLead`/`transitionLeadStatus` signatures changed
+  to require `businessId` — a breaking change to Milestone 1's
+  repository API, applied consistently across `packages/db`'s own tests
+  and GreenCal's `crm-intake-adapter.ts` in the same commit.
+- `docs/crm/CRM_ARCHITECTURE.md` is updated to describe the tenant model.
+- The next milestone (authenticated `apps/admin-console`) builds directly
+  on this tenant model rather than needing its own redesign.
+
+**Scope note**: This ADR authorizes the `businesses`/`memberships`
+tables, `business_id` columns and RLS on the three existing CRM tables,
+and the repository/adapter signature changes needed to pass `businessId`
+through. It does **not** authorize: the admin-console UI itself (login,
+dashboard, any CRM view), onboarding GreenCal Auto Detailing or Navarro
+Builders as real tenants (no repository module exists for either yet —
+see BUSINESSES.md), or persistence for any entity beyond
+`Contact`/`Lead`/`AuditLog`.
+
+**Related**: [ADR-0009](#adr-0009-packagesdb-persistence-engine-and-crm-milestone-1-scope-leadcontact-persistence-for-the-existing-growth-system-domain-model),
+`docs/crm/CRM_ARCHITECTURE.md`, [BUSINESSES.md](BUSINESSES.md).
+
+---
+
 ## Proposed decisions (not yet made)
 
 - Service-to-service communication pattern (REST/gRPC/queue) beyond the

@@ -120,14 +120,35 @@ repository evidence.
   that creates a `Contact`+`Lead` for every fresh real submission and
   links it back via `quote_leads.lead_id` — this is the first place
   `packages/core-models` is actually consumed outside its own tests.
-- **Not done**: the two new migrations have not yet been run against the
-  real Supabase project (owner action — see
-  `docs/crm/CRM_ARCHITECTURE.md`), so no real `contacts`/`leads` row
-  exists in production yet. No authenticated owner interface exists
-  (`apps/admin-console` remains an empty Phase 1 placeholder) — viewing
-  or changing CRM data today requires direct Supabase table access.
-  Companies, deals, jobs, estimates, appointments, calls, tasks,
-  campaigns, search/filter/reporting, and RBAC are all unimplemented.
+- Migrations 001 (`packages/db`) and 003 (`quote_leads.lead_id` link)
+  have been run against the real `Greencal-production` Supabase project
+  (owner-confirmed).
+
+**CRM Milestone 2 (in progress) — multi-tenant foundation (`businesses`/`memberships`, ADR-0010)**
+
+- Scope: see [DECISIONS.md](DECISIONS.md) ADR-0010 and
+  `docs/crm/CRM_ARCHITECTURE.md` for the full, honest done-vs-deferred
+  breakdown.
+- Implemented with repository evidence: `businesses`/`memberships`
+  tables, `business_id` added to `contacts`/`leads`/`audit_log`
+  (backfilled, `NOT NULL`), tenant-scoped RLS policies for the
+  `authenticated` role, and `ContactRepository`/`LeadRepository` now
+  require `businessId` on every call (11/11 unit tests passing,
+  including tenant-isolation cases). GreenCal's business id is
+  configuration (`CRM_BUSINESS_ID`), never hardcoded in code.
+- **Not done**: `packages/db/migrations/002-multi-tenant-foundation.sql`
+  has not yet been run against production (owner action). RLS policies
+  are written and reviewed but not independently verified against a live
+  database with two real authenticated sessions — that requires either
+  the owner testing it live or a scripted integration test with real
+  credentials, neither of which happened in this session. No
+  authenticated owner interface exists yet (`apps/admin-console` remains
+  an empty Phase 1 placeholder) — viewing or changing CRM data today
+  requires direct Supabase table access. GreenCal Auto Detailing and
+  Navarro Builders are not onboarded as real tenants (neither has a
+  repository module yet). Companies, deals, jobs, estimates,
+  appointments, calls, tasks, campaigns, search/filter/reporting, and a
+  full RBAC UI are all unimplemented.
 
 ## Proposed future phases
 

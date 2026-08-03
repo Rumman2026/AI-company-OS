@@ -1,7 +1,8 @@
 # CRM Architecture
 
-Status: durable record of CRM Milestone 1 (this sprint). See
-[DECISIONS.md](../../DECISIONS.md) ADR-0009 for the full rationale, and
+Status: durable record of CRM Milestone 1 and Milestone 2 (this sprint).
+See [DECISIONS.md](../../DECISIONS.md) ADR-0009 (persistence) and
+ADR-0010 (multi-tenant foundation) for the full rationale, and
 [`packages/core-models`](../../packages/core-models/README.md) /
 [`packages/db`](../../packages/db/README.md) for implementation detail.
 
@@ -33,6 +34,31 @@ not yet built, not "planned in a way that counts as done."
 have not been run against the real Supabase project yet (owner action,
 see below), so no real `contacts`/`leads` row has actually been created
 by a real customer submission as of this document.
+
+## Milestone 2: multi-tenant foundation
+
+The platform must serve GreenCal Pressure Washing, GreenCal Auto
+Detailing, Navarro Builders, and future clients on shared infrastructure
+with strict tenant isolation (see DECISIONS.md ADR-0010). This milestone:
+
+| Piece                                                                    | Status                                                                                                                                                                          |
+| ------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `businesses`, `memberships` tables                                       | Implemented — `packages/db/migrations/002-multi-tenant-foundation.sql` (owner-run)                                                                                              |
+| `business_id` on `contacts`/`leads`/`audit_log`, backfilled + `NOT NULL` | Implemented, same migration                                                                                                                                                     |
+| Tenant-scoped RLS policies (`authenticated` role)                        | Implemented, same migration — written, **not yet independently verified** against live Postgres (no way to run a real cross-tenant probe from this session without credentials) |
+| `ContactRepository`/`LeadRepository` require `businessId`                | Implemented and unit-tested (tenant-isolation tests included, 11/11 passing)                                                                                                    |
+| GreenCal's business id as configuration (`CRM_BUSINESS_ID`)              | Implemented — never hardcoded in application code                                                                                                                               |
+
+**Classification: IMPLEMENTED AND TESTED LOCALLY** (repository-layer
+tenant isolation is unit-tested; RLS policy SQL is written and reviewed
+but not yet proven against a live database with two real authenticated
+sessions — that requires either the owner testing it live or a scripted
+integration test run with real credentials, neither of which happened
+in this session).
+
+GreenCal Auto Detailing and Navarro Builders are **not** onboarded as
+real tenants by this milestone — neither has a repository module yet
+(see BUSINESSES.md). Only the schema's capacity to support them exists.
 
 ## Why persistence, not a new data model
 
@@ -75,24 +101,30 @@ other specific channel that would assert something not actually observed.
 
 ## Owner action required
 
-Run these two migrations once, in the Supabase SQL Editor, in this order
-(both are purely additive and documented as safe at any time):
+Run these three migrations once, in the Supabase SQL Editor, **in this
+order** (all are purely additive and documented as safe at any time):
 
 1. `packages/db/migrations/001-crm-foundation.sql`
 2. `apps/greencal-website/src/lib/quote-form/supabase-migration-003-crm-link.sql`
+3. `packages/db/migrations/002-multi-tenant-foundation.sql`
 
-Until both run, the best-effort CRM-intake call in
-`supabase-resend-adapter.ts` will fail silently (by design — a missing
-table produces the same kind of error the existing best-effort
-`markTestLead`/`markCustomerConfirmationStatus` calls already tolerate)
-and no `Contact`/`Lead` row will be created. **This never affects lead
-storage, owner notification, or customer confirmation** — those are
-unrelated existing paths this milestone did not touch.
+Then set `CRM_BUSINESS_ID` in Vercel (Preview + Production) to the
+seeded business row's id:
+`select id from businesses where slug = 'greencal-pressure-washing';`
+
+Until all three run and `CRM_BUSINESS_ID` is set, the best-effort
+CRM-intake call in `supabase-resend-adapter.ts` will fail silently (by
+design — a missing table or unset config produces the same kind of
+tolerated failure as the existing best-effort
+`markTestLead`/`markCustomerConfirmationStatus` calls) and no
+`Contact`/`Lead` row will be created. **This never affects lead storage,
+owner notification, or customer confirmation** — those are unrelated
+existing paths this milestone did not touch.
 
 ## Next recommended milestone
 
-An authenticated `apps/admin-console` UI (Supabase Auth, a single
-owner-role RLS policy, a Lead list + Lead detail page using the
-repositories this milestone already built) — the smallest slice that
-would let the owner actually see and act on CRM data through a web page
-rather than the Supabase table editor.
+Authenticated `apps/admin-console` UI (login/session, tenant-scoped
+dashboard, Lead list + Lead detail) built directly on this tenant
+foundation and the repositories both milestones already built — the
+smallest slice that would let the owner actually see and act on CRM data
+through a web page rather than the Supabase table editor.

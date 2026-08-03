@@ -23,3 +23,5 @@ export type { LeadRepository, CreateLeadResult, TransitionLeadResult } from './l
 
 export { createSupabaseAuditLogRepository } from './audit-log-repository';
 export type { AuditLogRepository, WriteAuditRecordResult } from './audit-log-repository';
+
+export type { MembershipRole } from './membership-types';

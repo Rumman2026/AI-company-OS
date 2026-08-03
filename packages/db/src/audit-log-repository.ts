@@ -6,18 +6,23 @@ export type WriteAuditRecordResult = { ok: true } | { ok: false; error: string }
 export interface AuditLogRepository {
   /**
    * Persists exactly the ProposedAuditRecord a core-models state-machine
-   * transition already returned - never constructs or infers audit
-   * content itself. Append-only: no update or delete method exists.
+   * transition already returned, scoped to `businessId` (see
+   * DECISIONS.md ADR-0010) - never constructs or infers audit content
+   * itself. Append-only: no update or delete method exists.
    */
-  writeAuditRecord(record: ProposedAuditRecord): Promise<WriteAuditRecordResult>;
+  writeAuditRecord(
+    businessId: string,
+    record: ProposedAuditRecord,
+  ): Promise<WriteAuditRecordResult>;
 }
 
 export function createSupabaseAuditLogRepository(
   client: MinimalSupabaseClient,
 ): AuditLogRepository {
   return {
-    async writeAuditRecord(record) {
+    async writeAuditRecord(businessId, record) {
       const { error } = await client.from('audit_log').insert({
+        business_id: businessId,
         entity_type: record.entityType,
         entity_id: record.entityId,
         action: record.action,

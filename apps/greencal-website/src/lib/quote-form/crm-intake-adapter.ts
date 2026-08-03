@@ -15,7 +15,11 @@ import type { CrmIntake } from './supabase-resend-adapter';
  * channel - see the doc comment on AttributionChannel in
  * packages/core-models.
  */
-export function createSupabaseCrmIntake(url: string, serviceRoleKey: string): CrmIntake {
+export function createSupabaseCrmIntake(
+  url: string,
+  serviceRoleKey: string,
+  businessId: string,
+): CrmIntake {
   const client = createDbClient(url, serviceRoleKey);
   const contacts = createSupabaseContactRepository(client);
   const auditLog = createSupabaseAuditLogRepository(client);
@@ -24,6 +28,7 @@ export function createSupabaseCrmIntake(url: string, serviceRoleKey: string): Cr
   return {
     async recordLead(input) {
       const contactResult = await contacts.findOrCreateContact({
+        businessId,
         displayName: input.fullName,
         phone: input.phone,
         email: input.email,
@@ -37,7 +42,7 @@ export function createSupabaseCrmIntake(url: string, serviceRoleKey: string): Cr
         leadCreatedAt: new Date().toISOString(),
       };
 
-      const leadResult = await leads.createLead(contactResult.contact.id, attribution);
+      const leadResult = await leads.createLead(businessId, contactResult.contact.id, attribution);
       if (!leadResult.ok) {
         return { ok: false, error: leadResult.error };
       }

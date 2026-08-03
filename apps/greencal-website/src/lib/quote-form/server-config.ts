@@ -10,6 +10,15 @@ export interface ServerConfig {
   resendApiKey: string;
   resendFromAddress: string;
   notificationRecipientEmail: string;
+  /**
+   * GreenCal's own row id in the new multi-tenant `businesses` table (see
+   * DECISIONS.md ADR-0010) - deliberately a configuration value, never a
+   * hardcoded literal in shared platform code. Optional and independent
+   * of the five required variables above: when absent, CRM intake is
+   * skipped entirely (the same already-tested behavior as passing no
+   * CrmIntake at all) rather than blocking the whole quote-form pipeline.
+   */
+  crmBusinessId?: string;
 }
 
 /**
@@ -43,11 +52,14 @@ export function getServerConfig(): ServerConfig | null {
     return null;
   }
 
+  const crmBusinessId = env.CRM_BUSINESS_ID;
+
   return {
     supabaseUrl,
     supabaseServiceRoleKey,
     resendApiKey,
     resendFromAddress,
     notificationRecipientEmail,
+    crmBusinessId: isNonEmptyString(crmBusinessId) ? crmBusinessId : undefined,
   };
 }

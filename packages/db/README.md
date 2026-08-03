@@ -6,40 +6,61 @@ package's README first. This package does not define entities or business
 rules; it only stores and retrieves what core-models already models, and
 routes every state change through core-models' own state machines.
 
-See [DECISIONS.md](../../DECISIONS.md) ADR-0009 for the full rationale
-(why Supabase/Postgres with hand-written SQL, why new tables rather than
-repurposing GreenCal's `quote_leads`, and what is explicitly deferred).
+See [DECISIONS.md](../../DECISIONS.md) ADR-0009 (persistence engine, why
+new tables rather than repurposing GreenCal's `quote_leads`) and ADR-0010
+(multi-tenant foundation) for the full rationale and what is explicitly
+deferred.
 
-## What this package contains (Milestone 1)
+## What this package contains (Milestone 1 + Milestone 2)
 
 - `migrations/001-crm-foundation.sql` - `contacts`, `leads`, and
   `audit_log` tables. Hand-written SQL, run once by the owner in the
   Supabase SQL Editor - there is no migration-runner tool, matching the
   only precedent already proven in production
   (`apps/greencal-website`'s `supabase-schema.sql`).
+- `migrations/002-multi-tenant-foundation.sql` - `businesses`,
+  `memberships` tables; `business_id` added to every CRM table above;
+  tenant-scoped RLS policies for the `authenticated` role (see ADR-0010).
 - `ContactRepository` (`contact-repository.ts`) - find-or-create a
-  `Contact` by phone or email.
+  `Contact` by phone or email, scoped to a `businessId`.
 - `LeadRepository` (`lead-repository.ts`) - create a `Lead` at its initial
-  `new` status, and transition an existing `Lead`'s status. Every
-  transition calls core-models' `transitionLead()` - this package never
-  writes a status value that function didn't return.
+  `new` status, and transition an existing `Lead`'s status, both scoped
+  to a `businessId`. Every transition calls core-models'
+  `transitionLead()` - this package never writes a status value that
+  function didn't return.
 - `AuditLogRepository` (`audit-log-repository.ts`) - persists exactly the
-  `ProposedAuditRecord` a state-machine transition returns.
+  `ProposedAuditRecord` a state-machine transition returns, scoped to a
+  `businessId`.
+- `MembershipRole` (`membership-types.ts`) - the human-actor subset of
+  core-models' `ActorCategory` that a real admin-console user's role can
+  hold.
 - `createDbClient()` - a thin Supabase client factory, constructed only
   from a trusted server context with the service-role key.
 
+Every repository call requires an explicit `businessId` - this is
+defense in depth, not just decoration: the service-role key bypasses RLS
+entirely, so the repository layer's own filtering is what actually
+prevents a cross-tenant leak on that path (RLS handles it for an
+authenticated admin-console session).
+
 ## What is deliberately excluded from this milestone
 
-An authenticated owner interface, RBAC beyond the service-role/anon split,
-companies/deals/jobs/estimates/appointments/calls/tasks/campaigns
-persistence, search/filtering/CSV export/reporting, and any UI. See
+An authenticated owner interface (`apps/admin-console` UI), full RBAC
+UI, companies/deals/jobs/estimates/appointments/calls/tasks/campaigns
+persistence, search/filtering/CSV export/reporting. GreenCal Auto
+Detailing and Navarro Builders are not onboarded as real tenants - only
+the schema's capacity to support them exists. See
 `docs/crm/CRM_ARCHITECTURE.md` for the full status breakdown.
 
 ## Security model
 
-Row Level Security is enabled on every table with **no** permissive
-policies - only the service-role key (server-only) can read or write.
-Never construct `createDbClient()` from browser-reachable code.
+Row Level Security is enabled on every table. The service-role key
+(server-only) bypasses RLS entirely, as before. The `authenticated` role
+gets tenant-scoped policies (`business_id` must match a `memberships` row
+for the calling `auth.uid()`) on `contacts`/`leads`/`businesses`/
+`memberships`; `audit_log` has a `select`-only policy - no client can
+ever insert an audit record directly. Never construct `createDbClient()`
+from browser-reachable code.
 
 ## Scripts
 
