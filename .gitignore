@@ -31,6 +31,11 @@ test-results/
 playwright-report/
 blob-report/
 
+# Generated health-check report (see .github/workflows/greencal-health-check.yml
+# and apps/greencal-website/scripts/health-check.mjs) - regenerated on
+# every run, uploaded as a CI artifact, never committed.
+apps/greencal-website/health-check-report.json
+
 # IDE
 .vscode/
 .idea/

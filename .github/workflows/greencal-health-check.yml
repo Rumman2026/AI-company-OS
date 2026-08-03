@@ -1,0 +1,63 @@
+name: GreenCal Website and Lead Health Agent
+
+# Report-only, always-on health check (docs/agents/GREENCAL_WEBSITE_AND_LEAD_HEALTH_AGENT.md).
+# Runs on GitHub's own infrastructure - independent of the Hostinger VPS,
+# which is not yet provisioned - so this keeps running even while the
+# owner's computer (and the eventual VPS) are both off.
+#
+# This workflow only reads (HTTP requests + a headless page load) and
+# opens a GitHub issue on failure. It never merges, deploys, touches
+# credentials, modifies site content, or submits a real lead. The
+# GITHUB_TOKEN used for the issue is GitHub Actions' own default,
+# repo-scoped token - no new secret was added for this.
+
+on:
+  schedule:
+    - cron: '*/30 * * * *'
+  workflow_dispatch: {}
+
+jobs:
+  health-check:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - uses: actions/checkout@v6
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+      - name: Enable pnpm
+        uses: pnpm/action-setup@v4
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @ai-company-os/greencal-website exec playwright install --with-deps chromium
+      - name: Run health check
+        id: health
+        continue-on-error: true
+        working-directory: apps/greencal-website
+        run: node scripts/health-check.mjs
+      - name: Open an issue on failure
+        if: steps.health.outcome == 'failure'
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const fs = require('fs');
+            const report = fs.readFileSync('apps/greencal-website/health-check-report.json', 'utf8');
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: 'GreenCal Website Health Agent: issue detected',
+              body: 'Automated report-only health check found an issue. This agent never merges, deploys, or modifies content - owner review required.\n\n```json\n' + report + '\n```',
+              labels: ['website-health', 'automated'],
+            });
+      - name: Upload report as an artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: greencal-health-check-report
+          path: apps/greencal-website/health-check-report.json
+          retention-days: 30
+      - name: Fail the job if issues were found (visible in Actions UI)
+        if: steps.health.outcome == 'failure'
+        run: exit 1
