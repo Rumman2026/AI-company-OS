@@ -1,4 +1,9 @@
-import { createContactId, type Contact, type ContactId } from '@ai-company-os/core-models';
+import {
+  createContactId,
+  type Contact,
+  type ContactId,
+  type CompanyId,
+} from '@ai-company-os/core-models';
 import type { MinimalSupabaseClient } from './supabase-client';
 
 export interface FindOrCreateContactInput {
@@ -13,9 +18,11 @@ export type FindOrCreateContactResult =
 
 export type GetContactResult = { ok: true; contact: Contact } | { ok: false; error: string };
 export type ListContactsResult = { ok: true; contacts: Contact[] } | { ok: false; error: string };
+export type LinkCompanyResult = { ok: true } | { ok: false; error: string };
 
 export interface ListContactsOptions {
   readonly search?: string;
+  readonly companyId?: string;
   readonly limit?: number;
   readonly offset?: number;
 }
@@ -32,6 +39,8 @@ export interface ContactRepository {
   getContact(businessId: string, contactId: string): Promise<GetContactResult>;
   /** Every Contact for `businessId`, optionally filtered by a display-name substring search. */
   listContacts(businessId: string, options?: ListContactsOptions): Promise<ListContactsResult>;
+  /** Sets which Company this Contact belongs to - see migrations/004-company-foundation.sql. */
+  linkCompany(businessId: string, contactId: string, companyId: string): Promise<LinkCompanyResult>;
 }
 
 interface ContactRow {
@@ -39,8 +48,11 @@ interface ContactRow {
   display_name: string;
   phone: string | null;
   email: string | null;
+  company_id: string | null;
   created_at: string;
 }
+
+const SELECT_COLUMNS = 'id, display_name, phone, email, company_id, created_at';
 
 function toContact(row: ContactRow): Contact {
   return {
@@ -48,6 +60,7 @@ function toContact(row: ContactRow): Contact {
     displayName: row.display_name,
     phone: row.phone ?? undefined,
     email: row.email ?? undefined,
+    companyId: row.company_id ? (row.company_id as CompanyId) : undefined,
   };
 }
 
@@ -67,7 +80,7 @@ export function createSupabaseContactRepository(client: MinimalSupabaseClient): 
         // leak there.
         const { data: existing, error: findError } = await client
           .from('contacts')
-          .select('id, display_name, phone, email, created_at')
+          .select(SELECT_COLUMNS)
           .eq('business_id', input.businessId)
           .or(orFilters.join(','))
           .limit(1)
@@ -89,7 +102,7 @@ export function createSupabaseContactRepository(client: MinimalSupabaseClient): 
           phone: input.phone ?? null,
           email: input.email ?? null,
         })
-        .select('id, display_name, phone, email, created_at')
+        .select(SELECT_COLUMNS)
         .single();
 
       if (insertError || !inserted) {
@@ -102,7 +115,7 @@ export function createSupabaseContactRepository(client: MinimalSupabaseClient): 
     async getContact(businessId, contactId) {
       const { data, error } = await client
         .from('contacts')
-        .select('id, display_name, phone, email, created_at')
+        .select(SELECT_COLUMNS)
         .eq('id', contactId)
         .eq('business_id', businessId)
         .single();
@@ -116,11 +129,12 @@ export function createSupabaseContactRepository(client: MinimalSupabaseClient): 
     async listContacts(businessId, options = {}) {
       let query = client
         .from('contacts')
-        .select('id, display_name, phone, email, created_at')
+        .select(SELECT_COLUMNS)
         .eq('business_id', businessId)
         .order('display_name', { ascending: true });
 
       if (options.search) query = query.ilike('display_name', `%${options.search}%`);
+      if (options.companyId) query = query.eq('company_id', options.companyId);
       if (typeof options.limit === 'number') {
         const from = options.offset ?? 0;
         query = query.range(from, from + options.limit - 1);
@@ -132,6 +146,19 @@ export function createSupabaseContactRepository(client: MinimalSupabaseClient): 
         return { ok: false, error: error?.message ?? 'contact_list_failed' };
       }
       return { ok: true, contacts: (data as ContactRow[]).map(toContact) };
+    },
+
+    async linkCompany(businessId, contactId, companyId) {
+      const { error } = await client
+        .from('contacts')
+        .update({ company_id: companyId })
+        .eq('id', contactId)
+        .eq('business_id', businessId);
+
+      if (error) {
+        return { ok: false, error: error.message ?? 'contact_link_company_failed' };
+      }
+      return { ok: true };
     },
   };
 }

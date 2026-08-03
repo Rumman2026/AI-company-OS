@@ -1,10 +1,12 @@
-import type { ContactId, CustomerId } from '../ids';
+import type { CompanyId, ContactId, CustomerId } from '../ids';
 
 export interface Contact {
   readonly id: ContactId;
   readonly displayName: string;
   readonly phone?: string;
   readonly email?: string;
+  /** The Company this Contact belongs to, if any - see types/company.ts. */
+  readonly companyId?: CompanyId;
 }
 
 /**

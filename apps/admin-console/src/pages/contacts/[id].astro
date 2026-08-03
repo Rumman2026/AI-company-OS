@@ -1,16 +1,30 @@
 ---
 import AdminLayout from '../../layouts/AdminLayout.astro';
 import { getCurrentMembership } from '../../lib/auth/membership';
-import { createSupabaseContactRepository, createSupabaseLeadRepository, createSupabaseAuditLogRepository } from '@ai-company-os/db';
+import {
+  createSupabaseContactRepository,
+  createSupabaseLeadRepository,
+  createSupabaseAuditLogRepository,
+  createSupabaseCompanyRepository,
+} from '@ai-company-os/db';
 import { leadStatusTone } from '@ai-company-os/ui-kit';
-import type { LeadStatus } from '@ai-company-os/core-models';
+import type { LeadStatus, CompanyId } from '@ai-company-os/core-models';
 
 const user = Astro.locals.user!;
 const membership = await getCurrentMembership(Astro.locals.supabase, user.id);
 const { id } = Astro.params;
+const linkError = Astro.url.searchParams.get('error');
 
-let contact: { id: string; displayName: string; phone?: string; email?: string } | null = null;
+let contact: {
+  id: string;
+  displayName: string;
+  phone?: string;
+  email?: string;
+  companyId?: CompanyId;
+} | null = null;
 let leads: Array<{ id: string; status: LeadStatus; createdAt: string }> = [];
+let companyName: string | null = null;
+let allCompanies: Array<{ id: string; name: string }> = [];
 let notFound = false;
 
 if (membership && id) {
@@ -24,6 +38,15 @@ if (membership && id) {
     const leadsResult = await leadRepo.listLeads(membership.businessId, { contactId: id });
     if (leadsResult.ok) {
       leads = leadsResult.leads.map((l) => ({ id: l.id, status: l.status, createdAt: l.createdAt }));
+    }
+
+    const companyRepo = createSupabaseCompanyRepository(Astro.locals.supabase);
+    const companiesResult = await companyRepo.listCompanies(membership.businessId);
+    if (companiesResult.ok) {
+      allCompanies = companiesResult.companies;
+      if (contact.companyId) {
+        companyName = allCompanies.find((c) => c.id === contact!.companyId)?.name ?? null;
+      }
     }
   } else {
     notFound = true;
@@ -46,7 +69,39 @@ if (membership && id) {
           <dd>{contact.phone ?? '—'}</dd>
           <dt>Email</dt>
           <dd>{contact.email ?? '—'}</dd>
+          <dt>Company</dt>
+          <dd>
+            {companyName ? <a href={`/companies/${contact.companyId}`}>{companyName}</a> : '—'}
+          </dd>
         </dl>
+
+        {linkError ? (
+          <div class="uikit-error-banner" role="alert">
+            Could not link company: {linkError}
+          </div>
+        ) : null}
+
+        {allCompanies.length > 0 ? (
+          <form method="POST" action={`/api/contacts/${contact.id}/link-company`} style="max-width: 320px;">
+            <div class="uikit-form-field">
+              <label for="companyId">Link to company</label>
+              <select id="companyId" name="companyId">
+                {allCompanies.map((c) => (
+                  <option value={c.id} selected={c.id === contact!.companyId}>
+                    {c.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <button type="submit" class="uikit-button uikit-button--secondary">
+              Update company
+            </button>
+          </form>
+        ) : (
+          <p style="color: var(--color-text-muted); font-size: 0.875rem;">
+            No companies exist yet - <a href="/companies">add one</a> to link this contact.
+          </p>
+        )}
 
         <h2>Leads</h2>
         {leads.length === 0 ? (

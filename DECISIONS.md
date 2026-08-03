@@ -1062,6 +1062,45 @@ section documenting this and the limitation above.
 
 ---
 
+## ADR-0014: Company persistence and Contact→Company linking (CRM Cluster 6)
+
+**Status**: Confirmed (implemented)
+
+**Context**: `Company` had no `packages/core-models` type at all - unlike
+`Job`/`Estimate`/`Booking`, which already existed before persistence was
+added. This is the first entity in this CRM build-out that starts with a
+real domain-modeling decision, not just persistence plumbing.
+
+**Decision**: `Company` is a simple entity (`id`, `name`,
+`primaryContactId?`, `createdAt`) with **no state machine** - core-models'
+README documents "exactly five lifecycles" (Lead, Job, Invoice, Content,
+Review Request) as a deliberate, closed set; a Company has no lifecycle
+of its own, matching the existing treatment of `Contact`/`Customer`.
+`Contact` gains an optional `companyId` field (additive, non-breaking -
+existing `Contact` object literals remain valid since the field is
+optional). Persistence (`companies` table, `contacts.company_id` column)
+and `apps/admin-console` UI (Companies list/detail, "link to company" on
+the Contact detail page) are added in the same cluster, since a Company
+that can be created but never linked to a Contact would be a hollow
+feature - and unlike `Job` (which had a real, structural required-FK
+chain forcing persistence-then-later-UI), nothing here blocks doing both
+at once.
+
+**Alternatives considered**: Giving `Company` a lifecycle/state machine
+(e.g., `prospect` → `active` → `inactive`). Rejected: not requested, and
+would contradict the package's own documented "exactly five" scope
+without a clear need - easy to add later if a real requirement appears.
+
+**Consequences**: `docs/crm/CRM_ARCHITECTURE.md` gains a Cluster 6
+section. `ContactRepository` gained a `companyId` list filter and a
+`linkCompany()` method, following the same pattern as `LeadRepository`'s
+existing filters.
+
+**Related**: [ADR-0009](#adr-0009-packagesdb-persistence-engine-and-crm-milestone-1-scope-leadcontact-persistence-for-the-existing-growth-system-domain-model),
+[ADR-0012](#adr-0012-estimatebookingjob-persistence-crm-cluster-4).
+
+---
+
 ## Proposed decisions (not yet made)
 
 - Service-to-service communication pattern (REST/gRPC/queue) beyond the

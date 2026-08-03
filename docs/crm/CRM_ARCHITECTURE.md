@@ -1,9 +1,10 @@
 # CRM Architecture
 
-Status: durable record of CRM Milestones 1-3 and Cluster 4 (this
+Status: durable record of CRM Milestones 1-3 and Clusters 4-6 (this
 sprint). See [DECISIONS.md](../../DECISIONS.md) ADR-0009 (persistence),
-ADR-0010 (multi-tenant foundation), ADR-0011 (admin-console), and
-ADR-0012 (Estimate/Booking/Job) for the full rationale, and
+ADR-0010 (multi-tenant foundation), ADR-0011 (admin-console),
+ADR-0012 (Estimate/Booking/Job), and ADR-0014 (Company) for the full
+rationale, and
 [`packages/core-models`](../../packages/core-models/README.md) /
 [`packages/db`](../../packages/db/README.md) /
 [`apps/admin-console`](../../apps/admin-console/README.md) for
@@ -66,9 +67,46 @@ something `lost`/`canceled`), or (b) a future schema change allowing
 multiple roles per business per user - not built, since it's a real
 design decision, not a bug fix.
 
-**Next**: persistence + UI for the entities still with none - `Company`
-first (needs a new `packages/core-models` type, since none exists),
-or `Task`/`Appointment`/`Note` (also need new types).
+## Cluster 6: Company persistence + Contact→Company linking
+
+Adds `Company` - the first entity built this cluster with genuinely no
+prior `packages/core-models` type. See DECISIONS.md ADR-0014 for the
+full rationale.
+
+- `Company` (`packages/core-models/src/types/company.ts`): `id`, `name`,
+  `primaryContactId?`, `createdAt`. **No state machine** - unlike Lead/
+  Job/Estimate/etc., a Company has no meaningful lifecycle to enforce;
+  this is a deliberate exception to the "every entity gets a state
+  machine" pattern, not an oversight.
+- `Contact` gains an optional `companyId?: CompanyId` field (additive,
+  non-breaking).
+- `companies` table + `contacts.company_id` column
+  (`migrations/004-company-foundation.sql`), same tenant-scoped RLS
+  pattern as every prior migration (`DROP POLICY IF EXISTS` +
+  `CREATE POLICY`). A deferred `companies.primary_contact_id` FK is
+  added via idempotent `DO` block once both tables exist.
+- `CompanyRepository` (`createCompany`/`getCompany`/`listCompanies`) and
+  `ContactRepository` extensions (`companyId` list filter,
+  `linkCompany()`), unit-tested (`packages/db`, 33/33 tests passing).
+- `apps/admin-console`: new **Companies** module (list + search + create,
+  detail page listing linked contacts) mirroring the Leads/Jobs modules;
+  Contact detail page gains a company-link dropdown form.
+
+Unlike Cluster 4 (where persistence had to land before UI, since Job's
+required fields forced Estimate/Booking to exist first), Company's
+persistence and UI shipped together in the same cluster - there was no
+dependency forcing a split, and a Company that could be created but
+never linked to a Contact would be a hollow feature.
+
+**Classification: IMPLEMENTED AND TESTED LOCALLY.** Lint, typecheck, a
+local production build, and unit/pure-logic tests all pass. Migration
+004 has NOT yet been run against the real `Greencal-production` Supabase
+project (owner action required, same as every migration - the owner
+runs these manually via the SQL Editor). Not yet deployed live (same
+admin-console deployment gap as Milestones 3/Cluster 5).
+
+**Next**: persistence + UI for the entities still with none -
+`Task`/`Appointment`/`Note` (also need new `packages/core-models` types).
 
 ## What "CRM" means in this repository today
 

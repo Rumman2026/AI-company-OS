@@ -12,7 +12,9 @@
  */
 
 import type {
+  CompanyId,
   ConsentId,
+  ContactId,
   ContentDraftId,
   InvoiceId,
   JobId,
@@ -20,8 +22,16 @@ import type {
   PublishedProjectId,
   PublishedProjectSlug,
 } from '../ids';
-import { createConsentId, createJobId, createLeadId, createPublishedProjectSlug } from '../ids';
+import {
+  createCompanyId,
+  createConsentId,
+  createContactId,
+  createJobId,
+  createLeadId,
+  createPublishedProjectSlug,
+} from '../ids';
 import type { Job } from '../types/job';
+import type { Contact } from '../types/contact';
 import type { ActorCategory } from '../transition';
 import type { Money, CurrencyCode } from '../money';
 import { createCurrencyCode } from '../money';
@@ -62,6 +72,18 @@ void rawStringAsLeadId;
 const jobWithWrongLeadId: Pick<Job, 'leadId'> = { leadId: jobId };
 void jobWithWrongLeadId;
 
+// CompanyId must not be assignable to ContactId.
+const companyId: CompanyId = createCompanyId('company-1');
+// @ts-expect-error CompanyId and ContactId are distinct branded types and must never be interchangeable.
+const companyIdAsContactId: ContactId = companyId;
+void companyIdAsContactId;
+
+// Contact.companyId requires a CompanyId, not a ContactId.
+const wrongCompanyId = createContactId('contact-1');
+// @ts-expect-error Contact.companyId requires a CompanyId, not a ContactId.
+const contactWithWrongCompanyId: Pick<Contact, 'companyId'> = { companyId: wrongCompanyId };
+void contactWithWrongCompanyId;
+
 // Transition context requires a valid ActorCategory literal, not an
 // arbitrary string.
 // @ts-expect-error 'not-a-real-actor' is not one of the approved ActorCategory literals.
@@ -83,3 +105,5 @@ const validCurrency: CurrencyCode = createCurrencyCode('USD');
 void validCurrency;
 const validJobLeadId: Pick<Job, 'leadId'> = { leadId };
 void validJobLeadId;
+const validContactCompanyId: Pick<Contact, 'companyId'> = { companyId };
+void validContactCompanyId;

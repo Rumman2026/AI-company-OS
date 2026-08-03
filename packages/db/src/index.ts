@@ -19,7 +19,18 @@ export type {
   GetContactResult,
   ListContactsResult,
   ListContactsOptions,
+  LinkCompanyResult,
 } from './contact-repository';
+
+export { createSupabaseCompanyRepository } from './company-repository';
+export type {
+  CompanyRepository,
+  CreateCompanyInput,
+  CreateCompanyResult,
+  GetCompanyResult,
+  ListCompaniesResult,
+  ListCompaniesOptions,
+} from './company-repository';
 
 export { createSupabaseLeadRepository } from './lead-repository';
 export type {

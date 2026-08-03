@@ -55,17 +55,25 @@ create/get/list only (no state machine exists for those two entities in
 core-models); `JobRepository` mirrors `LeadRepository` exactly, routing
 every status change through core-models' `transitionJob()`.
 
+## Cluster 6: Company persistence + Contact→Company linking
+
+`migrations/004-company-foundation.sql` adds `companies` (tenant-scoped,
+same RLS pattern) and an additive `contacts.company_id` column, plus a
+deferred `companies.primary_contact_id` FK (added via idempotent `DO`
+block once both tables exist, mirroring the `bookings.job_id` circular-FK
+pattern from Cluster 4). See DECISIONS.md ADR-0014 for why `Company` has
+no state machine, unlike every other entity in this package.
+`CompanyRepository` is create/get/list only. `ContactRepository` gained a
+`companyId` list filter and a `linkCompany()` method.
+
 ## What is deliberately excluded
 
-An authenticated owner interface for Estimates/Bookings/Jobs (no UI yet
-
-- persistence only), the actual Lead→Estimate→Booking→Job creation
-  workflow (no app calls `createEstimate`/`createBooking` yet), full RBAC
-  UI, companies/tasks/appointments/notes/media persistence,
-  search/filtering/CSV export/reporting. GreenCal Mobile Detailing and
-  Navarro Builders are not onboarded as real tenants - only the schema's
-  capacity to support them exists. See `docs/crm/CRM_ARCHITECTURE.md` for
-  the full status breakdown.
+An authenticated owner interface for Estimates/Bookings (Jobs and
+Companies now have one), full RBAC UI, tasks/appointments/notes/media
+persistence, search/filtering/CSV export/reporting. GreenCal Mobile
+Detailing and Navarro Builders are not onboarded as real tenants - only
+the schema's capacity to support them exists. See
+`docs/crm/CRM_ARCHITECTURE.md` for the full status breakdown.
 
 ## Security model
 

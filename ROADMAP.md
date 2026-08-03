@@ -166,14 +166,14 @@ repository evidence.
 - **Not done**: no Vercel project exists for `apps/admin-console` yet
   (not deployed live); no real browser/E2E test exists (would need a
   real password entered through a real browser session, which was
-  deliberately never requested from the owner). Companies, Estimates,
-  Jobs, Tasks, Appointments, Notes, and Media have no UI here — four of
-  the remaining entities (`Company`, `Task`, `Appointment`, `Note`) have
-  no `packages/core-models` type at all yet. Search/CSV-export/reporting
-  and full per-permission RBAC (beyond the four enforced
-  `MembershipRole` values) are unimplemented.
+  deliberately never requested from the owner). Estimates, Tasks,
+  Appointments, and Notes have no dedicated UI here (Jobs and Companies
+  gained UI in later clusters, see below) — `Task`, `Appointment`, and
+  `Note` have no `packages/core-models` type at all yet.
+  Search/CSV-export/reporting and full per-permission RBAC (beyond the
+  four enforced `MembershipRole` values) are unimplemented.
 
-**CRM Cluster 4 (in progress) — Estimate/Booking/Job persistence (ADR-0012)**
+**CRM Cluster 4 (done) — Estimate/Booking/Job persistence (ADR-0012)**
 
 - Scope: see [DECISIONS.md](DECISIONS.md) ADR-0012 and
   `docs/crm/CRM_ARCHITECTURE.md`.
@@ -184,12 +184,50 @@ repository evidence.
   passing total, tenant-isolation cases included for all three); every
   Job status change routes through core-models' existing
   `transitionJob()`, mirroring `LeadRepository` exactly.
-- **Not done**: migration 003 has not yet been run against production
-  (owner action). No admin-console UI and no actual Lead → Estimate →
-  Booking → Job creation workflow exists in any app yet — this cluster
-  is deliberately persistence-only, since a UI with no way to ever
-  populate it would be a hollow addition. That workflow + UI is the
-  explicit next cluster.
+- **Classification: LIVE (schema).** Migration 003 has been run against
+  the real `Greencal-production` Supabase project (owner-confirmed).
+
+**CRM Cluster 5 (implemented, tested locally) — Lead → Estimate → Booking → Job creation workflow**
+
+- Scope: see `docs/crm/CRM_ARCHITECTURE.md`.
+- Implemented with repository evidence: Lead detail page gains
+  "Add estimate" and "Create booking + job" forms; a new Jobs module
+  (list with status filter, detail, status transition) mirroring Leads;
+  `packages/ui-kit` gained `jobStatusTone`. A "draft" → "scheduled" Job
+  transition is attempted best-effort using the real logged-in user's
+  role, with an honest on-page note (never a fabricated state) when the
+  current `owner-admin`-only membership isn't authorized for that edge.
+- Lint, typecheck, a local production build, and pure-logic unit tests
+  (amount parsing, job-status validation) all pass.
+- **Not done**: not deployed live (same admin-console deployment gap as
+  Milestone 3). The actual create-estimate → create-booking →
+  auto-create-job → best-effort-schedule chain has not been exercised
+  against a real browser session. **Known limitation, not silently
+  worked around**: `memberships`' `(business_id, user_id)` unique
+  constraint means one Supabase Auth user can hold exactly one role per
+  business — the owner's `owner-admin` membership cannot also act as
+  `office-manager` day-to-day, which most Job/Lead transitions require.
+  Not fixed without owner input (real design decision, see ADR-0013).
+
+**CRM Cluster 6 (implemented, tested locally) — Company persistence + Contact→Company linking (ADR-0014)**
+
+- Scope: see [DECISIONS.md](DECISIONS.md) ADR-0014 and
+  `docs/crm/CRM_ARCHITECTURE.md`.
+- Implemented with repository evidence: `Company` is a new
+  `packages/core-models` type (no state machine — deliberate); `Contact`
+  gains an optional `companyId` field; `companies` table +
+  `contacts.company_id` column
+  (`packages/db/migrations/004-company-foundation.sql`, tenant-scoped
+  RLS); `CompanyRepository` and `ContactRepository.linkCompany()`
+  (33/33 `packages/db` tests passing total); a new Companies module
+  (list/search/create, detail with linked contacts) in
+  `apps/admin-console`, plus a company-link form on the Contact detail
+  page.
+- Lint, typecheck, a local production build, and unit/pure-logic tests
+  all pass.
+- **Not done**: migration 004 has not yet been run against production
+  (owner action). Not deployed live (same admin-console deployment gap
+  as Milestone 3/Cluster 5).
 
 ## Proposed future phases
 

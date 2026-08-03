@@ -1,0 +1,81 @@
+---
+import AdminLayout from '../../layouts/AdminLayout.astro';
+import { getCurrentMembership } from '../../lib/auth/membership';
+import { createSupabaseCompanyRepository } from '@ai-company-os/db';
+
+const user = Astro.locals.user!;
+const membership = await getCurrentMembership(Astro.locals.supabase, user.id);
+const search = Astro.url.searchParams.get('q') ?? '';
+const createError = Astro.url.searchParams.get('error');
+
+let companies: Array<{ id: string; name: string }> = [];
+let loadError: string | null = null;
+
+if (membership) {
+  const companyRepo = createSupabaseCompanyRepository(Astro.locals.supabase);
+  const result = await companyRepo.listCompanies(membership.businessId, { search: search || undefined });
+  if (result.ok) {
+    companies = result.companies;
+  } else {
+    loadError = result.error;
+  }
+}
+---
+
+<AdminLayout title="Companies" membership={membership}>
+  <h1>Companies</h1>
+
+  <form method="GET" style="margin-bottom: 1rem; max-width: 320px;">
+    <div class="uikit-form-field">
+      <label for="q">Search by name</label>
+      <input id="q" name="q" type="search" value={search} />
+    </div>
+    <button type="submit" class="uikit-button uikit-button--secondary">Search</button>
+  </form>
+
+  {createError ? <div class="uikit-error-banner" role="alert">Could not add company: {createError}</div> : null}
+
+  <form method="POST" action="/api/companies" style="max-width: 400px; margin-bottom: 2rem;">
+    <div class="uikit-form-field">
+      <label for="name">New company name</label>
+      <input id="name" name="name" type="text" required />
+    </div>
+    <button type="submit" class="uikit-button uikit-button--primary">Add company</button>
+  </form>
+
+  {
+    loadError ? (
+      <div class="uikit-error-banner" role="alert">
+        Could not load companies: {loadError}
+      </div>
+    ) : companies.length === 0 ? (
+      <div class="uikit-empty-state">
+        <p class="uikit-empty-state__title">No companies yet</p>
+        <p class="uikit-empty-state__description">
+          Add a commercial or HOA client above, then link contacts to it from their contact page.
+        </p>
+      </div>
+    ) : (
+      <div class="uikit-table-scroll">
+        <table class="uikit-table">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th />
+            </tr>
+          </thead>
+          <tbody>
+            {companies.map((company) => (
+              <tr>
+                <td>{company.name}</td>
+                <td>
+                  <a href={`/companies/${company.id}`}>View</a>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    )
+  }
+</AdminLayout>

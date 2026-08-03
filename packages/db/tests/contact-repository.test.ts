@@ -174,3 +174,24 @@ test("listContacts returns only the calling business's contacts, and supports a 
     assert.equal(searched.contacts[0].id, 'contact-1');
   }
 });
+
+test('linkCompany sets company_id on the correct business-scoped contact only', async () => {
+  const { repo, contacts } = setup([
+    {
+      id: 'contact-1',
+      business_id: BUSINESS_A,
+      display_name: 'Jane Doe',
+      phone: '5551234567',
+      email: 'jane@example.com',
+      created_at: '2025-01-01T00:00:00.000Z',
+    },
+  ]);
+
+  const result = await repo.linkCompany(BUSINESS_A, 'contact-1', 'company-1');
+  assert.equal(result.ok, true);
+  assert.equal(contacts.rows[0].company_id, 'company-1');
+
+  const getResult = await repo.getContact(BUSINESS_A, 'contact-1');
+  assert.equal(getResult.ok, true);
+  if (getResult.ok) assert.equal(getResult.contact.companyId, 'company-1');
+});

@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {
   createLeadId,
   createJobId,
+  createCompanyId,
   createPublishedProjectSlug,
   createCorrelationId,
 } from '../src/ids';
@@ -33,6 +34,12 @@ for (const value of invalidValues) {
 test('id constructor rejects non-string input at the runtime boundary', () => {
   // @ts-expect-error intentionally passing a non-string to exercise the runtime guard
   assert.throws(() => createLeadId(123), DomainValidationError);
+});
+
+test('createCompanyId brands a valid, non-empty string', () => {
+  const companyId = createCompanyId('company-123');
+  assert.equal(companyId, 'company-123');
+  assert.throws(() => createCompanyId(''), DomainValidationError);
 });
 
 test('slug constructor accepts a lowercase hyphenated value', () => {

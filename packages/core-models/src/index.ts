@@ -13,6 +13,7 @@ export { DomainValidationError } from './primitives';
 export {
   createLeadId,
   createContactId,
+  createCompanyId,
   createCustomerId,
   createEstimateId,
   createBookingId,
@@ -46,6 +47,7 @@ export {
 export type {
   LeadId,
   ContactId,
+  CompanyId,
   CustomerId,
   EstimateId,
   BookingId,
@@ -94,6 +96,7 @@ export type {
 export type { LeadAttribution, MarketingCampaign, AttributionChannel } from './types/attribution';
 export type { Lead, LeadStatus } from './types/lead';
 export type { Contact, Customer } from './types/contact';
+export type { Company } from './types/company';
 export type { Estimate, Booking } from './types/estimate-booking';
 export type { Job, JobStatus, JobService, Technician, JobCompletionRecord } from './types/job';
 export type { PhotoAsset, PhotoPair, PhotoPublicationStatus } from './types/photo';

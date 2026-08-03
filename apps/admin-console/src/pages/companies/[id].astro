@@ -1,0 +1,81 @@
+---
+import AdminLayout from '../../layouts/AdminLayout.astro';
+import { getCurrentMembership } from '../../lib/auth/membership';
+import { createSupabaseCompanyRepository, createSupabaseContactRepository } from '@ai-company-os/db';
+
+const user = Astro.locals.user!;
+const membership = await getCurrentMembership(Astro.locals.supabase, user.id);
+const { id } = Astro.params;
+
+let company: { id: string; name: string } | null = null;
+let contacts: Array<{ id: string; displayName: string; phone?: string; email?: string }> = [];
+let notFound = false;
+
+if (membership && id) {
+  const companyRepo = createSupabaseCompanyRepository(Astro.locals.supabase);
+  const result = await companyRepo.getCompany(membership.businessId, id);
+
+  if (result.ok) {
+    company = result.company;
+    const contactRepo = createSupabaseContactRepository(Astro.locals.supabase);
+    const contactsResult = await contactRepo.listContacts(membership.businessId, { companyId: id });
+    if (contactsResult.ok) contacts = contactsResult.contacts;
+  } else {
+    notFound = true;
+  }
+}
+---
+
+<AdminLayout title="Company detail" membership={membership}>
+  <p><a href="/companies">&larr; Back to companies</a></p>
+  {
+    notFound ? (
+      <div class="uikit-error-banner" role="alert">
+        Company not found.
+      </div>
+    ) : company ? (
+      <>
+        <h1>{company.name}</h1>
+
+        <h2>Contacts</h2>
+        {contacts.length === 0 ? (
+          <div class="uikit-empty-state">
+            <p class="uikit-empty-state__title">No contacts linked to this company yet</p>
+            <p class="uikit-empty-state__description">
+              Link a contact from their own contact detail page.
+            </p>
+          </div>
+        ) : (
+          <div class="uikit-table-scroll">
+            <table class="uikit-table">
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>Phone</th>
+                  <th>Email</th>
+                  <th />
+                </tr>
+              </thead>
+              <tbody>
+                {contacts.map((contact) => (
+                  <tr>
+                    <td>{contact.displayName}</td>
+                    <td>{contact.phone ?? '—'}</td>
+                    <td>{contact.email ?? '—'}</td>
+                    <td>
+                      <a href={`/contacts/${contact.id}`}>View</a>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </>
+    ) : (
+      <div class="uikit-error-banner" role="alert">
+        Your account has no business membership yet.
+      </div>
+    )
+  }
+</AdminLayout>

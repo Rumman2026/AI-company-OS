@@ -25,6 +25,11 @@ export function createContactId(value: string): ContactId {
   return createBrandedString('ContactId', value);
 }
 
+export type CompanyId = Branded<string, 'CompanyId'>;
+export function createCompanyId(value: string): CompanyId {
+  return createBrandedString('CompanyId', value);
+}
+
 export type CustomerId = Branded<string, 'CustomerId'>;
 export function createCustomerId(value: string): CustomerId {
   return createBrandedString('CustomerId', value);
