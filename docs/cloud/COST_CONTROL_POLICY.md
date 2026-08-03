@@ -38,6 +38,21 @@ Every routed task's `UsageMetadata` (input/output tokens, latency) and
 `packages/audit-logger` alongside the routing decision — see
 `TaskRouter.routeTask()`'s final `auditLogger.record()` call.
 
+## GLM sandbox pilot budget (`glm-lead-inquiry-pilot`)
+
+A separate, tighter budget scope for the `lead_inquiry_classification`
+pilot only — distinct from the general `zai-glm` provider-level default
+above, since the pilot is deliberately more conservative than GLM's
+broader task types. Configured via `agent` scope, id
+`glm-lead-inquiry-pilot`
+(`packages/provider-adapters/src/glm-lead-inquiry/pilot-budget.ts`):
+$1.00/day, $15.00/month, $0.02 max single-task cost, a $0.90 auto-shutdown
+threshold (engages the pilot's kill switch automatically once reached —
+owner action required to release it), and a $0.50 alert threshold
+(audit-only, does not block calls). See
+[docs/cloud/GLM_SANDBOX_PILOT.md](GLM_SANDBOX_PILOT.md) Stage 2 for the
+full derivation of each figure from confirmed GLM-4.5-Air pricing.
+
 ## What this does not do yet
 
 - No real spend exists — every provider adapter is a placeholder

@@ -254,6 +254,12 @@ importers:
       '@ai-company-os/agent-sdk':
         specifier: workspace:*
         version: link:../agent-sdk
+      '@ai-company-os/audit-logger':
+        specifier: workspace:*
+        version: link:../audit-logger
+      '@ai-company-os/cost-controller':
+        specifier: workspace:*
+        version: link:../cost-controller
     devDependencies:
       tsx:
         specifier: ^4.10.0

@@ -7,3 +7,4 @@ export * from './perplexity-adapter';
 export * from './gemini-adapter';
 export * from './kimi-adapter';
 export * from './registry';
+export * from './glm-lead-inquiry';

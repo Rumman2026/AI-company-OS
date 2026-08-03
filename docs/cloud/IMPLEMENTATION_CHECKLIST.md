@@ -36,11 +36,32 @@ actually exists — do not mark a stage done without it (see
       `docs/agents/GREENCAL_WEBSITE_AND_LEAD_HEALTH_AGENT.md`.
 - [x] **Required documentation set**: all 11 documents listed in
       `docs/INDEX.md`'s "Cloud infrastructure documents" table.
-- [ ] **Verification**: repository-wide `pnpm lint`/`pnpm typecheck`/
-      `pnpm build` and the new packages' own test suites — see the
-      completion report for exact results at the time this stage was run.
+- [x] **Verification**: repository-wide `pnpm lint`/`pnpm typecheck`
+      passed; the new packages' own test suites passed at the time this
+      stage was run — see the completion report for exact results.
+- [x] **CI extension**: `.github/workflows/ci.yml` extended with pnpm/
+      Node caching and repo-wide (except greencal-website) test/build
+      steps, reusing existing pnpm filter commands — no duplicated CI
+      logic.
+- [x] **AI Provider Configuration Validation and GLM Sandbox Pilot
+      Preparation**: provider descriptor audit categorized into
+      confirmed/default/illustrative/blocked
+      (`docs/cloud/GLM_SANDBOX_PILOT.md` Stage 1); `zaiGlmDescriptor`
+      updated with real, sourced model ids/pricing/context window;
+      conservative pilot-specific budget policy
+      (`packages/provider-adapters/src/glm-lead-inquiry/pilot-budget.ts`);
+      hardened, schema-validated `lead_inquiry_classification` pilot
+      adapter with timeout/retry/budget/kill-switch/confidence-threshold
+      handling; a reusable mocked sandbox harness covering all seven
+      required scenarios plus every required proof point. GLM remains
+      the only provider prepared for pilot activation — OpenAI,
+      Anthropic API, Gemini, DeepSeek, Perplexity, and Kimi remain
+      unconnected.
 - [ ] **Real provider connection** — not started; requires separate
-      explicit owner authorization (ADR-0008 scope note).
+      explicit owner authorization (ADR-0008 scope note), and — for
+      GLM specifically — the exact information listed in
+      `docs/cloud/GLM_SANDBOX_PILOT.md`'s completion report before any
+      real API call.
 - [ ] **Hostinger VPS provisioning** — not started; see
       `docs/cloud/HOSTINGER_VPS_SETUP.md`.
 - [ ] **Any deployment** — not started.
@@ -53,6 +74,7 @@ actually exists — do not mark a stage done without it (see
 - Deploying anything.
 - Modifying `apps/greencal-website` or its approved stack (ADR-0004–0007).
 - Modifying any production system or production data.
+- Activating any provider other than a prepared (not connected) GLM pilot.
 
 ## Recommended next execution stage
 

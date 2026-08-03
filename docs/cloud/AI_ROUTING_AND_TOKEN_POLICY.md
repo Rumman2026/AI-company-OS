@@ -55,6 +55,19 @@ not escalated by default.
 | Usage/cost logging                                   | `packages/audit-logger`'s `ConsoleAuditLogger`, recorded by the router on every call                                                                      |
 | Structured JSON outputs                              | `AgentResponse.structuredResult`, validated by `validateStructuredResult()`                                                                               |
 
+## GLM-only pilot task: `lead_inquiry_classification`
+
+A narrower, GLM-only pilot task layered on top of the `lead-qualification`
+routing policy above — see
+[docs/cloud/GLM_SANDBOX_PILOT.md](GLM_SANDBOX_PILOT.md). It does not go
+through `TaskRouter`'s general escalation-to-Claude/fallback-to-DeepSeek
+path at all: it is a dedicated, hardened function
+(`classifyLeadInquiry()` in `packages/provider-adapters/src/glm-lead-inquiry/`)
+that only ever calls GLM, and on failure fails to a terminal status for
+owner attention rather than escalating automatically to a second paid
+provider. This is a deliberate, narrower exception to the general
+routing sequence above, scoped to this one low-risk pilot only.
+
 ## What this does not do yet
 
 No real token counting, no real provider billing reconciliation, no
