@@ -39,13 +39,49 @@ passing as part of this sprint's full suite run.
 
 - `https://www.greencalpressurewashing.com/` → HTTP 200, HTTPS, HSTS
   present, correct `www` canonicalization (non-www 308-redirects).
-- `apps/greencal-website/scripts/health-check.mjs` run directly against
-  live production: 10/11 checked pages returned 200 (the one failure —
-  `/favicon-32x32.png` 404 — is the pre-fix state, expected until the
-  new deployment goes live; see `docs/launch/OWNER_ACTIONS_REQUIRED.md`).
-  Both mobile (390px) and desktop (1440px) viewports confirmed: `tel:`
-  link present, estimate CTA present, quote form present, zero console
-  errors, zero failed network requests.
+- `apps/greencal-website/scripts/health-check.mjs` re-run directly
+  against live production after deployment completed: 11/11 pages
+  returned 200. Both mobile (390px) and desktop (1440px) viewports
+  confirmed: `tel:` link present, estimate CTA present, quote form
+  present, zero console errors, zero failed network requests.
+
+## Final production acceptance test (end to end, this sprint)
+
+- **First attempt**: a labeled test lead (`__testLead: true`) submitted
+  via curl to `/api/quote-submit` returned `delivery_failed`. Root cause
+  (via `mcp__vercel__get_runtime_errors`/`get_runtime_logs`): the
+  Supabase project had auto-paused; the fetch to it failed at the
+  network level (`TypeError: fetch failed`, `httpStatus: 0`). This is
+  not a code regression — `insertLead`'s core logic was untouched this
+  sprint, and the failure is a real, current infrastructure state, not
+  a mocked or hypothetical one.
+- Owner resumed the Supabase project. Retries over the next ~2 minutes
+  showed the expected cold-start sequence: `httpStatus: 521` (Cloudflare
+  origin still starting) → `PGRST205`/"table not found in schema cache"
+  (PostgREST warming up) → clean success with no error logged.
+- **Real successful test lead**: `leadId fa8a9559-df4a-438c-b6bd-f9ddd27653cb`,
+  stored `2026-08-03T17:22:34.698Z`, `HTTP 200`, `{"status":"success"}`.
+- **Browser-driven verification** (Playwright, real production page,
+  not curl): filled and submitted the public `/contact-us` form with
+  the same content (deliberately, to exercise the idempotency path
+  safely — confirmed same `leadId` returned, `duplicate` semantics, no
+  second row, no second owner/customer email). Confirmed: correct
+  customer-facing success message ("Thank you - your request was
+  received. We will contact you soon."), zero console errors, zero
+  Vercel runtime errors for the request.
+- **Analytics**: `window.dataLayer` was empty and no GTM-related network
+  calls occurred during the browser submission — consistent with the
+  already-documented, pre-existing gap (`PUBLIC_GTM_CONTAINER_ID` not
+  confirmed configured in Vercel), not a new defect. `trackEvent()`
+  correctly no-oped rather than erroring.
+- **New operational finding**: Supabase auto-pause is a real, silent,
+  revenue-critical risk (a paused project makes every real customer
+  lead fail the same way, with no visible error to the owner). Recorded
+  as owner-action item 1 in `docs/launch/OWNER_ACTIONS_REQUIRED.md`.
+- **No secrets observed**: all diagnosis used Vercel's runtime
+  error/log tools (sanitized by `lead-store.ts`'s own redaction) and
+  presence-only environment checks — no credential value was ever
+  read, printed, or logged during this investigation.
 
 ## Accessibility essentials (pre-existing, re-verified via the suite)
 

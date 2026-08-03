@@ -30,6 +30,7 @@ coverage/
 test-results/
 playwright-report/
 blob-report/
+.playwright-mcp/
 
 # Generated health-check report (see .github/workflows/greencal-health-check.yml
 # and apps/greencal-website/scripts/health-check.mjs) - regenerated on

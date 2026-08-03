@@ -4,15 +4,15 @@ Status: durable operations reference for what is actually live today.
 
 ## What's actually running in production right now
 
-| Component                                           | Where                                                                            | Status                                                         |
-| --------------------------------------------------- | -------------------------------------------------------------------------------- | -------------------------------------------------------------- |
-| Public website                                      | Vercel (`ai-company-os-greencal-website`, team `leads-initiative`)               | Live — see `docs/launch/GREENCAL_PRODUCTION_LAUNCH.md`         |
-| Lead storage                                        | Supabase (`quote_leads` table)                                                   | Live since 2026-07-26                                          |
-| Owner notification                                  | Resend                                                                           | Live since 2026-07-26                                          |
-| Customer confirmation                               | Resend                                                                           | New this sprint — live once this sprint's deployment completes |
-| Website health check                                | GitHub Actions (`.github/workflows/greencal-health-check.yml`), every 30 minutes | Live as of this sprint's commit                                |
-| GLM pilot                                           | Not connected (kill-switched)                                                    | Prepared, not active                                           |
-| Hostinger VPS (n8n, AI gateway, worker, monitoring) | Not provisioned                                                                  | Blocked on owner action                                        |
+| Component                                           | Where                                                                            | Status                                                      |
+| --------------------------------------------------- | -------------------------------------------------------------------------------- | ----------------------------------------------------------- |
+| Public website                                      | Vercel (`ai-company-os-greencal-website`, team `leads-initiative`)               | Live — see `docs/launch/GREENCAL_PRODUCTION_LAUNCH.md`      |
+| Lead storage                                        | Supabase (`quote_leads` table)                                                   | Live since 2026-07-26                                       |
+| Owner notification                                  | Resend                                                                           | Live since 2026-07-26                                       |
+| Customer confirmation                               | Resend                                                                           | New this sprint — live, confirmed via final acceptance test |
+| Website health check                                | GitHub Actions (`.github/workflows/greencal-health-check.yml`), every 30 minutes | Live as of this sprint's commit                             |
+| GLM pilot                                           | Not connected (kill-switched)                                                    | Prepared, not active                                        |
+| Hostinger VPS (n8n, AI gateway, worker, monitoring) | Not provisioned                                                                  | Blocked on owner action                                     |
 
 ## Operational contacts / recipients
 
