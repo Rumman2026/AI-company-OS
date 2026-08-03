@@ -36,12 +36,18 @@ export const POST: APIRoute = async ({ request }) => {
   const url = new URL(request.url);
   let pagePath = url.pathname;
   let formFields: unknown = body;
+  let isTestLead = false;
 
   if (typeof body === 'object' && body !== null) {
-    const { pagePath: rawPagePath, ...rest } = body as Record<string, unknown>;
+    const { pagePath: rawPagePath, __testLead, ...rest } = body as Record<string, unknown>;
     if (typeof rawPagePath === 'string' && rawPagePath.length > 0) {
       pagePath = rawPagePath;
     }
+    // Internal-only marker for a deliberately labeled test submission -
+    // never sent by the public QuoteForm.astro UI, never documented for
+    // customer use. Best-effort bookkeeping only (see LeadStore.markTestLead) -
+    // never changes validation or delivery behavior.
+    isTestLead = __testLead === true;
     formFields = rest;
   }
   // If `body` was not an object, formFields stays as the raw non-object
@@ -59,6 +65,6 @@ export const POST: APIRoute = async ({ request }) => {
       )
     : unavailableAdapter;
 
-  const result = await submitQuoteForm(formFields, { pagePath, adapter });
+  const result = await submitQuoteForm(formFields, { pagePath, adapter, isTestLead });
   return jsonResult(result);
 };

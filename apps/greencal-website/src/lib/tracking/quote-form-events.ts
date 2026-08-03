@@ -17,10 +17,13 @@ export interface QuoteFormEventContext {
  * map to their own diagnostic event and NEVER to `quote_form_success` or
  * any other event that could be mistaken for a completed lead.
  *
- * The current production adapter (`unavailableAdapter`) always resolves to
- * `pending_configuration`, so in production today this function can only
- * ever return `quote_form_pending_configuration` - never
- * `quote_form_success`. See README.md's conversion rules.
+ * Since Stage 4B (see DECISIONS.md ADR-0006 and
+ * src/lib/quote-form/README.md's "Production verification record"),
+ * production uses the real `createSupabaseResendAdapter`, so
+ * `quote_form_success` is reachable in production - but only when that
+ * adapter's approved delivery policy actually confirms a fresh
+ * store-and-notify or a valid idempotent replay; it is never fabricated
+ * here or anywhere upstream. See README.md's conversion rules.
  */
 export function mapSubmissionResultToEvent(
   result: QuoteSubmissionResult,

@@ -32,6 +32,24 @@ export interface LeadStore {
     status: 'sent' | 'failed',
     details?: { providerId?: string; errorCode?: string },
   ): Promise<void>;
+  /**
+   * Best-effort bookkeeping for the customer-confirmation email, separate
+   * from the owner notification above. Never affects the returned
+   * QuoteSubmissionResult - see supabase-resend-adapter.ts.
+   */
+  markCustomerConfirmationStatus(
+    leadId: string,
+    status: 'sent' | 'failed' | 'not_attempted',
+    details?: { providerId?: string; errorCode?: string },
+  ): Promise<void>;
+  /**
+   * Best-effort flag for a deliberately labeled test submission (set only
+   * via the internal `__testLead` request field - never customer-facing,
+   * never client-submittable through the public form). Failing silently
+   * (e.g. before the additive migration adding `is_test_lead` has been
+   * run) must never affect the returned QuoteSubmissionResult.
+   */
+  markTestLead(leadId: string): Promise<void>;
 }
 
 const POSTGRES_UNIQUE_VIOLATION = '23505';
@@ -169,6 +187,34 @@ export function createSupabaseLeadStore(url: string, serviceRoleKey: string): Le
         // Best-effort status bookkeeping only - a failure here must never
         // change the QuoteSubmissionResult the orchestration layer already
         // decided. Server-side only; never surfaced to the customer.
+      }
+    },
+
+    async markCustomerConfirmationStatus(leadId, status, details) {
+      try {
+        await client
+          .from('quote_leads')
+          .update({
+            customer_confirmation_status: status,
+            customer_confirmation_provider_id: details?.providerId ?? null,
+            customer_confirmation_error_code: details?.errorCode ?? null,
+          })
+          .eq('lead_id', leadId);
+      } catch {
+        // Best-effort only, same rationale as markNotificationStatus above.
+        // Deliberately tolerant of the customer_confirmation_status column
+        // not existing yet (before the additive migration is run) - never
+        // breaks the insert path or the returned result.
+      }
+    },
+
+    async markTestLead(leadId) {
+      try {
+        await client.from('quote_leads').update({ is_test_lead: true }).eq('lead_id', leadId);
+      } catch {
+        // Best-effort only - tolerant of the is_test_lead column not
+        // existing yet. Never breaks the insert path or the returned
+        // result.
       }
     },
   };

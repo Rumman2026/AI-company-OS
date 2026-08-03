@@ -18,6 +18,13 @@ export type NotificationSendResult =
  */
 export interface NotificationSender {
   sendLeadNotification(payload: LeadNotificationPayload): Promise<NotificationSendResult>;
+  /**
+   * Customer-facing confirmation - distinct from the owner notification
+   * above. Never quotes pricing, promises availability, or guarantees
+   * anything (see buildCustomerConfirmationEmail). Its outcome must never
+   * change the QuoteSubmissionResult - see supabase-resend-adapter.ts.
+   */
+  sendCustomerConfirmation(payload: LeadNotificationPayload): Promise<NotificationSendResult>;
 }
 
 /** Prevents HTML injection from customer-supplied free-text fields. */
@@ -80,6 +87,37 @@ export function buildLeadNotificationEmail(payload: LeadNotificationPayload): {
 }
 
 /**
+ * Pure content builder for the customer-facing confirmation, exported for
+ * direct unit testing. Factual only - no price, no availability promise,
+ * no guarantee, no estimated response time beyond the same "soon" already
+ * used in the on-page success message (QuoteForm.astro), so the two
+ * customer-facing surfaces stay consistent.
+ */
+export function buildCustomerConfirmationEmail(payload: LeadNotificationPayload): {
+  subject: string;
+  html: string;
+  text: string;
+} {
+  const { leadId, input } = payload;
+  const name = escapeHtml(input.fullName.split(' ')[0] || input.fullName);
+  const service = escapeHtml(input.service);
+
+  const html = `<p>Hi ${name},</p><p>Thank you for contacting GreenCal Pressure Washing. We've received your request (${escapeHtml(
+    service,
+  )}) and will be in touch soon at the contact information you provided.</p><p>If you need to reach us sooner, please call or email us directly.</p><p style="color:#666;font-size:12px;">Reference: ${escapeHtml(
+    leadId,
+  )}</p>`;
+
+  const text = `Hi ${input.fullName.split(' ')[0] || input.fullName},\n\nThank you for contacting GreenCal Pressure Washing. We've received your request (${input.service}) and will be in touch soon at the contact information you provided.\n\nIf you need to reach us sooner, please call or email us directly.\n\nReference: ${leadId}`;
+
+  return {
+    subject: 'We received your request - GreenCal Pressure Washing',
+    html,
+    text,
+  };
+}
+
+/**
  * The real, GreenCal-owned Resend implementation. Only ever constructed
  * from the trusted server route with the server-only API key - never
  * imported or instantiated from client-side code. Uses Resend's
@@ -107,6 +145,30 @@ export function createResendNotificationSender(
             text,
           },
           { idempotencyKey: `quote-lead-${payload.leadId}` },
+        );
+
+        if (response.error) {
+          return { ok: false, error: response.error.message };
+        }
+        return { ok: true, providerId: response.data?.id ?? 'unknown' };
+      } catch (err) {
+        return { ok: false, error: err instanceof Error ? err.message : 'unknown_send_error' };
+      }
+    },
+
+    async sendCustomerConfirmation(payload) {
+      const { subject, html, text } = buildCustomerConfirmationEmail(payload);
+
+      try {
+        const response = await client.emails.send(
+          {
+            from: fromAddress,
+            to: payload.input.email,
+            subject,
+            html,
+            text,
+          },
+          { idempotencyKey: `quote-lead-confirm-${payload.leadId}` },
         );
 
         if (response.error) {

@@ -385,6 +385,51 @@ Still require further work, not implemented this stage:
 No reCAPTCHA, Cloudflare Turnstile, hCaptcha, or other third-party
 service was added - none is approved.
 
+## Customer confirmation email (added alongside the production launch sprint)
+
+In addition to the owner notification above, a fresh (non-duplicate)
+successful store also triggers a customer-facing confirmation email via
+the same Resend account (`notification-sender.ts`'s
+`sendCustomerConfirmation()` / `buildCustomerConfirmationEmail()`) - a
+short, factual message confirming the request was received, with no
+price, availability promise, or guarantee (unit-tested directly for
+this). Its outcome (`sent`/`failed`) is recorded via
+`LeadStore.markCustomerConfirmationStatus()` but **never changes the
+returned `QuoteSubmissionResult`** - the lead is already safely stored
+and the owner-notification path already governs `success` vs
+`delivery_failed`; a failed customer confirmation is a best-effort
+courtesy gap, not a lost lead. No new environment variable is required -
+it reuses `RESEND_API_KEY`/`RESEND_FROM_ADDRESS`.
+
+## Test-lead labeling
+
+`src/pages/api/quote-submit.ts` accepts an internal-only top-level
+`__testLead: true` field (alongside the existing `pagePath` field) -
+never sent by the public `QuoteForm.astro` UI, never documented for
+customer use. When present, `LeadStore.markTestLead()` is called
+best-effort after a successful insert. Use this only for a deliberately
+labeled, owner-approved verification submission (see "Production
+verification record" below for the established convention of also using
+a clearly fake name/description).
+
+## Lead status lifecycle and schema migration
+
+`supabase-migration-002-lead-status.sql` (run once, after
+`supabase-schema.sql`, in the Supabase SQL editor) adds: a `status`
+lifecycle column (`new` / `contacted` / `estimate_scheduled` /
+`estimate_sent` / `won` / `lost` / `spam` / `archived`, defaulting to
+`new`), a `consent_at` timestamp, the `is_test_lead` flag column used
+above, and the `customer_confirmation_status`/`_provider_id`/`_error_code`
+columns used above. **This migration is purely additive and safe to run
+at any time** - the application's insert path does not depend on any of
+these columns existing (Postgres applies the defaults automatically),
+and every new best-effort update call
+(`markCustomerConfirmationStatus`/`markTestLead`) already tolerates the
+columns not existing yet via the same try/catch pattern as the
+pre-existing `markNotificationStatus`. No admin UI exists yet to update
+`status` after the fact - use the Supabase table editor directly, or
+build a future admin tool.
+
 ## Remaining owner setup actions
 
 1. ~~Provision/confirm the GreenCal-owned Supabase project and run

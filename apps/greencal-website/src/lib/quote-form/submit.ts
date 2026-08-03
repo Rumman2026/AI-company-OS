@@ -11,6 +11,8 @@ export interface SubmitQuoteFormOptions {
    * the `success`/`delivery_failed` states.
    */
   adapter?: QuoteSubmissionAdapter;
+  /** See QuoteSubmissionContext.isTestLead - passed through unchanged. */
+  isTestLead?: boolean;
 }
 
 /**
@@ -35,7 +37,10 @@ export async function submitQuoteForm(
   const adapter = options.adapter ?? unavailableAdapter;
 
   try {
-    return await adapter.submit(validation.data, { pagePath: options.pagePath });
+    return await adapter.submit(validation.data, {
+      pagePath: options.pagePath,
+      isTestLead: options.isTestLead,
+    });
   } catch {
     return {
       status: 'delivery_failed',

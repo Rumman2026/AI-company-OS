@@ -8,6 +8,7 @@ import {
 import {
   escapeHtml,
   buildLeadNotificationEmail,
+  buildCustomerConfirmationEmail,
   type NotificationSender,
   type NotificationSendResult,
   type LeadNotificationPayload,
@@ -132,16 +133,58 @@ test.describe('buildLeadNotificationEmail', () => {
   });
 });
 
+test.describe('buildCustomerConfirmationEmail', () => {
+  const payload: LeadNotificationPayload = {
+    leadId: 'lead-123',
+    createdAt: '2026-07-22T00:00:00.000Z',
+    pagePath: '/contact-us',
+    input: VALID_INPUT,
+  };
+
+  test('escapes customer-supplied HTML in the rendered email', () => {
+    const malicious: LeadNotificationPayload = {
+      ...payload,
+      input: { ...VALID_INPUT, fullName: '<script>alert(1)</script>' },
+    };
+    const { html } = buildCustomerConfirmationEmail(malicious);
+    expect(html).not.toContain('<script>alert(1)</script>');
+  });
+
+  test('never quotes a price, promises availability, or guarantees anything', () => {
+    const { html, text, subject } = buildCustomerConfirmationEmail(payload);
+    const combined = `${subject} ${html} ${text}`;
+    expect(combined).not.toMatch(/\$\d/);
+    expect(combined).not.toMatch(/\bguarantee(s|d)?\b/i);
+    expect(combined).not.toMatch(/\bpromise(s|d)?\b/i);
+  });
+
+  test('includes the lead id as a reference and the requested service', () => {
+    const { html, text } = buildCustomerConfirmationEmail(payload);
+    expect(html).toContain('lead-123');
+    expect(text).toContain('lead-123');
+    expect(text).toContain(VALID_INPUT.service);
+  });
+});
+
 function createFakeLeadStore(
   behavior: {
     insert?: (row: QuoteLeadInsertRow) => InsertLeadResult;
   } = {},
-): LeadStore & { insertCalls: QuoteLeadInsertRow[]; notificationCalls: unknown[] } {
+): LeadStore & {
+  insertCalls: QuoteLeadInsertRow[];
+  notificationCalls: unknown[];
+  customerConfirmationCalls: unknown[];
+  testLeadCalls: string[];
+} {
   const insertCalls: QuoteLeadInsertRow[] = [];
   const notificationCalls: unknown[] = [];
+  const customerConfirmationCalls: unknown[] = [];
+  const testLeadCalls: string[] = [];
   return {
     insertCalls,
     notificationCalls,
+    customerConfirmationCalls,
+    testLeadCalls,
     async insertLead(row) {
       insertCalls.push(row);
       if (behavior.insert) return behavior.insert(row);
@@ -150,18 +193,34 @@ function createFakeLeadStore(
     async markNotificationStatus(leadId, status, details) {
       notificationCalls.push({ leadId, status, details });
     },
+    async markCustomerConfirmationStatus(leadId, status, details) {
+      customerConfirmationCalls.push({ leadId, status, details });
+    },
+    async markTestLead(leadId) {
+      testLeadCalls.push(leadId);
+    },
   };
 }
 
 function createFakeNotifier(
   result: NotificationSendResult,
-): NotificationSender & { calls: LeadNotificationPayload[] } {
+  confirmationResult: NotificationSendResult = result,
+): NotificationSender & {
+  calls: LeadNotificationPayload[];
+  confirmationCalls: LeadNotificationPayload[];
+} {
   const calls: LeadNotificationPayload[] = [];
+  const confirmationCalls: LeadNotificationPayload[] = [];
   return {
     calls,
+    confirmationCalls,
     async sendLeadNotification(payload) {
       calls.push(payload);
       return result;
+    },
+    async sendCustomerConfirmation(payload) {
+      confirmationCalls.push(payload);
+      return confirmationResult;
     },
   };
 }
@@ -245,7 +304,74 @@ test.describe('createSupabaseResendAdapter - approved delivery policy', () => {
     if (result.status === 'success') {
       expect(result.leadId).toBe('existing-lead-id');
     }
-    expect(notifier.calls).toHaveLength(0); // no duplicate email
+    expect(notifier.calls).toHaveLength(0); // no duplicate owner email
+    expect(notifier.confirmationCalls).toHaveLength(0); // no duplicate customer confirmation
+  });
+
+  test('a fresh store sends exactly one customer confirmation and records its status', async () => {
+    const store = createFakeLeadStore();
+    const notifier = createFakeNotifier({ ok: true, providerId: 'resend-1' });
+    const adapter = createSupabaseResendAdapter(store, notifier);
+
+    await adapter.submit(VALID_INPUT, context);
+
+    expect(notifier.confirmationCalls).toHaveLength(1);
+    expect(store.customerConfirmationCalls).toEqual([expect.objectContaining({ status: 'sent' })]);
+  });
+
+  test('a failed customer confirmation is recorded but never changes a successful result', async () => {
+    const store = createFakeLeadStore();
+    const notifier = createFakeNotifier(
+      { ok: true, providerId: 'resend-1' },
+      { ok: false, error: 'customer email rejected' },
+    );
+    const adapter = createSupabaseResendAdapter(store, notifier);
+
+    const result = await adapter.submit(VALID_INPUT, context);
+
+    expect(result.status).toBe('success');
+    expect(store.customerConfirmationCalls).toEqual([
+      expect.objectContaining({ status: 'failed' }),
+    ]);
+  });
+
+  test('a customer confirmation is still attempted even when the owner notification fails', async () => {
+    const store = createFakeLeadStore();
+    const notifier = createFakeNotifier(
+      { ok: false, error: 'owner email rejected' },
+      { ok: true, providerId: 'resend-2' },
+    );
+    const adapter = createSupabaseResendAdapter(store, notifier);
+
+    const result = await adapter.submit(VALID_INPUT, context);
+
+    expect(result.status).toBe('delivery_failed'); // owner path still governs the result
+    expect(notifier.confirmationCalls).toHaveLength(1);
+    expect(store.customerConfirmationCalls).toEqual([expect.objectContaining({ status: 'sent' })]);
+  });
+
+  test('a labeled test lead calls markTestLead with the stored lead id, never affecting the result', async () => {
+    const store = createFakeLeadStore();
+    const notifier = createFakeNotifier({ ok: true, providerId: 'resend-1' });
+    const adapter = createSupabaseResendAdapter(store, notifier);
+
+    const result = await adapter.submit(VALID_INPUT, { ...context, isTestLead: true });
+
+    expect(result.status).toBe('success');
+    expect(store.testLeadCalls).toHaveLength(1);
+    if (result.status === 'success') {
+      expect(store.testLeadCalls[0]).toBe(result.leadId);
+    }
+  });
+
+  test('isTestLead is not set does not call markTestLead', async () => {
+    const store = createFakeLeadStore();
+    const notifier = createFakeNotifier({ ok: true, providerId: 'resend-1' });
+    const adapter = createSupabaseResendAdapter(store, notifier);
+
+    await adapter.submit(VALID_INPUT, context);
+
+    expect(store.testLeadCalls).toHaveLength(0);
   });
 
   test('never returns success unless a store or notifier explicitly confirmed it', async () => {

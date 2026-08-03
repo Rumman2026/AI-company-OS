@@ -2,6 +2,14 @@ import type { NormalizedQuoteInput, QuoteSubmissionResult } from './types';
 
 export interface QuoteSubmissionContext {
   pagePath: string;
+  /**
+   * Set only via the internal `__testLead` request field (see
+   * src/pages/api/quote-submit.ts) - never present in the public
+   * QuoteForm.astro submission. Used for best-effort labeling only
+   * (LeadStore.markTestLead); never changes validation, delivery, or the
+   * returned QuoteSubmissionResult.
+   */
+  isTestLead?: boolean;
 }
 
 /**
