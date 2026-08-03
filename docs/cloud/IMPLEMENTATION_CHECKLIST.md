@@ -57,20 +57,20 @@ actually exists — do not mark a stage done without it (see
       the only provider prepared for pilot activation — OpenAI,
       Anthropic API, Gemini, DeepSeek, Perplexity, and Kimi remain
       unconnected.
-- [~] **Real Z.AI/GLM Sandbox Credential and Single-Call Pilot**:
-  official endpoint/auth/model confirmed against docs.z.ai
-  (`packages/provider-adapters/src/glm-lead-inquiry/real-client.ts`);
-  `real-pilot-runner.ts` + `scripts/run-glm-real-pilot.ts` built and
-  proven end-to-end against a mocked network (10 new tests, 42
-  total in the package) — exactly one call, correct escalation,
-  kill switch engaged and verified afterward, no secret ever
-  exposed. **Paused at the credential checkpoint** — no real
-  credential has been used and no real API call has been made; see
-  `docs/cloud/GLM_SANDBOX_PILOT.md` "Credential checkpoint" for
-  exact resume steps.
-- [ ] **Real provider connection (any provider)** — not started;
-      requires separate explicit owner authorization (ADR-0008 scope
-      note) and, for GLM, completion of the credential checkpoint above.
+- [x] **Real Z.AI/GLM Sandbox Credential and Single-Call Pilot**:
+      official endpoint/auth/model confirmed against docs.z.ai; one real,
+      bounded, authenticated API call made (2026-08-03) via the owner's
+      locally-stored credential (never displayed/logged/committed) —
+      authentication succeeded, the Z.ai account had no balance (`HTTP 429`,
+      billing error, not an auth failure), bounded retry exhausted correctly
+      with $0 cost, the provider's kill switch was engaged and verified
+      disabled immediately after. See `docs/cloud/GLM_SANDBOX_PILOT.md`
+      "Real call — actual result" for the full record. No structured
+      classification result exists yet — that requires a funded Z.ai account,
+      outside this repository's control.
+- [ ] **Real provider connection (any provider besides this one bounded
+      GLM attempt)** — not started; requires separate explicit owner
+      authorization (ADR-0008 scope note).
 - [ ] **Hostinger VPS provisioning** — not started; see
       `docs/cloud/HOSTINGER_VPS_SETUP.md`.
 - [ ] **Any deployment** — not started.

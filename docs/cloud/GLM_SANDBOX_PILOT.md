@@ -1,14 +1,15 @@
 # GLM Sandbox Pilot — `lead_inquiry_classification`
 
-Status: durable reference covering two stages — (1) AI Provider
-Configuration Validation and GLM Sandbox Pilot Preparation, and (2) the
-Real Z.AI/GLM Sandbox Credential and Single-Call Pilot. As of the most
-recent update, the pipeline is fully built and mocked-tested end to end
-and is **paused at the credential checkpoint** — no real Z.AI/GLM
-account is connected and no real API call has been made yet. See
-"Credential checkpoint" below for exact resume steps. No other provider
-(OpenAI, Anthropic API, Gemini, DeepSeek, Perplexity, Kimi) is activated
-by this or any prior stage.
+Status: durable reference covering three stages — (1) AI Provider
+Configuration Validation and GLM Sandbox Pilot Preparation, (2) the Real
+Z.AI/GLM Sandbox Credential and Single-Call Pilot build-out, and (3) the
+actual real-call attempt. **One real, bounded API call has been made**
+(see "Real call — actual result" below): authentication succeeded, but
+the Z.ai account had no balance, so the call failed closed after bounded
+retries with zero cost incurred; the provider was disabled immediately
+afterward and verified disabled. No other provider (OpenAI, Anthropic
+API, Gemini, DeepSeek, Perplexity, Kimi) is activated by this or any
+prior stage.
 
 ## Stage 1 — Configuration audit
 
@@ -262,12 +263,51 @@ synthetic inquiry proving exactly one fetch call, correct escalation
 switch engaged and verified afterward with zero further network access,
 and no API key anywhere in the returned report.
 
+### Real call — actual result (2026-08-03)
+
+A real credential was configured by the owner in a local, gitignored
+`.env.local` (never displayed, logged, or committed — verified by direct
+scan before every commit in this stage) and one real, bounded API call
+was made via
+`pnpm --filter @ai-company-os/provider-adapters run pilot:glm:real -- --confirm-real-call`
+for the exact synthetic HOA Orange County inquiry:
+
+- **Authentication**: succeeded — the request was not rejected as
+  unauthorized.
+- **Result**: the Z.ai API responded `HTTP 429` with
+  `{"error":{"code":"1113","message":"Insufficient balance or no resource package. Please recharge."}}`.
+  This is a billing/account-balance condition, not an authentication or
+  schema failure.
+- **Bounded retry**: retried up to the configured limit (3 attempts
+  total — 1 initial + 2 retries), then failed closed to
+  `status: 'retry-exhausted'`, per design. No fallback to any other
+  provider occurred.
+- **Cost**: $0.00 — no tokens were processed on either side, so no real
+  spend occurred and no budget was consumed.
+- **Kill switch**: engaged immediately after the attempt and verified
+  disabled via a follow-up call that was blocked before any further
+  network access (`killSwitchEngagedAfter: true`, `killSwitchVerified: true`).
+- **Secret exposure**: none — the real key never appeared in any log,
+  audit event, or output at any point.
+- **Bug found and fixed during this run**: the pilot script resolved
+  `.env.local` relative to the process's working directory, which
+  `pnpm --filter <pkg> run ...` sets to the package directory, not the
+  repo root — causing a silent fallback to dry-run on the first attempt
+  (no call made, no harm done). Fixed to resolve the path from the
+  script's own file location instead; see the `fix(cloud):` commit.
+
+**Outcome**: the pipeline is fully validated against the real Z.ai API
+up to (and including) authentication — the only remaining blocker to a
+successful classification is account balance, which is outside this
+repository's or Claude Code's control (recharge via the owner's Z.ai
+account dashboard). No structured classification result exists yet
+because the call never reached the point of returning one.
+
 ## Scope note
 
 This document, and everything it describes, is repository preparation
-only. No Hostinger connection, no real credential, no paid API call, no
-deployment, and no change to `apps/greencal-website` occurred as part of
-this or the prior stage — the pipeline is fully built and proven against
-a mocked network only, and is stopped at the credential checkpoint above
-pending the owner's local key setup and explicit confirmation to
-resume.
+plus one real, bounded, authenticated API call. No Hostinger connection,
+no deployment, and no change to `apps/greencal-website` occurred at any
+point. The real credential was never displayed, logged, or committed.
+The provider was disabled immediately after the one real call and
+verified disabled before this stage concluded.
