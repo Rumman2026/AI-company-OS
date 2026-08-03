@@ -136,14 +136,12 @@ repository evidence.
   require `businessId` on every call (11/11 unit tests passing,
   including tenant-isolation cases). GreenCal's business id is
   configuration (`CRM_BUSINESS_ID`), never hardcoded in code.
-- **Not done**: `packages/db/migrations/002-multi-tenant-foundation.sql`
-  has not yet been run against production (owner action). RLS policies
-  are written and reviewed but not independently verified against a live
-  database with two real authenticated sessions — that requires either
-  the owner testing it live or a scripted integration test with real
-  credentials, neither of which happened in this session. GreenCal Auto
-  Detailing and Navarro Builders are not onboarded as real tenants
-  (neither has a repository module yet).
+- Migration 002 has been run against the real `Greencal-production`
+  Supabase project (owner-confirmed): `businesses`/`memberships` exist,
+  RLS is enabled, all tenant-scoped policies exist, and the owner's own
+  Supabase Auth user is linked to GreenCal Pressure Washing with the
+  `owner-admin` role. GreenCal Mobile Detailing and Navarro Builders are
+  not onboarded as real tenants (neither has a repository module yet).
 
 **CRM Milestone 3 (in progress) — authenticated admin-console (`apps/admin-console`, ADR-0011)**
 
@@ -163,15 +161,35 @@ repository evidence.
   content (Button, Badge, Table, EmptyState, ErrorBanner, LoadingSpinner,
   FormField). Lint, typecheck, a local production build, and pure-logic
   unit tests (route-guard matching, status validation) all pass.
+- The owner's Supabase Auth user is created and linked as `owner-admin`
+  for GreenCal Pressure Washing (see Milestone 2 above).
 - **Not done**: no Vercel project exists for `apps/admin-console` yet
-  (not deployed live); no owner login account or `memberships` row has
-  been created; no real browser/E2E test exists (would need real
-  Supabase Auth credentials this session does not have). Companies,
-  Estimates, Jobs, Tasks, Appointments, Notes, and Media have no
-  persistence layer, so none get UI here — four of them (`Company`,
-  `Task`, `Appointment`, `Note`) have no `packages/core-models` type at
-  all yet. Search/CSV-export/reporting and full per-permission RBAC
-  (beyond the four enforced `MembershipRole` values) are unimplemented.
+  (not deployed live); no real browser/E2E test exists (would need a
+  real password entered through a real browser session, which was
+  deliberately never requested from the owner). Companies, Estimates,
+  Jobs, Tasks, Appointments, Notes, and Media have no UI here — four of
+  the remaining entities (`Company`, `Task`, `Appointment`, `Note`) have
+  no `packages/core-models` type at all yet. Search/CSV-export/reporting
+  and full per-permission RBAC (beyond the four enforced
+  `MembershipRole` values) are unimplemented.
+
+**CRM Cluster 4 (in progress) — Estimate/Booking/Job persistence (ADR-0012)**
+
+- Scope: see [DECISIONS.md](DECISIONS.md) ADR-0012 and
+  `docs/crm/CRM_ARCHITECTURE.md`.
+- Implemented with repository evidence: `estimates`, `bookings`, `jobs`
+  tables (`packages/db/migrations/003-job-pipeline-foundation.sql`,
+  tenant-scoped like every other CRM table); `EstimateRepository`,
+  `BookingRepository`, `JobRepository` (29/29 `packages/db` tests
+  passing total, tenant-isolation cases included for all three); every
+  Job status change routes through core-models' existing
+  `transitionJob()`, mirroring `LeadRepository` exactly.
+- **Not done**: migration 003 has not yet been run against production
+  (owner action). No admin-console UI and no actual Lead → Estimate →
+  Booking → Job creation workflow exists in any app yet — this cluster
+  is deliberately persistence-only, since a UI with no way to ever
+  populate it would be a hollow addition. That workflow + UI is the
+  explicit next cluster.
 
 ## Proposed future phases
 

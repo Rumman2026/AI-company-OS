@@ -43,14 +43,29 @@ entirely, so the repository layer's own filtering is what actually
 prevents a cross-tenant leak on that path (RLS handles it for an
 authenticated admin-console session).
 
-## What is deliberately excluded from this milestone
+## Cluster 4: Estimate/Booking/Job persistence
 
-An authenticated owner interface (`apps/admin-console` UI), full RBAC
-UI, companies/deals/jobs/estimates/appointments/calls/tasks/campaigns
-persistence, search/filtering/CSV export/reporting. GreenCal Auto
-Detailing and Navarro Builders are not onboarded as real tenants - only
-the schema's capacity to support them exists. See
-`docs/crm/CRM_ARCHITECTURE.md` for the full status breakdown.
+`migrations/003-job-pipeline-foundation.sql` adds `estimates`,
+`bookings`, `jobs` - tenant-scoped exactly like `contacts`/`leads`. See
+DECISIONS.md ADR-0012 for why all three were added together (`Job` and
+`Booking` both have required foreign keys one level up the chain -
+`Job.bookingId`, `Booking.estimateId` - so a schema-correct `Job` cannot
+exist without the others). `EstimateRepository`/`BookingRepository` are
+create/get/list only (no state machine exists for those two entities in
+core-models); `JobRepository` mirrors `LeadRepository` exactly, routing
+every status change through core-models' `transitionJob()`.
+
+## What is deliberately excluded
+
+An authenticated owner interface for Estimates/Bookings/Jobs (no UI yet
+
+- persistence only), the actual Lead→Estimate→Booking→Job creation
+  workflow (no app calls `createEstimate`/`createBooking` yet), full RBAC
+  UI, companies/tasks/appointments/notes/media persistence,
+  search/filtering/CSV export/reporting. GreenCal Mobile Detailing and
+  Navarro Builders are not onboarded as real tenants - only the schema's
+  capacity to support them exists. See `docs/crm/CRM_ARCHITECTURE.md` for
+  the full status breakdown.
 
 ## Security model
 

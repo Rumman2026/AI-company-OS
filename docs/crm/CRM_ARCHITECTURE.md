@@ -1,12 +1,43 @@
 # CRM Architecture
 
-Status: durable record of CRM Milestones 1-3 (this sprint). See
-[DECISIONS.md](../../DECISIONS.md) ADR-0009 (persistence), ADR-0010
-(multi-tenant foundation), and ADR-0011 (admin-console) for the full
-rationale, and [`packages/core-models`](../../packages/core-models/README.md) /
+Status: durable record of CRM Milestones 1-3 and Cluster 4 (this
+sprint). See [DECISIONS.md](../../DECISIONS.md) ADR-0009 (persistence),
+ADR-0010 (multi-tenant foundation), ADR-0011 (admin-console), and
+ADR-0012 (Estimate/Booking/Job) for the full rationale, and
+[`packages/core-models`](../../packages/core-models/README.md) /
 [`packages/db`](../../packages/db/README.md) /
 [`apps/admin-console`](../../apps/admin-console/README.md) for
 implementation detail.
+
+## Cluster 4: Estimate/Booking/Job persistence
+
+`Job` was assumed to be the next-closest entity to ready after Milestone
+3 (it already has a `packages/core-models` type and state machine). But
+`Job.bookingId` and `Booking.estimateId` are both required fields, so a
+schema-correct `Job` needs `Estimate` and `Booking` persisted too - see
+ADR-0012.
+
+| Piece                                                                                 | Status                                                                                           |
+| ------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
+| `estimates`, `bookings`, `jobs` tables (`migrations/003-job-pipeline-foundation.sql`) | Implemented this cluster (owner-run)                                                             |
+| `EstimateRepository`, `BookingRepository`, `JobRepository`                            | Implemented and unit-tested (29/29 `packages/db` tests passing, tenant-isolation cases included) |
+| `JobRepository.transitionJobStatus`                                                   | Routes through core-models' `transitionJob()`, mirrors `LeadRepository` exactly                  |
+
+**Classification: IMPLEMENTED AND TESTED LOCALLY.** Not yet run against
+the live database (owner action - see below). **No UI and no creation
+workflow yet** - `EstimateRepository.createEstimate` is never called by
+any app, so there is currently no way to actually produce an Estimate
+(and therefore a Booking or Job) through any user-facing surface. This
+is intentionally persistence-first, matching the exact sequencing
+already used for Contact/Lead/multi-tenant/admin-console.
+
+**Owner action**: run `packages/db/migrations/003-job-pipeline-foundation.sql`
+in the Supabase SQL Editor (additive, safe anytime, after migration 002).
+
+**Next**: the actual Lead → Estimate → Booking → Job creation workflow
+and admin-console UI for all three, as one cohesive next cluster (a
+half-built Jobs list with no way to ever populate it would be a hollow
+addition).
 
 ## What "CRM" means in this repository today
 

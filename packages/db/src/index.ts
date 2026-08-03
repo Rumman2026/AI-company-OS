@@ -35,3 +35,34 @@ export { createSupabaseAuditLogRepository } from './audit-log-repository';
 export type { AuditLogRepository, WriteAuditRecordResult } from './audit-log-repository';
 
 export type { MembershipRole } from './membership-types';
+
+export { createSupabaseEstimateRepository } from './estimate-repository';
+export type {
+  EstimateRepository,
+  CreateEstimateInput,
+  CreateEstimateResult,
+  GetEstimateResult,
+  ListEstimatesResult,
+  ListEstimatesOptions,
+} from './estimate-repository';
+
+export { createSupabaseBookingRepository } from './booking-repository';
+export type {
+  BookingRepository,
+  CreateBookingInput,
+  CreateBookingResult,
+  GetBookingResult,
+  ListBookingsResult,
+  ListBookingsOptions,
+  LinkJobResult,
+} from './booking-repository';
+
+export { createSupabaseJobRepository } from './job-repository';
+export type {
+  JobRepository,
+  CreateJobResult,
+  TransitionJobResult,
+  GetJobResult,
+  ListJobsResult,
+  ListJobsOptions,
+} from './job-repository';

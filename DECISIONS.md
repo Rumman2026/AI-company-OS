@@ -971,6 +971,57 @@ or onboarding GreenCal Mobile Detailing/Navarro Builders as real tenants.
 
 ---
 
+## ADR-0012: Estimate/Booking/Job persistence (CRM Cluster 4)
+
+**Status**: Confirmed (persistence implemented this cluster; UI deferred)
+
+**Context**: Continuing the CRM build-out past Milestone 3 (Lead/Contact),
+`Job` was assumed to be the next-closest entity to ready since
+`packages/core-models` already has its type and state machine
+(`transitionJob`). Inspecting the type revealed `Job.bookingId` is
+required (non-optional), and `Booking.estimateId` is likewise required —
+so a schema-correct `Job` cannot exist without a `Booking`, which cannot
+exist without an `Estimate`. Building `Job` persistence alone would have
+meant either loosening those required fields (misrepresenting a domain
+invariant `packages/core-models`' own tests already rely on) or leaving
+foreign keys nullable in a way the type system doesn't permit. Both are
+rejected; all three are added together.
+
+**Decision**: New tables `estimates`, `bookings`, `jobs` — tenant-scoped
+(`business_id`, per ADR-0010) exactly like `contacts`/`leads`, with the
+same RLS pattern (`authenticated` role scoped via `memberships`,
+service-role bypasses as usual). `bookings.job_id` and `jobs.booking_id`
+form a circular reference, resolved the standard way: `jobs` table
+created first referencing `bookings(id)` (NOT NULL), then a deferred
+`ALTER TABLE bookings ADD CONSTRAINT ... FOREIGN KEY (job_id) REFERENCES
+jobs (id)` (nullable) added after. `jobs.status` changes must route
+through `packages/core-models`' existing `transitionJob()`, mirroring
+`LeadRepository`'s pattern exactly — this package still authors no
+business rules of its own. `Estimate`/`Booking` have no state machine in
+core-models (simple entities), so their repositories are create/get/list
+only, no transition method.
+
+**Alternatives considered**: Loosening `Job.bookingId`/`Booking.estimateId`
+to optional in the database only (keeping the stricter TypeScript type).
+Rejected: a nullable-in-DB, required-in-type mismatch is exactly the kind
+of silent inconsistency that causes confusing bugs later, and the actual
+effort difference (three tables vs. one) is small.
+
+**Trade-offs**: This cluster is persistence only — no admin-console UI
+for Estimates/Bookings/Jobs yet, and no real "create an Estimate from a
+Lead" workflow exists in any app. `packages/db`'s test surface grows by
+three more repositories following an already-proven pattern, so this is
+mechanical, not risky, work.
+
+**Consequences**: `docs/crm/CRM_ARCHITECTURE.md` gains a Cluster 4
+section. The next milestone (admin-console UI for at least Jobs) builds
+directly on this.
+
+**Related**: [ADR-0009](#adr-0009-packagesdb-persistence-engine-and-crm-milestone-1-scope-leadcontact-persistence-for-the-existing-growth-system-domain-model),
+[ADR-0010](#adr-0010-multi-tenant-crm-foundation-businessesmemberships-tenant-scoped-rls).
+
+---
+
 ## Proposed decisions (not yet made)
 
 - Service-to-service communication pattern (REST/gRPC/queue) beyond the
