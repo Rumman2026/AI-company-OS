@@ -55,17 +55,6 @@ services:
       - '3000:3000'
     environment:
       - NODE_ENV=development
-  admin-console:
-    build:
-      context: .
-      dockerfile: ./apps/admin-console/Dockerfile
-    working_dir: /usr/src/app/apps/admin-console
-    volumes:
-      - .:/usr/src/app
-    ports:
-      - '3001:3001'
-    environment:
-      - NODE_ENV=development
   docs-portal:
     build:
       context: .

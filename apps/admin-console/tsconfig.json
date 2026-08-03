@@ -2,7 +2,7 @@
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
     "outDir": "dist",
-    "rootDir": "src"
+    "types": ["node", "astro/client"]
   },
-  "include": ["src"]
+  "include": ["src", "tests", "playwright.config.ts"]
 }

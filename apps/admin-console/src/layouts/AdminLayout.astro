@@ -1,0 +1,142 @@
+---
+import { tokensCss, componentsCss } from '@ai-company-os/ui-kit';
+import type { CurrentMembership } from '../lib/auth/membership';
+
+interface Props {
+  title: string;
+  membership?: CurrentMembership | null;
+}
+
+const { title, membership = null } = Astro.props;
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="robots" content="noindex, nofollow" />
+    <title>{title} · AI Company OS Admin</title>
+    <style set:html={tokensCss} />
+    <style set:html={componentsCss} />
+    <style>
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        font-family: var(--font-sans);
+        background: var(--color-bg);
+        color: var(--color-text);
+      }
+      .admin-shell {
+        display: flex;
+        min-height: 100vh;
+      }
+      .admin-nav {
+        width: 220px;
+        flex-shrink: 0;
+        background: var(--color-surface);
+        border-right: 1px solid var(--color-border);
+        padding: var(--space-6) var(--space-4);
+      }
+      .admin-nav__business {
+        font-weight: 700;
+        margin-bottom: var(--space-1);
+      }
+      .admin-nav__role {
+        font-size: var(--font-size-sm);
+        color: var(--color-text-muted);
+        margin-bottom: var(--space-6);
+      }
+      .admin-nav ul {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-1);
+      }
+      .admin-nav a {
+        display: block;
+        padding: var(--space-2) var(--space-3);
+        border-radius: var(--radius-sm);
+        color: var(--color-text);
+        text-decoration: none;
+        min-height: 44px;
+        display: flex;
+        align-items: center;
+      }
+      .admin-nav a:hover,
+      .admin-nav a:focus-visible {
+        background: var(--color-neutral-bg);
+      }
+      .admin-main {
+        flex: 1;
+        min-width: 0;
+        padding: var(--space-6);
+      }
+      .admin-mobile-toggle {
+        display: none;
+      }
+      @media (max-width: 768px) {
+        .admin-shell {
+          flex-direction: column;
+        }
+        .admin-nav {
+          width: 100%;
+          border-right: none;
+          border-bottom: 1px solid var(--color-border);
+          padding: var(--space-4);
+        }
+        .admin-nav ul {
+          flex-direction: row;
+          flex-wrap: wrap;
+        }
+        .admin-main {
+          padding: var(--space-4);
+        }
+      }
+      .skip-link {
+        position: absolute;
+        left: -9999px;
+        top: 0;
+        background: var(--color-primary);
+        color: #fff;
+        padding: var(--space-2) var(--space-4);
+        z-index: 100;
+      }
+      .skip-link:focus {
+        left: 0;
+      }
+    </style>
+  </head>
+  <body>
+    <a href="#main-content" class="skip-link">Skip to main content</a>
+    <div class="admin-shell">
+      <nav class="admin-nav" aria-label="Primary">
+        {
+          membership ? (
+            <>
+              <p class="admin-nav__business">{membership.businessName}</p>
+              <p class="admin-nav__role">{membership.role}</p>
+            </>
+          ) : null
+        }
+        <ul>
+          <li><a href="/">Dashboard</a></li>
+          <li><a href="/leads">Leads</a></li>
+          <li><a href="/contacts">Contacts</a></li>
+        </ul>
+        <form method="POST" action="/api/auth/logout" style="margin-top: 2rem;">
+          <button type="submit" class="uikit-button uikit-button--secondary" style="width: 100%;">
+            Log out
+          </button>
+        </form>
+      </nav>
+      <main id="main-content" class="admin-main">
+        <slot />
+      </main>
+    </div>
+  </body>
+</html>

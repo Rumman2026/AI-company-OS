@@ -1,0 +1,91 @@
+---
+import AdminLayout from '../../layouts/AdminLayout.astro';
+import { getCurrentMembership } from '../../lib/auth/membership';
+import { createSupabaseContactRepository, createSupabaseLeadRepository, createSupabaseAuditLogRepository } from '@ai-company-os/db';
+import { leadStatusTone } from '@ai-company-os/ui-kit';
+import type { LeadStatus } from '@ai-company-os/core-models';
+
+const user = Astro.locals.user!;
+const membership = await getCurrentMembership(Astro.locals.supabase, user.id);
+const { id } = Astro.params;
+
+let contact: { id: string; displayName: string; phone?: string; email?: string } | null = null;
+let leads: Array<{ id: string; status: LeadStatus; createdAt: string }> = [];
+let notFound = false;
+
+if (membership && id) {
+  const contactRepo = createSupabaseContactRepository(Astro.locals.supabase);
+  const result = await contactRepo.getContact(membership.businessId, id);
+
+  if (result.ok) {
+    contact = result.contact;
+    const auditLog = createSupabaseAuditLogRepository(Astro.locals.supabase);
+    const leadRepo = createSupabaseLeadRepository(Astro.locals.supabase, auditLog);
+    const leadsResult = await leadRepo.listLeads(membership.businessId, { contactId: id });
+    if (leadsResult.ok) {
+      leads = leadsResult.leads.map((l) => ({ id: l.id, status: l.status, createdAt: l.createdAt }));
+    }
+  } else {
+    notFound = true;
+  }
+}
+---
+
+<AdminLayout title="Contact detail" membership={membership}>
+  <p><a href="/contacts">&larr; Back to contacts</a></p>
+  {
+    notFound ? (
+      <div class="uikit-error-banner" role="alert">
+        Contact not found.
+      </div>
+    ) : contact ? (
+      <>
+        <h1>{contact.displayName}</h1>
+        <dl>
+          <dt>Phone</dt>
+          <dd>{contact.phone ?? '—'}</dd>
+          <dt>Email</dt>
+          <dd>{contact.email ?? '—'}</dd>
+        </dl>
+
+        <h2>Leads</h2>
+        {leads.length === 0 ? (
+          <div class="uikit-empty-state">
+            <p class="uikit-empty-state__title">No leads for this contact</p>
+          </div>
+        ) : (
+          <div class="uikit-table-scroll">
+            <table class="uikit-table">
+              <thead>
+                <tr>
+                  <th>Status</th>
+                  <th>Created</th>
+                  <th />
+                </tr>
+              </thead>
+              <tbody>
+                {leads.map((lead) => (
+                  <tr>
+                    <td>
+                      <span class={`uikit-badge uikit-badge--${leadStatusTone(lead.status)}`}>
+                        {lead.status}
+                      </span>
+                    </td>
+                    <td>{new Date(lead.createdAt).toLocaleString()}</td>
+                    <td>
+                      <a href={`/leads/${lead.id}`}>View</a>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </>
+    ) : (
+      <div class="uikit-error-banner" role="alert">
+        Your account has no business membership yet.
+      </div>
+    )
+  }
+</AdminLayout>

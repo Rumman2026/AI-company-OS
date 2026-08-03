@@ -21,9 +21,9 @@ push/PR to `main` and `develop`.
 
 ## Confirmed: application boundaries
 
-Every app below except `apps/greencal-website` currently contains only a
-placeholder entry point (`src/index.ts` or `src/index.tsx`) and a
-`Dockerfile`, with no business logic implemented.
+Every app below except `apps/greencal-website` and `apps/admin-console`
+currently contains only a placeholder entry point (`src/index.ts` or
+`src/index.tsx`) and a `Dockerfile`, with no business logic implemented.
 
 `apps/greencal-website` has a real static-site technical foundation (Astro,
 TypeScript, plain CSS, Playwright/Chromium smoke tests) as of Phase 2A
@@ -32,18 +32,24 @@ content: no verified business claims, no address, no `LocalBusiness`
 structured data, and no quote form. It has no `Dockerfile` (not required for
 this checkpoint) and is not wired into `docker-compose.dev.yml`.
 
-| App                       | Role                                                                 | Port (dev)   |
-| ------------------------- | -------------------------------------------------------------------- | ------------ |
-| `apps/api-gateway`        | API gateway / edge service                                           | 4000         |
-| `apps/core-api`           | Core business API                                                    | 4001         |
-| `apps/agent-orchestrator` | Agent orchestration engine                                           | 4002         |
-| `apps/worker-service`     | Background job / worker processor; agent-worker execution (ADR-0008) | 4003         |
-| `apps/web-console`        | Customer-facing web console (React/TSX)                              | 3000         |
-| `apps/admin-console`      | Internal admin interface (React/TSX)                                 | 3001         |
-| `apps/docs-portal`        | Documentation portal (React/TSX)                                     | 3002         |
-| `apps/greencal-website`   | GreenCal Pressure Washing public marketing website (Astro, static)   | 4321         |
-| `apps/ai-gateway`         | Provider-neutral AI routing gateway (ADR-0008)                       | 4100 (cloud) |
-| `apps/jervis-api`         | Owner-facing control API: health, budgets, kill switches (ADR-0008)  | 4101 (cloud) |
+`apps/admin-console` has a real, tenant-aware, authenticated Astro/React
+application (login, session, dashboard, Lead and Contact modules) as of
+DECISIONS.md ADR-0011 — see `apps/admin-console/README.md`. It has no
+`Dockerfile` and is not wired into `docker-compose.dev.yml`, same
+precedent as `apps/greencal-website`.
+
+| App                       | Role                                                                                                                                                                         | Port (dev)   |
+| ------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------ |
+| `apps/api-gateway`        | API gateway / edge service                                                                                                                                                   | 4000         |
+| `apps/core-api`           | Core business API                                                                                                                                                            | 4001         |
+| `apps/agent-orchestrator` | Agent orchestration engine                                                                                                                                                   | 4002         |
+| `apps/worker-service`     | Background job / worker processor; agent-worker execution (ADR-0008)                                                                                                         | 4003         |
+| `apps/web-console`        | Customer-facing web console (React/TSX)                                                                                                                                      | 3000         |
+| `apps/admin-console`      | Internal, authenticated, multi-tenant CRM admin UI (Astro server output + React islands; Supabase Auth session, RLS-enforced data access) - real as of DECISIONS.md ADR-0011 | 4322         |
+| `apps/docs-portal`        | Documentation portal (React/TSX)                                                                                                                                             | 3002         |
+| `apps/greencal-website`   | GreenCal Pressure Washing public marketing website (Astro, static)                                                                                                           | 4321         |
+| `apps/ai-gateway`         | Provider-neutral AI routing gateway (ADR-0008)                                                                                                                               | 4100 (cloud) |
+| `apps/jervis-api`         | Owner-facing control API: health, budgets, kill switches (ADR-0008)                                                                                                          | 4101 (cloud) |
 
 Ports and service wiring for the backend/console apps are defined in
 `docker-compose.dev.yml` and `config/env/.env.example`; `apps/greencal-website`
@@ -64,7 +70,7 @@ Compose wiring — their (future) cloud-stack ports/env are defined in
 | `packages/toolkit`           | Shared tooling and helper utilities                                                                                                                                                                                                                 |
 | `packages/telemetry`         | Shared telemetry instrumentation helpers                                                                                                                                                                                                            |
 | `packages/platform-utils`    | Shared platform utility helpers                                                                                                                                                                                                                     |
-| `packages/ui-kit`            | Shared UI components and design tokens                                                                                                                                                                                                              |
+| `packages/ui-kit`            | Real shared React components (Button, Badge, Table, EmptyState, ErrorBanner, LoadingSpinner, FormField) and design tokens as of ADR-0011; `apps/admin-console` is its first real consumer                                                           |
 | `packages/provider-adapters` | Placeholder adapters for the 7 approved AI providers (ADR-0008)                                                                                                                                                                                     |
 | `packages/task-router`       | Deterministic-first task routing (ADR-0008)                                                                                                                                                                                                         |
 | `packages/context-builder`   | Compact, task-scoped context packages (ADR-0008)                                                                                                                                                                                                    |
@@ -74,7 +80,7 @@ Compose wiring — their (future) cloud-stack ports/env are defined in
 | `packages/audit-logger`      | Secret-redacted audit trail, distinct from telemetry (ADR-0008)                                                                                                                                                                                     |
 | `packages/cost-controller`   | Per-provider/agent/business budget tracking and kill switches (ADR-0008)                                                                                                                                                                            |
 
-`packages/auth`, `toolkit`, `platform-utils`, and `ui-kit` contain only a
+`packages/auth`, `toolkit`, and `platform-utils` contain only a
 placeholder `src/index.ts` — no implementation. `packages/agent-sdk` now
 contains real provider-neutral contracts (types only, no logic); the nine
 packages added under ADR-0008 contain real, tested placeholder logic but
@@ -82,8 +88,9 @@ make no real AI-provider network call anywhere. `packages/core-models`
 contains a real, tested, pure domain model (no persistence/API/UI - see
 its README); `packages/db` contains real Supabase-backed persistence for
 a first slice of that model (`Contact`, `Lead`, `AuditLog`) as of
-DECISIONS.md ADR-0009 — see `docs/crm/CRM_ARCHITECTURE.md` for what is
-and is not implemented.
+DECISIONS.md ADR-0009/ADR-0010; `packages/ui-kit` contains real shared
+React components as of ADR-0011 — see `docs/crm/CRM_ARCHITECTURE.md` for
+what is and is not implemented.
 
 ## Confirmed: platform boundaries
 

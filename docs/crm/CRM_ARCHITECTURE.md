@@ -1,10 +1,12 @@
 # CRM Architecture
 
-Status: durable record of CRM Milestone 1 and Milestone 2 (this sprint).
-See [DECISIONS.md](../../DECISIONS.md) ADR-0009 (persistence) and
-ADR-0010 (multi-tenant foundation) for the full rationale, and
-[`packages/core-models`](../../packages/core-models/README.md) /
-[`packages/db`](../../packages/db/README.md) for implementation detail.
+Status: durable record of CRM Milestones 1-3 (this sprint). See
+[DECISIONS.md](../../DECISIONS.md) ADR-0009 (persistence), ADR-0010
+(multi-tenant foundation), and ADR-0011 (admin-console) for the full
+rationale, and [`packages/core-models`](../../packages/core-models/README.md) /
+[`packages/db`](../../packages/db/README.md) /
+[`apps/admin-console`](../../apps/admin-console/README.md) for
+implementation detail.
 
 ## What "CRM" means in this repository today
 
@@ -12,10 +14,11 @@ The owner's "Master Scope Consolidation" directive asks for an internal
 CRM comparable in core capability to HubSpot (contacts, companies,
 properties, leads, deals, jobs, estimates, appointments, calls, tasks,
 campaigns, an authenticated owner interface, search/filter/reporting,
-RBAC). That is a large system. **This document describes Milestone 1
-only** — persistence for two of those entities, wired into GreenCal's
-real production lead intake — and is honest about everything else being
-not yet built, not "planned in a way that counts as done."
+RBAC). That is a large system. **This document describes Milestones 1-3
+only** — persistence for two entities (Lead, Contact), a multi-tenant
+foundation, and an authenticated UI for those same two entities — and is
+honest about everything else being not yet built, not "planned in a way
+that counts as done."
 
 ## What is actually implemented and verified (Milestone 1)
 
@@ -27,13 +30,13 @@ not yet built, not "planned in a way that counts as done."
 | GreenCal intake wiring (best-effort Contact+Lead creation per new lead)    | Implemented and unit-tested this milestone (`supabase-resend-adapter.ts`, `crm-intake-adapter.ts`)     |
 | `quote_leads.lead_id` link column                                          | Implemented this milestone (additive migration, owner-run) — see `supabase-migration-003-crm-link.sql` |
 
-**Classification: IMPLEMENTED AND TESTED LOCALLY.** Not yet
-`LIVE AND VERIFIED` in production — the two new migrations
-(`packages/db/migrations/001-crm-foundation.sql` and
-`apps/greencal-website/src/lib/quote-form/supabase-migration-003-crm-link.sql`)
-have not been run against the real Supabase project yet (owner action,
-see below), so no real `contacts`/`leads` row has actually been created
-by a real customer submission as of this document.
+**Classification: LIVE AND VERIFIED (schema).** The owner has confirmed
+`packages/db/migrations/001-crm-foundation.sql` and
+`apps/greencal-website/src/lib/quote-form/supabase-migration-003-crm-link.sql`
+were both run successfully against the real `Greencal-production`
+Supabase project. `CRM_BUSINESS_ID` (see Milestone 2) has not yet been
+confirmed set in Vercel, so real CRM-intake linking on a live customer
+submission has not yet been independently observed end-to-end.
 
 ## Milestone 2: multi-tenant foundation
 
@@ -60,6 +63,44 @@ GreenCal Auto Detailing and Navarro Builders are **not** onboarded as
 real tenants by this milestone — neither has a repository module yet
 (see BUSINESSES.md). Only the schema's capacity to support them exists.
 
+## Milestone 3: authenticated admin-console
+
+The owner directed a tenant-aware admin UI covering nine entity types
+(Contacts, Companies, Leads, Estimates, Jobs, Tasks, Appointments, Notes,
+Media). A repository check at the start of this milestone confirmed only
+`Contact` and `Lead` have any persistence; the other seven have no
+repository, and four of them (`Company`, `Task`, `Appointment`, `Note`)
+have no `packages/core-models` type at all. See DECISIONS.md ADR-0011 for
+the full scoping rationale.
+
+| Piece                                                               | Status                                                                                                |
+| ------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| `apps/admin-console` bootstrap (Astro server output, Vercel, React) | Implemented this milestone                                                                            |
+| Login, logout, forgot/reset password (Supabase Auth)                | Implemented this milestone                                                                            |
+| Session middleware (route guard, cookie refresh)                    | Implemented this milestone                                                                            |
+| Tenant-aware dashboard (business name, role, lead-status counts)    | Implemented this milestone                                                                            |
+| Leads: list (status filter), detail, status-transition              | Implemented this milestone - transitions route through `transitionLead()`                             |
+| Contacts: list (search), detail (read-only, shows associated leads) | Implemented this milestone                                                                            |
+| `packages/ui-kit` real components                                   | Implemented this milestone (Button, Badge, Table, EmptyState, ErrorBanner, LoadingSpinner, FormField) |
+| `ContactRepository`/`LeadRepository` list/get methods               | Implemented and unit-tested this milestone (tenant-isolation cases included)                          |
+
+**Classification: IMPLEMENTED AND TESTED LOCALLY.** Lint, typecheck, and
+a local production build (`astro build`) all pass. **Not yet deployed** -
+no Vercel project exists for `apps/admin-console` yet, and no owner
+account/membership row has been created, so no real login has happened
+against a live deployment. Pure-logic unit tests pass (route-guard
+matching, status validation); no real browser/E2E test exists for the
+login or CRM flows, since doing so would require real Supabase Auth
+credentials this session does not have.
+
+**Deferred to future milestones**: Companies, Estimates, Jobs, Tasks,
+Appointments, Notes, and Media all have **no persistence layer**, so none
+get UI here. Each future milestone should add the `packages/core-models`
+type (if missing), a `packages/db` migration + repository (with
+tenant-isolation tests, following ADR-0009/ADR-0010's pattern), and only
+then a UI module - the same sequencing already used for Contact/Lead.
+`Job` is the closest to ready (type + state machine already exist).
+
 ## Why persistence, not a new data model
 
 A repository audit at the start of this milestone found `packages/core-models`
@@ -82,18 +123,17 @@ other specific channel that would assert something not actually observed.
 
 ## What is deliberately deferred (not implemented, not scheduled)
 
-- **Authenticated owner interface** (`apps/admin-console` remains an
-  empty Phase 1 placeholder). Today, viewing or changing a `Lead`'s
-  status requires either direct Supabase table access or a future
-  milestone's UI/API.
-- **RBAC beyond service-role-only access.** No Supabase Auth wiring, no
-  owner-role RLS policy exists yet.
 - **Companies, properties, deals, jobs, estimates, appointments, calls,
   communications, notes, tasks, campaigns, files/photos** — all defined
   as types in `packages/core-models` already (jobs, invoices, photos,
-  review requests) but have **no persistence** yet.
-- **Search, filtering, sorting, CSV export, activity-history views,
-  reporting, tags, assignment.**
+  review requests) but have **no persistence or UI** yet.
+- **CSV export, activity-history/audit-trail views, reporting, tags,
+  assignment.**
+- **Full RBAC** beyond the four-role `MembershipRole` set already
+  enforced by RLS (`owner-admin`, `office-manager`, `dispatcher`,
+  `technician`) - no per-permission granularity within a role yet.
+- **A live admin-console deployment** - no Vercel project exists for it
+  yet (see Owner action below).
 - **Job pipeline, estimate generation, and everything in the master
   directive's Systems 4–17** (Hostinger, pricing engine, Emma, Jervis,
   provider gateway expansion, SEO/AEO/GEO, Google Business Profile,
@@ -101,16 +141,19 @@ other specific channel that would assert something not actually observed.
 
 ## Owner action required
 
-Run these three migrations once, in the Supabase SQL Editor, **in this
-order** (all are purely additive and documented as safe at any time):
-
-1. `packages/db/migrations/001-crm-foundation.sql`
-2. `apps/greencal-website/src/lib/quote-form/supabase-migration-003-crm-link.sql`
-3. `packages/db/migrations/002-multi-tenant-foundation.sql`
-
-Then set `CRM_BUSINESS_ID` in Vercel (Preview + Production) to the
-seeded business row's id:
-`select id from businesses where slug = 'greencal-pressure-washing';`
+1. Run `packages/db/migrations/002-multi-tenant-foundation.sql` in the
+   Supabase SQL Editor (purely additive, safe at any time) - migrations
+   001 and 003 are already confirmed applied.
+2. Set `CRM_BUSINESS_ID` in Vercel (Preview + Production, for
+   `apps/greencal-website`) to the seeded business row's id:
+   `select id from businesses where slug = 'greencal-pressure-washing';`
+3. Create your own login: Supabase dashboard → Authentication → Users →
+   Add user, then link it to GreenCal via a `memberships` row - see
+   `apps/admin-console/README.md`'s "Owner setup" section for the exact
+   SQL.
+4. Provision a Vercel project for `apps/admin-console` (separate from
+   `apps/greencal-website`) and configure `SUPABASE_URL`/
+   `SUPABASE_ANON_KEY` there before the first real deployment.
 
 Until all three run and `CRM_BUSINESS_ID` is set, the best-effort
 CRM-intake call in `supabase-resend-adapter.ts` will fail silently (by
@@ -123,8 +166,7 @@ existing paths this milestone did not touch.
 
 ## Next recommended milestone
 
-Authenticated `apps/admin-console` UI (login/session, tenant-scoped
-dashboard, Lead list + Lead detail) built directly on this tenant
-foundation and the repositories both milestones already built — the
-smallest slice that would let the owner actually see and act on CRM data
-through a web page rather than the Supabase table editor.
+`Job` persistence (`packages/core-models` already has the type and state
+machine) plus a Jobs module in `apps/admin-console` - the closest of the
+remaining seven entities to ready, and the natural next step in a Lead's
+lifecycle once `booked`.

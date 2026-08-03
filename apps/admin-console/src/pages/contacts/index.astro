@@ -1,0 +1,76 @@
+---
+import AdminLayout from '../../layouts/AdminLayout.astro';
+import { getCurrentMembership } from '../../lib/auth/membership';
+import { createSupabaseContactRepository } from '@ai-company-os/db';
+
+const user = Astro.locals.user!;
+const membership = await getCurrentMembership(Astro.locals.supabase, user.id);
+const search = Astro.url.searchParams.get('q') ?? '';
+
+let contacts: Array<{ id: string; displayName: string; phone?: string; email?: string }> = [];
+let loadError: string | null = null;
+
+if (membership) {
+  const contactRepo = createSupabaseContactRepository(Astro.locals.supabase);
+  const result = await contactRepo.listContacts(membership.businessId, {
+    search: search || undefined,
+  });
+  if (result.ok) {
+    contacts = result.contacts;
+  } else {
+    loadError = result.error;
+  }
+}
+---
+
+<AdminLayout title="Contacts" membership={membership}>
+  <h1>Contacts</h1>
+
+  <form method="GET" style="margin-bottom: 1rem; max-width: 320px;">
+    <div class="uikit-form-field">
+      <label for="q">Search by name</label>
+      <input id="q" name="q" type="search" value={search} />
+    </div>
+    <button type="submit" class="uikit-button uikit-button--secondary">Search</button>
+  </form>
+
+  {
+    loadError ? (
+      <div class="uikit-error-banner" role="alert">
+        Could not load contacts: {loadError}
+      </div>
+    ) : contacts.length === 0 ? (
+      <div class="uikit-empty-state">
+        <p class="uikit-empty-state__title">No contacts found</p>
+        <p class="uikit-empty-state__description">
+          {search ? `No contacts matching "${search}".` : 'Contacts are created automatically from new leads.'}
+        </p>
+      </div>
+    ) : (
+      <div class="uikit-table-scroll">
+        <table class="uikit-table">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Phone</th>
+              <th>Email</th>
+              <th />
+            </tr>
+          </thead>
+          <tbody>
+            {contacts.map((contact) => (
+              <tr>
+                <td>{contact.displayName}</td>
+                <td>{contact.phone ?? '—'}</td>
+                <td>{contact.email ?? '—'}</td>
+                <td>
+                  <a href={`/contacts/${contact.id}`}>View</a>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    )
+  }
+</AdminLayout>

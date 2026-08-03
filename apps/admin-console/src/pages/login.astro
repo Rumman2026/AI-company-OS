@@ -1,0 +1,37 @@
+---
+import AuthLayout from '../layouts/AuthLayout.astro';
+import { getAuthenticatedUser } from '../lib/auth/session';
+
+const existingUser = await getAuthenticatedUser(Astro.locals.supabase);
+if (existingUser) {
+  return Astro.redirect('/');
+}
+
+const error = Astro.url.searchParams.get('error');
+const ERROR_MESSAGES: Record<string, string> = {
+  'invalid-credentials': 'Incorrect email or password.',
+  'missing-fields': 'Enter both an email and a password.',
+};
+const errorMessage = error ? (ERROR_MESSAGES[error] ?? 'Something went wrong. Please try again.') : null;
+---
+
+<AuthLayout title="Log in">
+  <h1>Admin log in</h1>
+  {errorMessage ? <div class="uikit-error-banner" role="alert">{errorMessage}</div> : null}
+  <form method="POST" action="/api/auth/login">
+    <div class="uikit-form-field">
+      <label for="email">Email</label>
+      <input id="email" name="email" type="email" autocomplete="email" required />
+    </div>
+    <div class="uikit-form-field">
+      <label for="password">Password</label>
+      <input id="password" name="password" type="password" autocomplete="current-password" required />
+    </div>
+    <button type="submit" class="uikit-button uikit-button--primary" style="width: 100%;">
+      Log in
+    </button>
+  </form>
+  <p style="margin-top: 1rem; font-size: 0.875rem;">
+    <a href="/forgot-password">Forgot your password?</a>
+  </p>
+</AuthLayout>

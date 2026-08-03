@@ -1,0 +1,66 @@
+---
+import AdminLayout from '../layouts/AdminLayout.astro';
+import { getCurrentMembership } from '../lib/auth/membership';
+import { createSupabaseLeadRepository, createSupabaseAuditLogRepository } from '@ai-company-os/db';
+
+const user = Astro.locals.user!;
+const membership = await getCurrentMembership(Astro.locals.supabase, user.id);
+
+let statusCounts: Array<{ status: string; count: number }> = [];
+let loadError: string | null = null;
+
+if (membership) {
+  const auditLog = createSupabaseAuditLogRepository(Astro.locals.supabase);
+  const leadRepo = createSupabaseLeadRepository(Astro.locals.supabase, auditLog);
+  const result = await leadRepo.listLeads(membership.businessId);
+
+  if (result.ok) {
+    const counts = new Map<string, number>();
+    for (const lead of result.leads) {
+      counts.set(lead.status, (counts.get(lead.status) ?? 0) + 1);
+    }
+    statusCounts = [...counts.entries()].map(([status, count]) => ({ status, count }));
+  } else {
+    loadError = result.error;
+  }
+}
+---
+
+<AdminLayout title="Dashboard" membership={membership}>
+  <h1>Dashboard</h1>
+  {
+    !membership ? (
+      <div class="uikit-error-banner" role="alert">
+        Your account has no business membership yet. Ask an owner to add you via the `memberships`
+        table.
+      </div>
+    ) : loadError ? (
+      <div class="uikit-error-banner" role="alert">
+        Could not load lead counts: {loadError}
+      </div>
+    ) : statusCounts.length === 0 ? (
+      <div class="uikit-empty-state">
+        <p class="uikit-empty-state__title">No leads yet</p>
+        <p class="uikit-empty-state__description">
+          New leads from the public website will appear here once submitted.
+        </p>
+      </div>
+    ) : (
+      <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 1rem;">
+        {statusCounts.map(({ status, count }) => (
+          <div
+            style="border: 1px solid var(--color-border); border-radius: var(--radius-md); padding: 1rem; background: var(--color-surface);"
+          >
+            <p style="margin: 0; font-size: 1.5rem; font-weight: 700;">{count}</p>
+            <p style="margin: 0; color: var(--color-text-muted); font-size: 0.875rem;">{status}</p>
+          </div>
+        ))}
+      </div>
+    )
+  }
+  <p style="margin-top: 2rem;">
+    <a href="/leads" class="uikit-button uikit-button--primary">
+      View all leads
+    </a>
+  </p>
+</AdminLayout>

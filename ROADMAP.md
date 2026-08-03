@@ -141,14 +141,37 @@ repository evidence.
   are written and reviewed but not independently verified against a live
   database with two real authenticated sessions — that requires either
   the owner testing it live or a scripted integration test with real
-  credentials, neither of which happened in this session. No
-  authenticated owner interface exists yet (`apps/admin-console` remains
-  an empty Phase 1 placeholder) — viewing or changing CRM data today
-  requires direct Supabase table access. GreenCal Auto Detailing and
-  Navarro Builders are not onboarded as real tenants (neither has a
-  repository module yet). Companies, deals, jobs, estimates,
-  appointments, calls, tasks, campaigns, search/filter/reporting, and a
-  full RBAC UI are all unimplemented.
+  credentials, neither of which happened in this session. GreenCal Auto
+  Detailing and Navarro Builders are not onboarded as real tenants
+  (neither has a repository module yet).
+
+**CRM Milestone 3 (in progress) — authenticated admin-console (`apps/admin-console`, ADR-0011)**
+
+- Scope: see [DECISIONS.md](DECISIONS.md) ADR-0011 and
+  `docs/crm/CRM_ARCHITECTURE.md` for the full, honest done-vs-deferred
+  breakdown.
+- Implemented with repository evidence: `apps/admin-console` is now a
+  real Astro (server output) + React + Vercel application - previously
+  a fully empty Phase 1 placeholder. Login, logout, forgot/reset
+  password, and session middleware via Supabase Auth
+  (`@supabase/ssr`); a tenant-aware dashboard; full Leads (list, detail,
+  status transition) and Contacts (list, detail, read-only) modules,
+  every query scoped by the authenticated user's real `memberships`
+  row - never a client-supplied `businessId`. Uses the Supabase anon key
+  plus the user's session, not the service-role key, so RLS actually
+  applies to every query. `packages/ui-kit` gained its first real
+  content (Button, Badge, Table, EmptyState, ErrorBanner, LoadingSpinner,
+  FormField). Lint, typecheck, a local production build, and pure-logic
+  unit tests (route-guard matching, status validation) all pass.
+- **Not done**: no Vercel project exists for `apps/admin-console` yet
+  (not deployed live); no owner login account or `memberships` row has
+  been created; no real browser/E2E test exists (would need real
+  Supabase Auth credentials this session does not have). Companies,
+  Estimates, Jobs, Tasks, Appointments, Notes, and Media have no
+  persistence layer, so none get UI here — four of them (`Company`,
+  `Task`, `Appointment`, `Note`) have no `packages/core-models` type at
+  all yet. Search/CSV-export/reporting and full per-permission RBAC
+  (beyond the four enforced `MembershipRole` values) are unimplemented.
 
 ## Proposed future phases
 
