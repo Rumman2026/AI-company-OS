@@ -2232,6 +2232,60 @@ ADR-0031 (Settings: business profile/branding/service areas/hours).
 
 ---
 
+## ADR-0033: Security settings as change-password only, using Supabase Auth's existing API
+
+**Status**: Confirmed (implemented)
+
+**Context**: The last of the owner's nine "Settings" sub-items,
+"Security settings," had real scope ambiguity (password only vs. also
+session/device management vs. something larger like MFA). The owner
+was asked and confirmed: change-password only, using Supabase Auth's
+existing `updateUser()` - no new infrastructure (see this session's
+clarifying questions). `apps/admin-console` already has an
+unauthenticated "forgot password" email-recovery flow
+(`/forgot-password`, `/reset-password`,
+`src/pages/api/auth/reset-password.ts`) using the same
+`supabase.auth.updateUser({ password })` call - this ADR adds the
+missing in-app path for an already-logged-in user to change their
+password directly, without needing an email round-trip.
+
+**Decision**: `apps/admin-console` gains `/settings/security`
+(current password, new password, confirm new password) and
+`/api/settings/security/change-password.ts`. Before calling
+`updateUser({ password: newPassword })`, the route re-verifies the
+submitted current password via
+`supabase.auth.signInWithPassword({ email, password: currentPassword })` -
+Supabase Auth's `updateUser()` does not itself require proof of the
+current password for an already-authenticated session, so this extra
+call is what actually enforces "you must know your current password to
+change it," using only Supabase Auth's existing API (no new
+infrastructure, matching the owner's confirmed scope).
+
+**Alternatives considered**: Session/device management (list active
+sessions, "sign out everywhere") - rejected per the owner's confirmed
+scope; Supabase Auth does support this, so it remains straightforward
+to add later without any new infrastructure decision. MFA/2FA -
+rejected as out of scope for this pass; a materially larger feature
+(enrollment flow, recovery codes, verification step in the login flow)
+than "Security settings" was scoped to cover here.
+
+**Consequences**: `docs/crm/CRM_ARCHITECTURE.md` gains a section. No
+`packages/db` or `packages/core-models` change - this cluster is
+entirely `apps/admin-console`, using Supabase Auth's client SDK
+directly. **This closes all nine of the owner's "Settings"
+sub-requirements**: Company profile/Business information (ADR-0031),
+Branding/Logos (ADR-0031), Service areas (ADR-0031), Working hours
+(ADR-0031), Team permissions (ADR-0032), Security settings (this ADR)
+
+- AI preferences was explicitly skipped, confirmed with the owner
+  (ADR-0031's context), since no AI agent is wired into GreenCal's live
+  workflow for a settings toggle to control.
+
+**Related**: ADR-0031 (Settings: business profile/branding/service
+areas/hours), [ADR-0032](#adr-0032-team-rosterrole-management--broadened-memberships-rls-owner-admin-gated-role-writes-denormalized-email).
+
+---
+
 ## Proposed decisions (not yet made)
 
 - Service-to-service communication pattern (REST/gRPC/queue) beyond the

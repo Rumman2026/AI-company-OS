@@ -476,6 +476,24 @@ MembershipRole[]`, with a fallback to the legacy `memberships.role`
 - Migration 022 has not yet been run against production (owner
   action).
 
+**Cluster 25 (implemented, tested locally) — Security settings: change password (ADR-0033)**
+
+- Scope: see [DECISIONS.md](DECISIONS.md) ADR-0033. Closes "Security
+  settings" - the last of the nine "Settings" sub-items. **This closes
+  all nine owner-specified Settings sub-requirements** (AI preferences
+  was explicitly skipped, confirmed with the owner rather than
+  guessed - no AI agent is wired into GreenCal's live workflow for a
+  settings toggle to control).
+- Implemented with repository evidence: `apps/admin-console` gains
+  `/settings/security` and `/api/settings/security/change-password.ts`,
+  using only Supabase Auth's existing `updateUser()` (the same call
+  the existing email-based `/reset-password` flow already uses) -
+  re-verified against the submitted current password via
+  `signInWithPassword()` first, since `updateUser()` alone doesn't
+  require that proof for an already-authenticated session. No new
+  infrastructure, no `packages/db`/`packages/core-models` change.
+- Lint, typecheck, a local production build, and unit tests all pass.
+
 **Growth-system domain contracts (in progress) — `packages/core-models`**
 
 - Scope: a first, provider-neutral coding slice for the GreenCal

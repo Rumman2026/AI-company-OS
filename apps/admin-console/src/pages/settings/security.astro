@@ -1,0 +1,62 @@
+---
+import AdminLayout from '../../layouts/AdminLayout.astro';
+import { getCurrentMembership } from '../../lib/auth/membership';
+
+const user = Astro.locals.user!;
+const membership = await getCurrentMembership(Astro.locals.supabase, user.id);
+const error = Astro.url.searchParams.get('error');
+const saved = Astro.url.searchParams.get('saved') === '1';
+
+const ERROR_MESSAGES: Record<string, string> = {
+  'current-password-incorrect': 'Your current password is incorrect.',
+  'password-too-short': 'New password must be at least 8 characters.',
+  'passwords-do-not-match': 'New password and confirmation do not match.',
+  'update-failed': 'Could not update your password. Please try again.',
+};
+const errorMessage = error ? (ERROR_MESSAGES[error] ?? 'Something went wrong.') : null;
+---
+
+<AdminLayout title="Security" membership={membership}>
+  <p><a href="/settings">&larr; Back to settings</a></p>
+  <h1>Security</h1>
+
+  {errorMessage ? <div class="uikit-error-banner" role="alert">{errorMessage}</div> : null}
+  {saved ? <div class="uikit-badge uikit-badge--success">Password updated</div> : null}
+
+  <h2>Change password</h2>
+  <form method="POST" action="/api/settings/security/change-password" style="max-width: 360px;">
+    <div class="uikit-form-field">
+      <label for="currentPassword">Current password</label>
+      <input
+        id="currentPassword"
+        name="currentPassword"
+        type="password"
+        autocomplete="current-password"
+        required
+      />
+    </div>
+    <div class="uikit-form-field">
+      <label for="newPassword">New password</label>
+      <input
+        id="newPassword"
+        name="newPassword"
+        type="password"
+        autocomplete="new-password"
+        minlength="8"
+        required
+      />
+    </div>
+    <div class="uikit-form-field">
+      <label for="confirmPassword">Confirm new password</label>
+      <input
+        id="confirmPassword"
+        name="confirmPassword"
+        type="password"
+        autocomplete="new-password"
+        minlength="8"
+        required
+      />
+    </div>
+    <button type="submit" class="uikit-button uikit-button--primary">Update password</button>
+  </form>
+</AdminLayout>

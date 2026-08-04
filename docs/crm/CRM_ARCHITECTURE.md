@@ -1,7 +1,7 @@
 # CRM Architecture
 
 Status: durable record of CRM Milestones 1-3 and Clusters 4-8 and
-10-24 (this sprint). See [DECISIONS.md](../../DECISIONS.md) ADR-0009
+10-25 (this sprint). See [DECISIONS.md](../../DECISIONS.md) ADR-0009
 (persistence), ADR-0010 (multi-tenant foundation), ADR-0011
 (admin-console), ADR-0012 (Estimate/Booking/Job), ADR-0014 (Company),
 ADR-0015 (Note), ADR-0016 (Task), ADR-0018 (multi-role memberships),
@@ -11,8 +11,9 @@ view), ADR-0025 (activity timeline, actor tracking), ADR-0026
 (estimate line items), ADR-0027 (tax/discount/deposit), ADR-0028
 (estimate attachments), ADR-0029 (estimate PDF generation), ADR-0030
 (customer approval link), ADR-0031 (Settings: profile/branding/
-service areas/hours), and ADR-0032 (team roster/role management) for
-the full rationale, and
+service areas/hours), ADR-0032 (team roster/role management), and
+ADR-0033 (security settings: change password) for the full rationale,
+and
 [`packages/core-models`](../../packages/core-models/README.md) /
 [`packages/db`](../../packages/db/README.md) /
 [`apps/admin-console`](../../apps/admin-console/README.md) for
@@ -535,6 +536,27 @@ been run against production (owner action). The RLS/privilege-
 escalation logic is inherently untestable against real Postgres in
 this environment - correctness rests on the migration's own reasoning
 and code review, documented explicitly in ADR-0032.
+
+## Cluster 25: Security settings (change password)
+
+Closes "Security settings" from the owner's Settings directive - the
+last of the nine sub-items. See DECISIONS.md ADR-0033. **This closes
+all nine "Settings" sub-requirements** (AI preferences was explicitly
+skipped, confirmed with the owner - no AI agent is wired into
+GreenCal's live workflow for a settings toggle to control).
+
+- `apps/admin-console` gains `/settings/security` and
+  `/api/settings/security/change-password.ts`. Before calling
+  `updateUser({ password })`, the route re-verifies the submitted
+  current password via `signInWithPassword()` - `updateUser()` alone
+  does not require proof of the current password for an
+  already-authenticated session.
+- No `packages/db`/`packages/core-models` change - uses only Supabase
+  Auth's existing client SDK, the same `updateUser()` call already
+  used by the existing email-based `/reset-password` flow.
+
+**Classification: IMPLEMENTED AND TESTED LOCALLY.** `apps/admin-console`
+typecheck/lint/test/build all pass locally.
 
 ## What "CRM" means in this repository today
 
