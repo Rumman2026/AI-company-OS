@@ -35,6 +35,10 @@ export const POST: APIRoute = async ({ request, locals, params, redirect }) => {
   }
   const leadId = estimateResult.estimate.leadId;
 
+  if (estimateResult.estimate.status !== 'approved') {
+    return redirect(`/leads/${leadId}?error=estimate_not_approved`);
+  }
+
   const form = await request.formData();
   const scheduledAtInput = form.get('scheduledAt');
 

@@ -2,12 +2,15 @@
 import AdminLayout from '../../layouts/AdminLayout.astro';
 import NotesSection from '../../components/NotesSection.astro';
 import TasksSection from '../../components/TasksSection.astro';
+import MediaSection from '../../components/MediaSection.astro';
 import { getCurrentMembership } from '../../lib/auth/membership';
 import {
   createSupabaseJobRepository,
   createSupabaseAuditLogRepository,
   createSupabaseNoteRepository,
   createSupabaseTaskRepository,
+  createSupabasePhotoAssetRepository,
+  type PhotoWithSignedUrl,
 } from '@ai-company-os/db';
 import { jobStatusTone } from '@ai-company-os/ui-kit';
 import type { JobStatus, Note, Task } from '@ai-company-os/core-models';
@@ -33,6 +36,7 @@ let job: { id: string; status: JobStatus; scheduledAt?: string; createdAt: strin
 let notFound = false;
 let notes: Note[] = [];
 let tasks: Task[] = [];
+let photos: PhotoWithSignedUrl[] = [];
 
 const transitionError = Astro.url.searchParams.get('error');
 
@@ -64,6 +68,10 @@ if (membership && id) {
       completed: false,
     });
     if (tasksResult.ok) tasks = tasksResult.tasks;
+
+    const photoRepo = createSupabasePhotoAssetRepository(Astro.locals.supabase);
+    const photosResult = await photoRepo.listPhotosForJob(membership.businessId, id);
+    if (photosResult.ok) photos = photosResult.photos;
   } else {
     notFound = true;
   }
@@ -95,7 +103,7 @@ if (membership && id) {
 
         {transitionError ? (
           <div class="uikit-error-banner" role="alert">
-            Could not change status: {transitionError}
+            {transitionError}
           </div>
         ) : null}
 
@@ -124,6 +132,8 @@ if (membership && id) {
         <TasksSection entityType="job" entityId={job.id} tasks={tasks} redirectTo={`/jobs/${job.id}`} />
 
         <NotesSection entityType="job" entityId={job.id} notes={notes} redirectTo={`/jobs/${job.id}`} />
+
+        <MediaSection jobId={job.id} photos={photos} />
       </>
     ) : (
       <div class="uikit-error-banner" role="alert">

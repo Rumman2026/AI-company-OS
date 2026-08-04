@@ -1449,6 +1449,133 @@ facts became inaccurate.
 
 ---
 
+## ADR-0020: PhotoAsset persistence via Supabase Storage (before/progress/after media)
+
+**Status**: Confirmed (implemented)
+
+**Context**: The owner's "AI COMPANY OS — UPDATED FULL EXECUTION
+DIRECTIVE" names "upload before/progress/after media" as an explicit
+step in the core GreenCal workflow to verify end-to-end.
+`packages/core-models` already defined `PhotoAsset`/`PhotoPair` (with a
+`'before' | 'after'` `kind` union and a full set of publication-
+readiness fields - `metadataStripped`, `gpsDataRemoved`,
+`privacyReviewPassed`, `humanPublicationApproved`,
+`publicationConsentGranted`) but had zero persistence or UI anywhere in
+the repository.
+
+**Decision**: `PhotoAsset.kind` widens to `'before' | 'progress' |
+'after'` (additive - `kind` was not referenced by
+`evaluatePhotoPublicationEligibility()` or any other invariant, so this
+is a pure union widen with no ripple effect). A private Supabase Storage
+bucket (`job-photos`) stores original uploads, with tenant-scoped RLS
+policies on `storage.objects` using the same
+`business_id in (select business_id from memberships ...)` pattern as
+every table policy, keyed by the leading path segment
+(`{business_id}/{job_id}/{filename}`). A new `photo_assets` table
+mirrors the full `PhotoAsset` shape; `PhotoAssetRepository.uploadPhoto()`
+inserts every readiness field as `false` and `PhotoPublicationStatus`
+as `not-published` - **no automated privacy-processing pipeline (EXIF
+stripping, GPS removal, face/license-plate detection, human review)
+exists anywhere in this repository**, and this repository never claims
+one ran. `apps/admin-console`'s Job detail page gains a Media section
+(kind-tagged upload form, thumbnail gallery via short-lived signed
+URLs, since the bucket is private).
+
+**Alternatives considered**: A public bucket with derivative-only
+storage - rejected: `PhotoAsset.privateOriginalRef` is explicitly
+modeled as distinct from `publicDerivativeRef` specifically because a
+private original must never be treated as publishable (see
+`photo-eligibility.ts`), so the bucket backing it must be private too.
+Implementing real EXIF/GPS/face-detection processing now - rejected as
+a large, separate feature the current directive did not ask this
+cluster to build; honestly leaving every readiness field `false` is the
+correct, non-fabricating behavior until that pipeline exists.
+
+**Consequences**: `packages/db/README.md` and
+`docs/crm/CRM_ARCHITECTURE.md` gain a section. `MinimalSupabaseClient`
+widens from `Pick<SupabaseClient, 'from'>` to
+`Pick<SupabaseClient, 'from' | 'storage'>` (additive - every other
+repository still only touches `.from`).
+
+**Related**: [ADR-0009](#adr-0009-packagesdb-persistence-engine-and-crm-milestone-1-scope-leadcontact-persistence-for-the-existing-growth-system-domain-model).
+
+---
+
+## ADR-0021: Estimate approval status (no state machine)
+
+**Status**: Confirmed (implemented)
+
+**Context**: The owner's directive names "approve estimate" as an
+explicit step between "create estimate" and "convert estimate into
+job" in the core GreenCal workflow, and separately requires "Accepted
+estimates must use revision controls rather than silent editing."
+`Estimate` (`packages/core-models`) had no status concept at all - any
+existing estimate could immediately be booked into a Job regardless of
+whether anyone had reviewed it.
+
+**Decision**: `Estimate` gains `status: 'draft' | 'approved'` and
+`approvedAt?: string` - **no state machine**, following the same
+precedent already established for `Company`/`Note`/`Task` (a two-state
+field with no authorization rules or precondition evidence to validate
+doesn't need transition-function machinery). `EstimateRepository`
+gains `approveEstimate()`, the only path from `draft` to `approved`,
+which rejects (does not silently no-op) an already-approved estimate.
+"Revision controls rather than silent editing" is satisfied by
+omission: no update method exists for an Estimate's amount or summary
+at any status today, so nothing can silently edit one, approved or
+not - a future edit feature must create a new `Estimate` row
+referencing the original rather than mutate one in place. The
+`apps/admin-console` Lead detail page's "create booking + job" action
+now requires an **approved** estimate (previously it used
+`estimates[0]`, the most recent estimate regardless of any review) -
+enforced server-side in the booking-creation API route, not just hidden
+in the UI.
+
+**Alternatives considered**: A full revision-chain system (new estimate
+versions superseding old ones, mirroring `packages/core-models`'
+consent-revocation `supersedesConsentId` pattern) - not built now,
+since no edit feature exists yet to need it; building the chain ahead
+of the feature it protects would be exactly the over-engineering the
+owner's directive explicitly warned against ("Do not over-engineer...
+Use the simplest reliable implementation").
+
+**Consequences**: `packages/db/README.md` and
+`docs/crm/CRM_ARCHITECTURE.md` gain a section.
+
+**Related**: [ADR-0014](#adr-0014-company-persistence-and-contactcompany-linking-crm-cluster-6).
+
+---
+
+## ADR-0022: Audit log read access (admin-console viewer)
+
+**Status**: Confirmed (implemented)
+
+**Context**: `audit_log` (tenant-scoped, append-only, `select`-only RLS
+for `authenticated`) has recorded every Lead/Job transition since
+Milestone 1, but `AuditLogRepository` only ever exposed
+`writeAuditRecord()` - no application code could read it back, so the
+audit trail existed in the database but nowhere an owner could actually
+see it, despite "Audit logs" being explicitly listed among the
+admin-console modules the owner's directive names.
+
+**Decision**: `AuditLogRepository` gains `listAuditRecords()` (business-
+scoped, optional `entityType`/`entityId` filter, most-recent-first,
+capped at a caller-supplied `limit`) - purely additive, the RLS policy
+that makes this safe already existed (`audit_log_tenant_select`, added
+in migration 002). A new `apps/admin-console` `/audit-log` page lists
+records with an entity-type filter and links back to the Lead/Job each
+record concerns.
+
+**Alternatives considered**: None significant - this is a read-only
+addition exposing data and access control that already existed;
+implemented directly.
+
+**Consequences**: `packages/db/README.md` gains a note.
+
+**Related**: [ADR-0009](#adr-0009-packagesdb-persistence-engine-and-crm-milestone-1-scope-leadcontact-persistence-for-the-existing-growth-system-domain-model).
+
+---
+
 ## Proposed decisions (not yet made)
 
 - Service-to-service communication pattern (REST/gRPC/queue) beyond the

@@ -1,0 +1,116 @@
+---
+import AdminLayout from '../../layouts/AdminLayout.astro';
+import { getCurrentMembership } from '../../lib/auth/membership';
+import { createSupabaseAuditLogRepository } from '@ai-company-os/db';
+import type { AuditLog } from '@ai-company-os/core-models';
+
+const user = Astro.locals.user!;
+const membership = await getCurrentMembership(Astro.locals.supabase, user.id);
+const entityType = Astro.url.searchParams.get('entityType') ?? '';
+
+let records: AuditLog[] = [];
+let loadError: string | null = null;
+
+if (membership) {
+  const auditLog = createSupabaseAuditLogRepository(Astro.locals.supabase);
+  const result = await auditLog.listAuditRecords(membership.businessId, {
+    entityType: entityType || undefined,
+    limit: 200,
+  });
+  if (result.ok) {
+    records = result.records;
+  } else {
+    loadError = result.error;
+  }
+}
+
+const ENTITY_TYPES = ['Lead', 'Job'];
+const ENTITY_ROUTE_PREFIX: Record<string, string> = {
+  Lead: '/leads',
+  Job: '/jobs',
+};
+---
+
+<AdminLayout title="Audit log" membership={membership}>
+  <h1>Audit log</h1>
+  <p style="color: var(--color-text-muted); font-size: 0.875rem;">
+    Every recorded status change, most recent first - append-only, written automatically by every
+    successful Lead/Job transition. Showing up to the most recent 200 records.
+  </p>
+
+  <form method="GET" style="margin-bottom: 1rem; max-width: 320px;">
+    <div class="uikit-form-field">
+      <label for="entityType">Filter by entity type</label>
+      <select id="entityType" name="entityType">
+        <option value="" selected={entityType === ''}>
+          All
+        </option>
+        {ENTITY_TYPES.map((t) => (
+          <option value={t} selected={t === entityType}>
+            {t}
+          </option>
+        ))}
+      </select>
+    </div>
+    <button type="submit" class="uikit-button uikit-button--secondary">Filter</button>
+  </form>
+
+  {
+    !membership ? (
+      <div class="uikit-error-banner" role="alert">
+        Your account has no business membership yet.
+      </div>
+    ) : loadError ? (
+      <div class="uikit-error-banner" role="alert">
+        Could not load audit log: {loadError}
+      </div>
+    ) : records.length === 0 ? (
+      <div class="uikit-empty-state">
+        <p class="uikit-empty-state__title">No audit records yet</p>
+        <p class="uikit-empty-state__description">
+          Records appear here automatically the first time a Lead or Job status changes.
+        </p>
+      </div>
+    ) : (
+      <div class="uikit-table-scroll">
+        <table class="uikit-table">
+          <thead>
+            <tr>
+              <th>When</th>
+              <th>Entity</th>
+              <th>Action</th>
+              <th>Change</th>
+              <th>Actor</th>
+              <th>Reason</th>
+            </tr>
+          </thead>
+          <tbody>
+            {records.map((r) => (
+              <tr>
+                <td>{new Date(r.occurredAt).toLocaleString()}</td>
+                <td>
+                  {ENTITY_ROUTE_PREFIX[r.entityType] ? (
+                    <a href={`${ENTITY_ROUTE_PREFIX[r.entityType]}/${r.entityId}`}>
+                      {r.entityType} #{r.entityId}
+                    </a>
+                  ) : (
+                    `${r.entityType} #${r.entityId}`
+                  )}
+                </td>
+                <td>{r.action}</td>
+                <td>
+                  {r.previousValue} &rarr; {r.newValue}
+                </td>
+                <td>
+                  {r.actorCategory}
+                  {r.automated ? ' (automated)' : ''}
+                </td>
+                <td>{r.reason ?? '—'}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    )
+  }
+</AdminLayout>

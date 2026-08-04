@@ -43,6 +43,7 @@ let estimates: Array<{
   id: string;
   summary: string;
   proposedAmount: { amountMinorUnits: number; currency: string };
+  status: 'draft' | 'approved';
   createdAt: string;
 }> = [];
 let bookings: Array<{ id: string; estimateId: string; jobId?: string; scheduledAt: string }> = [];
@@ -162,7 +163,17 @@ if (membership && id) {
             {estimates.map((e) => (
               <li>
                 {formatMinorUnitsAsDollars(e.proposedAmount.amountMinorUnits, e.proposedAmount.currency)} -{' '}
-                {e.summary} ({new Date(e.createdAt).toLocaleDateString()})
+                {e.summary} ({new Date(e.createdAt).toLocaleDateString()}){' '}
+                <span class={`uikit-badge uikit-badge--${e.status === 'approved' ? 'success' : 'neutral'}`}>
+                  {e.status}
+                </span>
+                {e.status === 'draft' ? (
+                  <form method="POST" action={`/api/estimates/${e.id}/approve`} style="display: inline;">
+                    <button type="submit" class="uikit-button uikit-button--secondary">
+                      Approve
+                    </button>
+                  </form>
+                ) : null}
               </li>
             ))}
           </ul>
@@ -208,17 +219,28 @@ if (membership && id) {
             })}
           </ul>
         )}
-        {estimates.length > 0 ? (
-          <form method="POST" action={`/api/estimates/${estimates[0].id}/bookings`} style="max-width: 400px;">
-            <div class="uikit-form-field">
-              <label for="scheduledAt">Schedule the most recent estimate for</label>
-              <input id="scheduledAt" name="scheduledAt" type="datetime-local" required />
-            </div>
-            <button type="submit" class="uikit-button uikit-button--secondary">
-              Create booking + job
-            </button>
-          </form>
-        ) : null}
+        {(() => {
+          const approvedEstimate = estimates.find((e) => e.status === 'approved');
+          return approvedEstimate ? (
+            <form
+              method="POST"
+              action={`/api/estimates/${approvedEstimate.id}/bookings`}
+              style="max-width: 400px;"
+            >
+              <div class="uikit-form-field">
+                <label for="scheduledAt">Schedule the approved estimate for</label>
+                <input id="scheduledAt" name="scheduledAt" type="datetime-local" required />
+              </div>
+              <button type="submit" class="uikit-button uikit-button--secondary">
+                Create booking + job
+              </button>
+            </form>
+          ) : estimates.length > 0 ? (
+            <p style="color: var(--color-text-muted); font-size: 0.875rem;">
+              Approve an estimate above before booking it into a Job.
+            </p>
+          ) : null;
+        })()}
 
         <TasksSection entityType="lead" entityId={lead.id} tasks={tasks} redirectTo={`/leads/${lead.id}`} />
 

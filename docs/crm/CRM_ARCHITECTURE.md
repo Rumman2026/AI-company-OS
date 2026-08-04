@@ -1,11 +1,12 @@
 # CRM Architecture
 
-Status: durable record of CRM Milestones 1-3 and Clusters 4-8 and 10
-(this sprint). See [DECISIONS.md](../../DECISIONS.md) ADR-0009
+Status: durable record of CRM Milestones 1-3 and Clusters 4-8 and
+10-14 (this sprint). See [DECISIONS.md](../../DECISIONS.md) ADR-0009
 (persistence), ADR-0010 (multi-tenant foundation), ADR-0011
 (admin-console), ADR-0012 (Estimate/Booking/Job), ADR-0014 (Company),
-ADR-0015 (Note), ADR-0016 (Task), and ADR-0018 (multi-role memberships)
-for the full rationale, and
+ADR-0015 (Note), ADR-0016 (Task), ADR-0018 (multi-role memberships),
+ADR-0020 (photos), ADR-0021 (estimate approval), and ADR-0022 (audit
+log read access) for the full rationale, and
 [`packages/core-models`](../../packages/core-models/README.md) /
 [`packages/db`](../../packages/db/README.md) /
 [`apps/admin-console`](../../apps/admin-console/README.md) for
@@ -204,6 +205,53 @@ resolve to its existing single `owner-admin` role via the fallback path
 
 - once run, it gains `office-manager` too and most Job/Lead transitions
   that previously required an honest rejection will succeed.
+
+## Cluster 12: PhotoAsset persistence (before/progress/after media)
+
+Closes the "upload before/progress/after media" gap in the core
+GreenCal workflow. See DECISIONS.md ADR-0020.
+
+- `PhotoAsset.kind` widens to `'before' | 'progress' | 'after'`
+  (additive).
+- `photo_assets`/`photo_pairs` tables (`migrations/009-photo-foundation.sql`)
+  plus a private `job-photos` Supabase Storage bucket with tenant-scoped
+  RLS on `storage.objects`.
+- `PhotoAssetRepository.uploadPhoto()`/`listPhotosForJob()` - every
+  publication-readiness field is stored `false`; **no automated privacy
+  pipeline (EXIF stripping, GPS removal, face/plate review) exists
+  anywhere in this repository**, and nothing here claims one ran.
+- `apps/admin-console`: Job detail page gains a Media section (upload
+  form + signed-URL thumbnail gallery).
+
+**Classification: IMPLEMENTED AND TESTED LOCALLY.** Migration 009 has
+NOT yet been run against production (owner action).
+
+## Cluster 13: Estimate approval status
+
+Closes the "approve estimate" gap. See DECISIONS.md ADR-0021.
+
+- `Estimate` gains `status: 'draft' | 'approved'` and `approvedAt?` -
+  no state machine, same treatment as `Company`/`Note`/`Task`.
+- `EstimateRepository.approveEstimate()` - the only path to `approved`;
+  rejects an already-approved estimate rather than silently no-opping.
+- `apps/admin-console`'s "create booking + job" action now requires an
+  **approved** estimate, enforced server-side, not just hidden in the UI.
+
+**Classification: IMPLEMENTED AND TESTED LOCALLY.** Migration 010 has
+NOT yet been run against production (owner action).
+
+## Cluster 14: Audit log read access
+
+Closes the "Audit logs" admin-console module gap. See DECISIONS.md
+ADR-0022.
+
+- `AuditLogRepository.listAuditRecords()` - the RLS policy making this
+  safe (`audit_log_tenant_select`) already existed since migration 002;
+  no schema change needed.
+- `apps/admin-console`'s new `/audit-log` page, with an entity-type
+  filter and links back to the Lead/Job each record concerns.
+
+**Classification: IMPLEMENTED AND TESTED LOCALLY.**
 
 ## What "CRM" means in this repository today
 

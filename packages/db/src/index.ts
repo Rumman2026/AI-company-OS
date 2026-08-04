@@ -43,7 +43,12 @@ export type {
 } from './lead-repository';
 
 export { createSupabaseAuditLogRepository } from './audit-log-repository';
-export type { AuditLogRepository, WriteAuditRecordResult } from './audit-log-repository';
+export type {
+  AuditLogRepository,
+  WriteAuditRecordResult,
+  ListAuditRecordsResult,
+  ListAuditRecordsOptions,
+} from './audit-log-repository';
 
 export type { MembershipRole } from './membership-types';
 
@@ -55,6 +60,7 @@ export type {
   GetEstimateResult,
   ListEstimatesResult,
   ListEstimatesOptions,
+  ApproveEstimateResult,
 } from './estimate-repository';
 
 export { createSupabaseBookingRepository } from './booking-repository';
@@ -96,3 +102,12 @@ export type {
   ListTasksOptions,
   CompleteTaskResult,
 } from './task-repository';
+
+export { createSupabasePhotoAssetRepository } from './photo-asset-repository';
+export type {
+  PhotoAssetRepository,
+  UploadPhotoInput,
+  UploadPhotoResult,
+  ListPhotosResult,
+  PhotoWithSignedUrl,
+} from './photo-asset-repository';

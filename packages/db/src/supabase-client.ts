@@ -4,9 +4,11 @@ import { createClient, type SupabaseClient } from '@supabase/supabase-js';
  * The narrow shape every repository in this package depends on, not the
  * full Supabase SDK type - keeps repositories testable with a simple fake
  * (see tests/*.test.ts), same pattern as
- * apps/greencal-website/src/lib/quote-form/lead-store.ts.
+ * apps/greencal-website/src/lib/quote-form/lead-store.ts. `storage` is
+ * only used by `PhotoAssetRepository` - every other repository in this
+ * package only ever touches `.from`.
  */
-export type MinimalSupabaseClient = Pick<SupabaseClient, 'from'>;
+export type MinimalSupabaseClient = Pick<SupabaseClient, 'from' | 'storage'>;
 
 /**
  * Only ever constructed from a trusted server context with the

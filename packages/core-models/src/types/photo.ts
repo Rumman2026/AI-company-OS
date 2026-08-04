@@ -10,7 +10,7 @@ export type PhotoPublicationStatus = 'not-published' | 'publishable' | 'publishe
 export interface PhotoAsset {
   readonly id: PhotoAssetId;
   readonly jobId: JobId;
-  readonly kind: 'before' | 'after';
+  readonly kind: 'before' | 'progress' | 'after';
   readonly privateOriginalRef: string;
   readonly publicDerivativeRef?: string;
   readonly metadataStripped: boolean;

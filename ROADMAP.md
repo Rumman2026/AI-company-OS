@@ -169,6 +169,46 @@ MembershipRole[]`, with a fallback to the legacy `memberships.role`
   for either business yet (a real owner action, not something to
   fabricate).
 
+**Cluster 12 (implemented, tested locally) — PhotoAsset persistence, before/progress/after media (ADR-0020)**
+
+- Scope: see [DECISIONS.md](DECISIONS.md) ADR-0020. Closes a named gap
+  in the owner's core GreenCal workflow.
+- Implemented with repository evidence: `PhotoAsset.kind` widened to
+  include `'progress'`; `photo_assets`/`photo_pairs` tables plus a
+  private `job-photos` Supabase Storage bucket with tenant-scoped RLS
+  (`packages/db/migrations/009-photo-foundation.sql`);
+  `PhotoAssetRepository` (52/52 `packages/db` tests passing total,
+  including 3 new photo tests); `apps/admin-console` Job detail page
+  gains a Media section (upload + signed-URL gallery).
+- Lint, typecheck, a local production build, and unit tests all pass.
+- **Not done**: migration 009 has not yet been run against production
+  (owner action). No automated privacy-processing pipeline exists (EXIF
+  stripping, GPS removal, face/plate detection, human review) - every
+  uploaded photo is honestly stored as not-yet-publishable.
+
+**Cluster 13 (implemented, tested locally) — Estimate approval status (ADR-0021)**
+
+- Scope: see [DECISIONS.md](DECISIONS.md) ADR-0021.
+- Implemented with repository evidence: `Estimate` gains
+  `status: 'draft' | 'approved'` and `approvedAt?` (no state machine);
+  `EstimateRepository.approveEstimate()`; `apps/admin-console`'s
+  booking-creation route now requires an approved estimate, enforced
+  server-side.
+- Lint, typecheck, a local production build, and unit tests all pass.
+- **Not done**: migration 010 has not yet been run against production
+  (owner action). No estimate-editing feature exists yet (so the
+  "revision controls" requirement is satisfied by there being nothing
+  to silently edit) - a future edit feature must create a new Estimate
+  row rather than mutate one in place.
+
+**Cluster 14 (implemented, tested locally) — Audit log read access (ADR-0022)**
+
+- Scope: see [DECISIONS.md](DECISIONS.md) ADR-0022.
+- Implemented with repository evidence: `AuditLogRepository.listAuditRecords()`
+  (no schema change - the RLS policy already existed); `apps/admin-console`
+  gains an `/audit-log` page with an entity-type filter.
+- Lint, typecheck, a local production build, and unit tests all pass.
+
 **Growth-system domain contracts (in progress) — `packages/core-models`**
 
 - Scope: a first, provider-neutral coding slice for the GreenCal

@@ -108,7 +108,30 @@ export function createFakeSupabaseClient(tables: Record<string, FakeTable>) {
     return chain;
   }
 
+  const storageObjects = new Map<string, Set<string>>();
+
   const client = {
+    storage: {
+      from(bucket: string) {
+        if (!storageObjects.has(bucket)) storageObjects.set(bucket, new Set());
+        const objects = storageObjects.get(bucket)!;
+        return {
+          async upload(path: string, _file: unknown) {
+            objects.add(path);
+            return { data: { path }, error: null };
+          },
+          async createSignedUrl(path: string, expiresIn: number) {
+            if (!objects.has(path)) {
+              return { data: null, error: { message: 'object not found' } };
+            }
+            return {
+              data: { signedUrl: `fake://${bucket}/${path}?expires=${expiresIn}` },
+              error: null,
+            };
+          },
+        };
+      },
+    },
     from(tableName: string) {
       const table = tables[tableName];
       if (!table) throw new Error(`fake table not configured: ${tableName}`);

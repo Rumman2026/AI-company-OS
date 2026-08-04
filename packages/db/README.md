@@ -103,14 +103,35 @@ unchanged) that try a transition against each of several candidate
 `ActorCategory` values via `@ai-company-os/core-models`'
 `resolveTransitionAcrossActorCategories()`.
 
+## Cluster 12: PhotoAsset persistence (before/progress/after media)
+
+`migrations/009-photo-foundation.sql` adds `photo_assets`/`photo_pairs`
+plus a private `job-photos` Storage bucket with tenant-scoped RLS on
+`storage.objects`. `MinimalSupabaseClient` widened to
+`Pick<SupabaseClient, 'from' | 'storage'>` (additive). See DECISIONS.md
+ADR-0020 for why every publication-readiness field is stored `false` -
+no automated privacy pipeline exists in this repository.
+
+## Cluster 13: Estimate approval status
+
+`migrations/010-estimate-approval.sql` adds `status`/`approved_at` to
+`estimates`. `EstimateRepository.approveEstimate()` is the only path
+from `draft` to `approved`. See DECISIONS.md ADR-0021.
+
+## Cluster 14: Audit log read access
+
+`AuditLogRepository.listAuditRecords()` - no schema change; the RLS
+policy making this safe already existed. See DECISIONS.md ADR-0022.
+
 ## What is deliberately excluded
 
-An authenticated owner interface for Estimates/Bookings (Jobs, Companies,
-Notes, and Tasks now have one), full RBAC UI, media persistence,
-search/filtering/CSV export/reporting. GreenCal Mobile Detailing and
-Navarro Builders are not onboarded as real tenants - only the schema's
-capacity to support them exists. See `docs/crm/CRM_ARCHITECTURE.md` for
-the full status breakdown.
+An authenticated owner interface for Bookings (every other listed
+entity now has one), full RBAC UI, search/filtering/CSV export/
+reporting, and any automated media-processing pipeline (EXIF stripping,
+GPS removal, face/plate detection, human review). GreenCal Mobile
+Detailing and Navarro Builders are not onboarded as real tenants - only
+the schema's capacity to support them exists. See
+`docs/crm/CRM_ARCHITECTURE.md` for the full status breakdown.
 
 ## Security model
 
