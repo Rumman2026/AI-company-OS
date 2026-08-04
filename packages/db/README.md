@@ -178,6 +178,13 @@ of `photo_assets`' publication-readiness columns apply. Not gated by
 Estimate status - unlike line items and pricing, attaching a photo is
 always allowed. See DECISIONS.md ADR-0028.
 
+## Cluster 21: Estimate PDF generation
+
+No schema or repository change - `apps/admin-console`'s
+`/estimates/[id]/print` route reads the existing `EstimateRepository`
+and `EstimateLineItemRepository` and renders a browser-printable HTML
+page. See DECISIONS.md ADR-0029.
+
 ## What is deliberately excluded
 
 An authenticated owner interface for Bookings (every other listed

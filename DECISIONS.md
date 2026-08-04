@@ -1927,6 +1927,49 @@ consequences.
 
 ---
 
+## ADR-0029: Estimate PDF generation as a browser-native print-friendly page
+
+**Status**: Confirmed (implemented)
+
+**Context**: Continuing the owner's "Professional estimate builder"
+directive, the next required sub-feature is "PDF generation" for an
+Estimate. This was already scoped in ADR-0026's consequences: a
+browser-native print-friendly HTML page (no new heavy dependency, e.g.
+a PDF-rendering library), since every modern browser's native "Print >
+Save as PDF" already produces a real PDF from clean HTML/CSS.
+
+**Decision**: A new route, `apps/admin-console`'s
+`/estimates/[id]/print`, renders the same Estimate/line-items/totals
+data as the existing detail page, but as a standalone HTML document
+(not wrapped in `AdminLayout` - no sidebar nav, no app chrome) with
+`@media print` CSS that hides the on-screen "Print / Save as PDF"
+button and back-link. The real, actual business name
+(`membership.businessName`, the calling user's real tenant) is shown
+as the document header - no placeholder/fabricated company branding,
+consistent with root `CLAUDE.md`'s "no mock data," since branding
+(logo, letterhead) is Settings/Company-profile work not yet built
+(tracked separately). The existing detail page links to this route.
+
+**Alternatives considered**: A server-side PDF-rendering library
+(e.g. Puppeteer/Playwright-driven HTML-to-PDF, or a PDF-construction
+library) - rejected as an unnecessary new dependency and deployment
+complexity (headless-browser or native-binary requirements on
+Vercel's serverless runtime) for a need a browser already satisfies
+natively; may be revisited if a future requirement needs a
+programmatically-generated PDF (e.g. emailed as an attachment) rather
+than one the user saves via the browser print dialog.
+
+**Consequences**: `docs/crm/CRM_ARCHITECTURE.md` and
+`packages/db/README.md` gain a note (no schema change - this route
+reads existing Estimate/EstimateLineItem data, no new table). The
+customer-facing approval workflow remains the next, still-separate
+cluster per ADR-0026's consequences.
+
+**Related**: [ADR-0026](#adr-0026-estimate-line-items-and-a-reusable-service-package-catalog),
+[ADR-0027](#adr-0027-estimate-tax-discount-and-deposit-as-integer-only-pricing-fields).
+
+---
+
 ## Proposed decisions (not yet made)
 
 - Service-to-service communication pattern (REST/gRPC/queue) beyond the

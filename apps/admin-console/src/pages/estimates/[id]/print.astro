@@ -1,0 +1,216 @@
+---
+import { tokensCss, componentsCss } from '@ai-company-os/ui-kit';
+import { getCurrentMembership } from '../../../lib/auth/membership';
+import {
+  createSupabaseEstimateRepository,
+  createSupabaseEstimateLineItemRepository,
+} from '@ai-company-os/db';
+import { formatMinorUnitsAsDollars } from '../../../lib/estimates/parse-amount';
+import {
+  calculateEstimateTotals,
+  createCurrencyCode,
+  createMoney,
+  type Estimate,
+  type EstimateLineItem,
+} from '@ai-company-os/core-models';
+
+const user = Astro.locals.user!;
+const membership = await getCurrentMembership(Astro.locals.supabase, user.id);
+const { id } = Astro.params;
+
+let estimate: Estimate | null = null;
+let lineItems: EstimateLineItem[] = [];
+let notFound = false;
+
+if (membership && id) {
+  const estimateRepository = createSupabaseEstimateRepository(Astro.locals.supabase);
+  const result = await estimateRepository.getEstimate(membership.businessId, id);
+
+  if (result.ok) {
+    estimate = result.estimate;
+    const lineItemRepo = createSupabaseEstimateLineItemRepository(
+      Astro.locals.supabase,
+      estimateRepository,
+    );
+    const lineItemsResult = await lineItemRepo.listLineItems(membership.businessId, id);
+    if (lineItemsResult.ok) lineItems = lineItemsResult.lineItems;
+  } else {
+    notFound = true;
+  }
+}
+
+const lineItemsSubtotalMinorUnits = lineItems.reduce(
+  (sum, item) => sum + item.lineTotal.amountMinorUnits,
+  0,
+);
+const effectiveSubtotalMinorUnits =
+  lineItems.length > 0 ? lineItemsSubtotalMinorUnits : (estimate?.proposedAmount.amountMinorUnits ?? 0);
+
+const totals = estimate
+  ? calculateEstimateTotals({
+      subtotal: createMoney(effectiveSubtotalMinorUnits, createCurrencyCode('USD')),
+      taxRateBasisPoints: estimate.taxRateBasisPoints,
+      discountAmount: estimate.discountAmount,
+      depositAmount: estimate.depositAmount,
+    })
+  : null;
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="robots" content="noindex, nofollow" />
+    <title>Estimate {id} · {membership?.businessName ?? ''}</title>
+    <style set:html={tokensCss} />
+    <style set:html={componentsCss} />
+    <style>
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        font-family: var(--font-sans);
+        color: var(--color-text);
+        padding: var(--space-6);
+        max-width: 780px;
+        margin-inline: auto;
+      }
+      .print-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        margin-bottom: var(--space-6);
+      }
+      .print-actions {
+        margin-bottom: var(--space-6);
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+      }
+      th,
+      td {
+        text-align: left;
+        padding: var(--space-2);
+        border-bottom: 1px solid var(--color-border);
+      }
+      @media print {
+        .print-actions {
+          display: none;
+        }
+        body {
+          padding: 0;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    {
+      notFound || !estimate ? (
+        <p>Estimate not found.</p>
+      ) : (
+        <>
+          <div class="print-actions">
+            <button type="button" class="uikit-button uikit-button--primary" onclick="window.print()">
+              Print / Save as PDF
+            </button>
+            <a href={`/estimates/${estimate.id}`} style="margin-left: 1rem;">
+              &larr; Back to estimate
+            </a>
+          </div>
+
+          <div class="print-header">
+            <div>
+              <h1 style="margin: 0;">{membership?.businessName}</h1>
+              <p style="color: var(--color-text-muted); margin: 0;">Estimate</p>
+            </div>
+            <div style="text-align: right;">
+              <p style="margin: 0;">
+                <strong>Status:</strong> {estimate.status}
+              </p>
+              <p style="margin: 0;">
+                <strong>Date:</strong> {new Date(estimate.createdAt).toLocaleDateString()}
+              </p>
+              {estimate.approvedAt ? (
+                <p style="margin: 0;">
+                  <strong>Approved:</strong> {new Date(estimate.approvedAt).toLocaleDateString()}
+                </p>
+              ) : null}
+            </div>
+          </div>
+
+          <p>{estimate.summary}</p>
+
+          {lineItems.length > 0 ? (
+            <table>
+              <thead>
+                <tr>
+                  <th>Description</th>
+                  <th>Qty</th>
+                  <th>Unit price</th>
+                  <th>Line total</th>
+                </tr>
+              </thead>
+              <tbody>
+                {lineItems.map((item) => (
+                  <tr>
+                    <td>{item.description}</td>
+                    <td>{item.quantity}</td>
+                    <td>{formatMinorUnitsAsDollars(item.unitPrice.amountMinorUnits, item.unitPrice.currency)}</td>
+                    <td>{formatMinorUnitsAsDollars(item.lineTotal.amountMinorUnits, item.lineTotal.currency)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          ) : (
+            <p>
+              {formatMinorUnitsAsDollars(estimate.proposedAmount.amountMinorUnits, estimate.proposedAmount.currency)}
+            </p>
+          )}
+
+          {totals ? (
+            <table style="margin-top: 1.5rem; max-width: 360px; margin-left: auto;">
+              <tbody>
+                <tr>
+                  <td>Subtotal</td>
+                  <td>{formatMinorUnitsAsDollars(totals.subtotal.amountMinorUnits, totals.subtotal.currency)}</td>
+                </tr>
+                <tr>
+                  <td>Discount</td>
+                  <td>
+                    -{formatMinorUnitsAsDollars(totals.discountAmount.amountMinorUnits, totals.discountAmount.currency)}
+                  </td>
+                </tr>
+                <tr>
+                  <td>
+                    Tax
+                    {estimate.taxRateBasisPoints
+                      ? ` (${(estimate.taxRateBasisPoints / 100).toFixed(2)}%)`
+                      : ''}
+                  </td>
+                  <td>{formatMinorUnitsAsDollars(totals.taxAmount.amountMinorUnits, totals.taxAmount.currency)}</td>
+                </tr>
+                <tr>
+                  <td style="font-weight: 600;">Total</td>
+                  <td style="font-weight: 600;">
+                    {formatMinorUnitsAsDollars(totals.total.amountMinorUnits, totals.total.currency)}
+                  </td>
+                </tr>
+                {totals.depositAmount ? (
+                  <tr>
+                    <td>Deposit due now</td>
+                    <td>
+                      {formatMinorUnitsAsDollars(totals.depositAmount.amountMinorUnits, totals.depositAmount.currency)}
+                    </td>
+                  </tr>
+                ) : null}
+              </tbody>
+            </table>
+          ) : null}
+        </>
+      )
+    }
+  </body>
+</html>

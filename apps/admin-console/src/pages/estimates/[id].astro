@@ -114,6 +114,10 @@ const depositValue = estimate?.depositAmount
           </div>
         ) : null}
 
+        <p>
+          <a href={`/estimates/${estimate.id}/print`}>Print / Save as PDF</a>
+        </p>
+
         {isDraft ? (
           <form method="POST" action={`/api/estimates/${estimate.id}/approve`} style="margin-bottom: 1.5rem;">
             <button type="submit" class="uikit-button uikit-button--primary">

@@ -1,15 +1,16 @@
 # CRM Architecture
 
 Status: durable record of CRM Milestones 1-3 and Clusters 4-8 and
-10-20 (this sprint). See [DECISIONS.md](../../DECISIONS.md) ADR-0009
+10-21 (this sprint). See [DECISIONS.md](../../DECISIONS.md) ADR-0009
 (persistence), ADR-0010 (multi-tenant foundation), ADR-0011
 (admin-console), ADR-0012 (Estimate/Booking/Job), ADR-0014 (Company),
 ADR-0015 (Note), ADR-0016 (Task), ADR-0018 (multi-role memberships),
 ADR-0020 (photos), ADR-0021 (estimate approval), ADR-0022 (audit log
 read access), ADR-0023 (archive/restore), ADR-0024 (appointments
 view), ADR-0025 (activity timeline, actor tracking), ADR-0026
-(estimate line items), ADR-0027 (tax/discount/deposit), and ADR-0028
-(estimate attachments) for the full rationale, and
+(estimate line items), ADR-0027 (tax/discount/deposit), ADR-0028
+(estimate attachments), and ADR-0029 (estimate PDF generation) for the
+full rationale, and
 [`packages/core-models`](../../packages/core-models/README.md) /
 [`packages/db`](../../packages/db/README.md) /
 [`apps/admin-console`](../../apps/admin-console/README.md) for
@@ -407,6 +408,21 @@ DECISIONS.md ADR-0028.
 typecheck/lint/test/build all pass locally. Migration 015 has NOT yet
 been run against production (owner action). PDF generation and
 customer-facing approval remain the next, still-separate clusters.
+
+## Cluster 21: Estimate PDF generation
+
+Closes "PDF generation" from the estimate builder directive. See
+DECISIONS.md ADR-0029. No schema change - `apps/admin-console` gains
+`/estimates/[id]/print`, a standalone (no app chrome) HTML page with
+`@media print` CSS, rendering the same Estimate/line-items/totals data
+as the detail page. Uses the browser's native "Print > Save as PDF" -
+no new PDF-rendering dependency. Shows the calling user's real
+`membership.businessName`, never fabricated branding.
+
+**Classification: IMPLEMENTED AND TESTED LOCALLY.** `apps/admin-console`
+typecheck/lint/test/build all pass locally. No new `packages/db` code -
+this route only reads existing repositories. The customer-facing
+approval workflow remains the next, still-separate cluster.
 
 ## What "CRM" means in this repository today
 

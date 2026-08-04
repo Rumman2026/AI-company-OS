@@ -360,6 +360,23 @@ MembershipRole[]`, with a fallback to the legacy `memberships.role`
   generation and a customer-facing approval workflow. Migration 015 has
   not yet been run against production (owner action).
 
+**Cluster 21 (implemented, tested locally) — Estimate PDF generation (ADR-0029)**
+
+- Scope: see [DECISIONS.md](DECISIONS.md) ADR-0029. Closes "PDF
+  generation" from the "Estimate Line Items" directive.
+- Implemented with repository evidence: `apps/admin-console` gains
+  `/estimates/[id]/print`, a standalone (no `AdminLayout` chrome) HTML
+  page rendering the same Estimate/line-items/totals data as the
+  detail page, with `@media print` CSS. Uses the browser's native
+  "Print > Save as PDF" - no new PDF-rendering dependency. Shows the
+  calling user's real `membership.businessName`, never fabricated
+  branding (Settings/Company-profile branding is separate, not-yet-built
+  work). No schema or `packages/db` change - this route only reads
+  existing repositories.
+- Lint, typecheck, a local production build, and unit tests all pass.
+- **Not done, tracked as a separate immediately-following cluster**: a
+  customer-facing approval workflow.
+
 **Growth-system domain contracts (in progress) — `packages/core-models`**
 
 - Scope: a first, provider-neutral coding slice for the GreenCal
