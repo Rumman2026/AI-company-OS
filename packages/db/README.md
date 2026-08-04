@@ -208,6 +208,21 @@ it - real RLS would have silently no-op'd both; the local fake
 Supabase test double doesn't enforce RLS, so this was invisible to
 tests until now.
 
+## Cluster 23: Settings — business profile, branding, service areas, working hours
+
+Four new/extended `packages/db`-only types (not `packages/core-models`
+
+- `businesses` is the tenant boundary itself, never a domain entity,
+  always a plain `businessId: string`): `BusinessProfileRepository`
+  (name/address/contact fields plus logo/color -
+  `migrations/018-business-profile.sql` and
+  `migrations/019-business-branding.sql`, the latter also adding a
+  private `business-logos` Storage bucket),
+  `BusinessServiceAreaRepository` (`migrations/020-business-service-areas.sql`),
+  and `BusinessHoursRepository` (`migrations/021-business-hours.sql`,
+  one row per day of week, saved via a single `upsert()` batch). See
+  DECISIONS.md ADR-0031.
+
 ## What is deliberately excluded
 
 An authenticated owner interface for Bookings (every other listed

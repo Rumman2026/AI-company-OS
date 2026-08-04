@@ -1,7 +1,7 @@
 # CRM Architecture
 
 Status: durable record of CRM Milestones 1-3 and Clusters 4-8 and
-10-22 (this sprint). See [DECISIONS.md](../../DECISIONS.md) ADR-0009
+10-23 (this sprint). See [DECISIONS.md](../../DECISIONS.md) ADR-0009
 (persistence), ADR-0010 (multi-tenant foundation), ADR-0011
 (admin-console), ADR-0012 (Estimate/Booking/Job), ADR-0014 (Company),
 ADR-0015 (Note), ADR-0016 (Task), ADR-0018 (multi-role memberships),
@@ -9,8 +9,9 @@ ADR-0020 (photos), ADR-0021 (estimate approval), ADR-0022 (audit log
 read access), ADR-0023 (archive/restore), ADR-0024 (appointments
 view), ADR-0025 (activity timeline, actor tracking), ADR-0026
 (estimate line items), ADR-0027 (tax/discount/deposit), ADR-0028
-(estimate attachments), ADR-0029 (estimate PDF generation), and
-ADR-0030 (customer approval link) for the full rationale, and
+(estimate attachments), ADR-0029 (estimate PDF generation), ADR-0030
+(customer approval link), and ADR-0031 (Settings: profile/branding/
+service areas/hours) for the full rationale, and
 [`packages/core-models`](../../packages/core-models/README.md) /
 [`packages/db`](../../packages/db/README.md) /
 [`apps/admin-console`](../../apps/admin-console/README.md) for
@@ -468,6 +469,41 @@ have NOT yet been run against production (owner action).
 deployment environment once it is deployed (see
 `docs/launch/OWNER_ACTIONS_REQUIRED.md`). **"Estimate Line Items" (all
 nine owner-specified sub-requirements) is now fully complete.**
+
+## Cluster 23: Settings — business profile, branding, service areas, working hours
+
+Closes four of the owner's nine "Settings" sub-items:
+Company profile/Business information, Branding/Logos, Service areas,
+Working hours. See DECISIONS.md ADR-0031. Team permissions and
+Security settings are separate, immediately-following clusters; AI
+preferences is intentionally not built (no AI agent is wired into
+GreenCal's live workflow to configure).
+
+- Seven new nullable columns on `businesses`
+  (`migrations/018-business-profile.sql`), plus the tenant-scoped
+  UPDATE policy `businesses` was missing.
+- `logo_storage_ref`/`primary_color` columns and a new private
+  `business-logos` Storage bucket (`migrations/019-business-branding.sql`),
+  same private-bucket-plus-signed-URL pattern as `job-photos`/
+  `estimate-attachments`.
+- New `business_service_areas` table
+  (`migrations/020-business-service-areas.sql`) - deliberately not
+  tied to the growth-system `CityId`/`CityService` types (those are a
+  public-marketing concern, not an internal "where do we serve" list).
+- New `business_hours` table, one row per day of week
+  (`migrations/021-business-hours.sql`), saved as a single upserted
+  batch.
+- `apps/admin-console` gains `/settings` (hub) and `/settings/profile`,
+  `/settings/branding`, `/settings/service-areas`, `/settings/hours`.
+- All four new repositories are deliberately `packages/db`-only types
+  (not `packages/core-models`), matching `businesses`' status as the
+  tenant boundary itself, not a domain entity - `businessId` stays a
+  plain `string` throughout, no new branded id.
+
+**Classification: IMPLEMENTED AND TESTED LOCALLY.** 101/101
+`packages/db` tests passing (16 new). `apps/admin-console`
+typecheck/lint/test/build all pass locally. Migrations 018-021 have
+NOT yet been run against production (owner action).
 
 ## What "CRM" means in this repository today
 

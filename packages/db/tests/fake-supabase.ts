@@ -192,6 +192,32 @@ export function createFakeSupabaseClient(tables: Record<string, FakeTable>) {
         delete() {
           return makeDeleteChain(table);
         },
+        upsert(
+          rowsOrRow: Record<string, unknown> | Array<Record<string, unknown>>,
+          options?: { onConflict?: string },
+        ) {
+          const rows = Array.isArray(rowsOrRow) ? rowsOrRow : [rowsOrRow];
+          const conflictCols = (options?.onConflict ?? 'id').split(',');
+          return {
+            async then(resolve: (result: { error: null }) => void) {
+              for (const values of rows) {
+                const existing = table.rows.find((r) =>
+                  conflictCols.every((col) => String(r[col]) === String(values[col])),
+                );
+                if (existing) {
+                  Object.assign(existing, values);
+                } else {
+                  table.rows.push({
+                    id: String(table.nextId++),
+                    created_at: '2026-01-01T00:00:00.000Z',
+                    ...values,
+                  });
+                }
+              }
+              resolve({ error: null });
+            },
+          };
+        },
       };
     },
   };

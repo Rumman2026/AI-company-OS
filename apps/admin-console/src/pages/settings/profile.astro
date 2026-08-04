@@ -1,0 +1,66 @@
+---
+import AdminLayout from '../../layouts/AdminLayout.astro';
+import { getCurrentMembership } from '../../lib/auth/membership';
+import { createSupabaseBusinessProfileRepository, type BusinessProfile } from '@ai-company-os/db';
+
+const user = Astro.locals.user!;
+const membership = await getCurrentMembership(Astro.locals.supabase, user.id);
+const errorMessage = Astro.url.searchParams.get('error');
+const saved = Astro.url.searchParams.get('saved') === '1';
+
+let profile: BusinessProfile | null = null;
+
+if (membership) {
+  const repo = createSupabaseBusinessProfileRepository(Astro.locals.supabase);
+  const result = await repo.getBusinessProfile(membership.businessId);
+  if (result.ok) profile = result.profile;
+}
+---
+
+<AdminLayout title="Company profile" membership={membership}>
+  <p><a href="/settings">&larr; Back to settings</a></p>
+  <h1>Company profile / business information</h1>
+
+  {errorMessage ? <div class="uikit-error-banner" role="alert">{errorMessage}</div> : null}
+  {saved ? <div class="uikit-badge uikit-badge--success">Saved</div> : null}
+
+  {profile ? (
+    <form method="POST" action="/api/settings/profile" style="max-width: 480px;">
+      <div class="uikit-form-field">
+        <label for="name">Business name</label>
+        <input id="name" name="name" type="text" value={profile.name} required />
+      </div>
+      <div class="uikit-form-field">
+        <label for="address">Street address</label>
+        <input id="address" name="address" type="text" value={profile.address ?? ''} />
+      </div>
+      <div class="uikit-form-field">
+        <label for="city">City</label>
+        <input id="city" name="city" type="text" value={profile.city ?? ''} />
+      </div>
+      <div class="uikit-form-field">
+        <label for="state">State</label>
+        <input id="state" name="state" type="text" value={profile.state ?? ''} />
+      </div>
+      <div class="uikit-form-field">
+        <label for="postalCode">Postal code</label>
+        <input id="postalCode" name="postalCode" type="text" value={profile.postalCode ?? ''} />
+      </div>
+      <div class="uikit-form-field">
+        <label for="phone">Phone</label>
+        <input id="phone" name="phone" type="text" value={profile.phone ?? ''} />
+      </div>
+      <div class="uikit-form-field">
+        <label for="email">Email</label>
+        <input id="email" name="email" type="email" value={profile.email ?? ''} />
+      </div>
+      <div class="uikit-form-field">
+        <label for="website">Website</label>
+        <input id="website" name="website" type="text" value={profile.website ?? ''} placeholder="https://example.com" />
+      </div>
+      <button type="submit" class="uikit-button uikit-button--primary">Save</button>
+    </form>
+  ) : (
+    <div class="uikit-error-banner" role="alert">Could not load your business profile.</div>
+  )}
+</AdminLayout>

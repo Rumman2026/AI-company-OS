@@ -418,6 +418,37 @@ MembershipRole[]`, with a fallback to the legacy `memberships.role`
   `SUPABASE_SERVICE_ROLE_KEY` must be added to `apps/admin-console`'s
   deployment environment once it is deployed.
 
+**Cluster 23 (implemented, tested locally) — Settings: business profile, branding, service areas, working hours (ADR-0031)**
+
+- Scope: see [DECISIONS.md](DECISIONS.md) ADR-0031. Closes four of the
+  nine "Settings" sub-items: Company profile/Business information,
+  Branding/Logos, Service areas, Working hours. Team permissions and
+  Security settings are separate, immediately-following clusters; AI
+  preferences is intentionally not built - no AI agent is wired into
+  GreenCal's live workflow yet, so a settings toggle for one would
+  control nothing real (confirmed with the owner rather than guessed).
+- Implemented with repository evidence: seven new nullable columns on
+  `businesses` (`migrations/018-business-profile.sql`, plus the
+  tenant-scoped UPDATE policy `businesses` was missing);
+  `logo_storage_ref`/`primary_color` and a new private
+  `business-logos` bucket (`migrations/019-business-branding.sql`);
+  new `business_service_areas` (`migrations/020-business-service-areas.sql`,
+  deliberately not tied to the growth-system `CityId` types - a
+  different, public-marketing concern); new `business_hours`, one row
+  per day of week, saved as a single upserted batch
+  (`migrations/021-business-hours.sql`). All four repositories are
+  `packages/db`-only types, matching `businesses`' status as the
+  tenant boundary rather than a domain entity (101/101 `packages/db`
+  tests passing total, 16 new). `apps/admin-console` gains `/settings`
+  (hub) and four sub-pages.
+- Lint, typecheck, a local production build, and unit tests all pass.
+- **Not done, tracked as separate immediately-following clusters**:
+  Team permissions (needs a `memberships` RLS-broadening decision,
+  confirmed with the owner - implementation next) and Security
+  settings (change-password only, per the owner's confirmed scope).
+  Migrations 018-021 have not yet been run against production (owner
+  action).
+
 **Growth-system domain contracts (in progress) — `packages/core-models`**
 
 - Scope: a first, provider-neutral coding slice for the GreenCal

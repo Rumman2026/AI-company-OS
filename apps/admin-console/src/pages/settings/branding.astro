@@ -1,0 +1,67 @@
+---
+import AdminLayout from '../../layouts/AdminLayout.astro';
+import { getCurrentMembership } from '../../lib/auth/membership';
+import { createSupabaseBusinessProfileRepository, type BusinessProfile } from '@ai-company-os/db';
+
+const user = Astro.locals.user!;
+const membership = await getCurrentMembership(Astro.locals.supabase, user.id);
+const errorMessage = Astro.url.searchParams.get('error');
+const saved = Astro.url.searchParams.get('saved') === '1';
+
+let profile: BusinessProfile | null = null;
+let logoSignedUrl: string | null = null;
+
+if (membership) {
+  const repo = createSupabaseBusinessProfileRepository(Astro.locals.supabase);
+  const result = await repo.getBusinessProfile(membership.businessId);
+  if (result.ok) {
+    profile = result.profile;
+    logoSignedUrl = await repo.getBusinessLogoSignedUrl(membership.businessId);
+  }
+}
+---
+
+<AdminLayout title="Branding" membership={membership}>
+  <p><a href="/settings">&larr; Back to settings</a></p>
+  <h1>Branding &amp; logo</h1>
+
+  {errorMessage ? <div class="uikit-error-banner" role="alert">{errorMessage}</div> : null}
+  {saved ? <div class="uikit-badge uikit-badge--success">Saved</div> : null}
+
+  {profile ? (
+    <>
+      <h2>Logo</h2>
+      {logoSignedUrl ? (
+        <p>
+          <img src={logoSignedUrl} alt="Current logo" style="max-width: 240px; max-height: 120px;" />
+        </p>
+      ) : (
+        <p style="color: var(--color-text-muted); font-size: 0.875rem;">No logo uploaded yet.</p>
+      )}
+      <form method="POST" action="/api/settings/branding/logo" enctype="multipart/form-data" style="max-width: 400px;">
+        <div class="uikit-form-field">
+          <label for="file">Upload {logoSignedUrl ? 'a new' : 'a'} logo</label>
+          <input id="file" name="file" type="file" accept="image/*" required />
+        </div>
+        <button type="submit" class="uikit-button uikit-button--secondary">Upload</button>
+      </form>
+
+      <h2>Brand color</h2>
+      <form method="POST" action="/api/settings/branding/color" style="max-width: 320px;">
+        <div class="uikit-form-field">
+          <label for="primaryColor">Primary color (hex)</label>
+          <input
+            id="primaryColor"
+            name="primaryColor"
+            type="text"
+            placeholder="#1a7f37"
+            value={profile.primaryColor ?? ''}
+          />
+        </div>
+        <button type="submit" class="uikit-button uikit-button--secondary">Save color</button>
+      </form>
+    </>
+  ) : (
+    <div class="uikit-error-banner" role="alert">Could not load your business profile.</div>
+  )}
+</AdminLayout>

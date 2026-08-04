@@ -2064,6 +2064,89 @@ ADR-0011 (admin-console architecture),
 
 ---
 
+## ADR-0031: Settings — business profile, branding, service areas, and working hours as `packages/db`-only types
+
+**Status**: Confirmed (implemented)
+
+**Context**: The owner's second Phase 1 directive is "Settings":
+Company profile, Business information, Branding, Logos, Service areas,
+Working hours, Team permissions, AI preferences, Security settings.
+`businesses` (ADR-0010) has only ever had `id`/`name`/`slug`/`created_at`
+
+- no address, contact info, branding, service-area, or hours data
+  exists anywhere in the schema yet. Three of the nine sub-items had
+  real, unresolved ambiguity that the owner was asked to resolve before
+  building (see this session's clarifying questions): Team permissions
+  needs a `memberships` RLS-broadening decision (a real security-scope
+  question, same class as ADR-0030's); AI preferences has no real
+  target - no AI agent is wired into GreenCal's live workflow yet, so a
+  settings toggle for one would be a fake control; Security settings'
+  scope (password-only vs. also session management) needed picking.
+  Owner's answers: broaden `memberships`/`membership_roles` RLS now with
+  full role-editing capability; skip AI preferences entirely rather than
+  build a control that does nothing; Security settings is change-password
+  only (Supabase Auth's existing `updateUser()`, no new infrastructure).
+  This ADR covers the four sub-items with no such ambiguity: Company
+  profile/Business information, Branding/Logos, Service areas, and
+  Working hours. Team permissions and Security settings are separate,
+  immediately-following clusters (each has its own ADR/commit); AI
+  preferences is intentionally not built.
+
+**Decision**: Four new/extended pieces, all `packages/db`-only types
+(not `packages/core-models`) - `businesses` has never been part of the
+provider-neutral CRM domain model (it _is_ the tenant boundary itself),
+always referenced by a plain `businessId: string`, never a branded id;
+adding one now would be the first branded id for something that isn't
+a domain entity, breaking that consistency for no benefit. This mirrors
+`MembershipRole`, the one prior `packages/db`-only type.
+
+1. **Business profile/information**: seven new nullable columns on
+   `businesses` (address/city/state/postal_code/phone/email/website) -
+   `packages/db/migrations/018-business-profile.sql`, which also adds
+   the tenant-scoped UPDATE policy `businesses` was missing (it only
+   ever had a SELECT policy).
+2. **Branding/logo**: `logo_storage_ref`/`primary_color` columns, plus
+   a new private `business-logos` Storage bucket
+   (`migrations/019-business-branding.sql`), following the same
+   private-bucket-plus-signed-URL pattern as `job-photos` and
+   `estimate-attachments` - a logo is never made public through this
+   bucket; it is only ever displayed via a short-lived signed URL from
+   within `apps/admin-console`.
+3. **Service areas**: a new `business_service_areas` table
+   (`migrations/020-business-service-areas.sql`) - a simple named-area
+   list (e.g. "Sacramento"). Deliberately **not** tied to the
+   programmatic-SEO `CityId`/`CityService` types already in
+   `packages/core-models` - those model public marketing pages for
+   `apps/greencal-website`, a different concern from a business's own
+   internal "where do we serve" declaration.
+4. **Working hours**: a new `business_hours` table, one row per day of
+   week (`migrations/021-business-hours.sql`), saved as a single
+   upserted batch (`setBusinessHours()` takes all seven days at once,
+   using Postgres `upsert(...).onConflict('business_id,day_of_week')`
+   rather than a table-normalized JSON blob, keeping the schema
+   consistent with every other table in this package).
+
+**Alternatives considered**: A JSON/JSONB blob column on `businesses`
+for hours (avoids a new table and batch-upsert complexity) - rejected;
+every other piece of structured data in this schema uses real typed
+columns, and a JSON blob would be the only exception with no strong
+justification. Tying service areas to the existing growth-system
+`CityId` types - rejected per the reasoning above; those are a
+different, public-marketing-facing concern.
+
+**Consequences**: `docs/crm/CRM_ARCHITECTURE.md` and
+`packages/db/README.md` gain a section. `apps/admin-console` gains a
+`/settings` hub linking to `/settings/profile`, `/settings/branding`,
+`/settings/service-areas`, and `/settings/hours` (Team and Security
+follow in their own clusters). Migrations 018-021 have not yet been
+run against production (owner action).
+
+**Related**: [ADR-0010](#adr-0010-multi-tenant-crm-foundation-businessesmemberships-tenant-scoped-rls),
+[ADR-0020](#adr-0020-photoasset-persistence-via-supabase-storage-beforeprogressafter-media),
+[ADR-0028](#adr-0028-estimate-photo-attachments-as-a-separate-minimal-type-from-photoasset).
+
+---
+
 ## Proposed decisions (not yet made)
 
 - Service-to-service communication pattern (REST/gRPC/queue) beyond the

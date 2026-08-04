@@ -47,7 +47,7 @@ Ordered by urgency.
   additive — the lead pipeline already works without this and will
   keep working identically before and after.
 
-## 3b. Run pending internal-CRM migrations 004-017 (safe, not urgent, run whenever convenient)
+## 3b. Run pending internal-CRM migrations 004-021 (safe, not urgent, run whenever convenient)
 
 - **Screen**: Supabase dashboard → the GreenCal project (`Greencal-production`)
   → SQL Editor. **Different migration chain from item 3 above** - these
@@ -93,7 +93,16 @@ Ordered by urgency.
   - `packages/db/migrations/017-estimate-customer-approval.sql` (adds
     the token/expiry columns behind the public customer
     estimate-approval link)
-- **Action**: open each file **in order** (004 through 017) and run its
+  - `packages/db/migrations/018-business-profile.sql` (adds
+    address/phone/email/website fields to your business profile, plus
+    a permission fix so profile edits actually save)
+  - `packages/db/migrations/019-business-branding.sql` (adds a logo
+    upload and brand color)
+  - `packages/db/migrations/020-business-service-areas.sql` (adds a
+    list of cities/regions you serve)
+  - `packages/db/migrations/021-business-hours.sql` (adds working
+    hours, one row per day of week)
+- **Action**: open each file **in order** (004 through 021) and run its
   full contents once in the SQL Editor. Each is additive-only (new
   tables, one additive column, or - for 007/008 - new rows only) and
   safe to run against the live production database - no existing table
@@ -122,7 +131,11 @@ Ordered by urgency.
   and pricing updates actually taking effect against real data (see the
   callout above). Running 017 lets staff generate a public link a
   customer can use to review and approve an Estimate without an
-  account. The admin-console itself is not yet deployed
+  account. Running 018 lets you fill in and save your business's
+  address/phone/email/website under Settings. Running 019 lets you
+  upload a logo and set a brand color. Running 020 lets you list the
+  cities/regions you serve. Running 021 lets you set weekly working
+  hours. The admin-console itself is not yet deployed
   to a live Vercel project (see the "not done" note in
   `docs/crm/CRM_ARCHITECTURE.md`), so this has no live-user-facing
   effect until that deployment also happens.

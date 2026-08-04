@@ -61,6 +61,36 @@ export type {
 
 export type { MembershipRole } from './membership-types';
 
+export { createSupabaseBusinessProfileRepository } from './business-profile-repository';
+export type {
+  BusinessProfile,
+  BusinessProfileRepository,
+  UpdateBusinessProfileInput,
+  UploadBusinessLogoInput,
+  GetBusinessProfileResult,
+  UpdateBusinessProfileResult,
+  UploadBusinessLogoResult,
+} from './business-profile-repository';
+
+export { createSupabaseBusinessServiceAreaRepository } from './business-service-area-repository';
+export type {
+  BusinessServiceArea,
+  BusinessServiceAreaRepository,
+  CreateServiceAreaResult,
+  ListServiceAreasResult,
+  DeleteServiceAreaResult,
+} from './business-service-area-repository';
+
+export { createSupabaseBusinessHoursRepository } from './business-hours-repository';
+export type {
+  DayOfWeek,
+  BusinessDayHours,
+  SetBusinessDayHoursInput,
+  BusinessHoursRepository,
+  ListBusinessHoursResult,
+  SetBusinessHoursResult,
+} from './business-hours-repository';
+
 export { createSupabaseEstimateRepository } from './estimate-repository';
 export type {
   EstimateRepository,

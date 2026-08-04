@@ -1,0 +1,52 @@
+---
+import AdminLayout from '../../layouts/AdminLayout.astro';
+import { getCurrentMembership } from '../../lib/auth/membership';
+import { createSupabaseBusinessServiceAreaRepository, type BusinessServiceArea } from '@ai-company-os/db';
+
+const user = Astro.locals.user!;
+const membership = await getCurrentMembership(Astro.locals.supabase, user.id);
+const errorMessage = Astro.url.searchParams.get('error');
+
+let areas: BusinessServiceArea[] = [];
+
+if (membership) {
+  const repo = createSupabaseBusinessServiceAreaRepository(Astro.locals.supabase);
+  const result = await repo.listServiceAreas(membership.businessId);
+  if (result.ok) areas = result.areas;
+}
+---
+
+<AdminLayout title="Service areas" membership={membership}>
+  <p><a href="/settings">&larr; Back to settings</a></p>
+  <h1>Service areas</h1>
+  <p style="color: var(--color-text-muted); font-size: 0.875rem;">
+    The cities or regions you serve.
+  </p>
+
+  {errorMessage ? <div class="uikit-error-banner" role="alert">{errorMessage}</div> : null}
+
+  {areas.length === 0 ? (
+    <div class="uikit-empty-state">
+      <p class="uikit-empty-state__title">No service areas yet</p>
+    </div>
+  ) : (
+    <ul>
+      {areas.map((area) => (
+        <li style="margin-bottom: 0.5rem;">
+          {area.areaName}{' '}
+          <form method="POST" action={`/api/settings/service-areas/${area.id}/delete`} style="display: inline;">
+            <button type="submit" class="uikit-button uikit-button--secondary">Remove</button>
+          </form>
+        </li>
+      ))}
+    </ul>
+  )}
+
+  <form method="POST" action="/api/settings/service-areas" style="max-width: 320px;">
+    <div class="uikit-form-field">
+      <label for="areaName">Add an area</label>
+      <input id="areaName" name="areaName" type="text" placeholder="Sacramento" required />
+    </div>
+    <button type="submit" class="uikit-button uikit-button--secondary">Add</button>
+  </form>
+</AdminLayout>

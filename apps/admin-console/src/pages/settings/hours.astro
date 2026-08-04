@@ -1,0 +1,69 @@
+---
+import AdminLayout from '../../layouts/AdminLayout.astro';
+import { getCurrentMembership } from '../../lib/auth/membership';
+import { createSupabaseBusinessHoursRepository, type BusinessDayHours } from '@ai-company-os/db';
+
+const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'] as const;
+
+const user = Astro.locals.user!;
+const membership = await getCurrentMembership(Astro.locals.supabase, user.id);
+const errorMessage = Astro.url.searchParams.get('error');
+const saved = Astro.url.searchParams.get('saved') === '1';
+
+let hours: BusinessDayHours[] = [];
+
+if (membership) {
+  const repo = createSupabaseBusinessHoursRepository(Astro.locals.supabase);
+  const result = await repo.listBusinessHours(membership.businessId);
+  if (result.ok) hours = result.hours;
+}
+
+function hoursFor(dayOfWeek: number): BusinessDayHours | undefined {
+  return hours.find((h) => h.dayOfWeek === dayOfWeek);
+}
+---
+
+<AdminLayout title="Working hours" membership={membership}>
+  <p><a href="/settings">&larr; Back to settings</a></p>
+  <h1>Working hours</h1>
+
+  {errorMessage ? <div class="uikit-error-banner" role="alert">{errorMessage}</div> : null}
+  {saved ? <div class="uikit-badge uikit-badge--success">Saved</div> : null}
+
+  <form method="POST" action="/api/settings/hours">
+    <div class="uikit-table-scroll">
+      <table class="uikit-table">
+        <thead>
+          <tr>
+            <th>Day</th>
+            <th>Opens</th>
+            <th>Closes</th>
+            <th>Closed</th>
+          </tr>
+        </thead>
+        <tbody>
+          {DAY_NAMES.map((dayName, dayOfWeek) => {
+            const day = hoursFor(dayOfWeek);
+            return (
+              <tr>
+                <td>{dayName}</td>
+                <td>
+                  <input type="time" name={`opensAt-${dayOfWeek}`} value={day?.opensAt ?? ''} />
+                </td>
+                <td>
+                  <input type="time" name={`closesAt-${dayOfWeek}`} value={day?.closesAt ?? ''} />
+                </td>
+                <td>
+                  <input type="checkbox" name={`closed-${dayOfWeek}`} value="1" checked={day?.closed ?? false} />
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+    <button type="submit" class="uikit-button uikit-button--primary" style="margin-top: 1rem;">
+      Save hours
+    </button>
+  </form>
+</AdminLayout>

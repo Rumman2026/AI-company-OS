@@ -1,0 +1,19 @@
+---
+import AdminLayout from '../../layouts/AdminLayout.astro';
+import { getCurrentMembership } from '../../lib/auth/membership';
+
+const user = Astro.locals.user!;
+const membership = await getCurrentMembership(Astro.locals.supabase, user.id);
+---
+
+<AdminLayout title="Settings" membership={membership}>
+  <h1>Settings</h1>
+  <ul>
+    <li><a href="/settings/profile">Company profile / business information</a></li>
+    <li><a href="/settings/branding">Branding &amp; logo</a></li>
+    <li><a href="/settings/service-areas">Service areas</a></li>
+    <li><a href="/settings/hours">Working hours</a></li>
+    <li><a href="/settings/team">Team &amp; permissions</a></li>
+    <li><a href="/settings/security">Security</a></li>
+  </ul>
+</AdminLayout>
