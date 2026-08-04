@@ -2526,6 +2526,22 @@ to include this as a second required migration alongside 024. No RLS
 change - the policies migration 024 fixed are unaffected and continue
 to govern row visibility once this base access is restored.
 
+**Addendum (same incident, confirmed pattern)**: after running the
+`memberships` grant above, the owner also found and granted `SELECT`
+on `businesses` directly (same missing-base-grant symptom, one step
+further into the same nested debug-endpoint query), then the identical
+`42501` recurred for `membership_roles` - exactly the case this ADR's
+"Alternatives considered" anticipated. `migrations/026-restore-membership-roles-select-grant.sql`
+applies the same narrowly-scoped fix (`grant select on
+public.membership_roles to authenticated`) plus a read-only
+verification query confirming `authenticated` holds `SELECT` on all
+three tables. This confirms the underlying event was a broader grant
+loss across at least these three tables (still not determinable in
+mechanism from this repository), not something specific to
+`memberships` alone - each table is still being fixed only on
+observed evidence, per the same least-privilege reasoning, not
+preemptively swept across the schema.
+
 **Related**: [ADR-0035](#adr-0035-fix-infinite-rls-recursion-on-membershipsmembership_roles-via-security-definer-helper-functions-corrects-adr-0032).
 
 ---

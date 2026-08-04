@@ -3,30 +3,34 @@
 Status: the concise, actionable list — see individual docs for detail.
 Ordered by urgency.
 
-## 0. URGENT — run migration 025 to fix the broken admin-console login
+## 0. URGENT — run migration 026 to fix the broken admin-console login
 
 - **Screen**: Supabase dashboard → the GreenCal project
   (`Greencal-production`) → SQL Editor.
 - **What happened**: after migration 022, admin-console login broke
   with "Your account has no business membership yet" for every user.
-  Two migrations were needed to fully resolve it:
+  Three migrations were needed to fully resolve it:
   - `packages/db/migrations/024-fix-membership-rls-recursion.sql` -
     **confirmed run** - fixed a real Postgres RLS bug (`42P17`,
     infinite recursion) in two of migration 022's policies. See
     DECISIONS.md ADR-0035.
   - `packages/db/migrations/025-restore-memberships-select-grant.sql` -
-    fixes a second, unrelated issue surfaced immediately after: `42501`,
+    **confirmed run** - fixed a second, unrelated issue: `42501`,
     "permission denied for table memberships" - a missing base
-    table-level `SELECT` grant for the `authenticated` role (a
-    different privilege layer from RLS, evaluated before RLS policies
-    ever run). See DECISIONS.md ADR-0036.
-    Neither is a code bug and neither is fixable by redeploying - both
-    can only be fixed by running the corrective SQL migrations.
-- **Action**: if you haven't already, run 024, then run
-  `packages/db/migrations/025-restore-memberships-select-grant.sql`
+    table-level `SELECT` grant for `authenticated` (a different
+    privilege layer from RLS, evaluated before RLS policies ever run).
+    See DECISIONS.md ADR-0036.
+  - `packages/db/migrations/026-restore-membership-roles-select-grant.sql` -
+    the identical `42501` issue recurred one table further into the
+    same query, this time for `membership_roles`. Same fix, same
+    reasoning. See DECISIONS.md ADR-0036's addendum.
+    None of these are code bugs and none are fixable by redeploying -
+    each can only be fixed by running its corrective SQL migration.
+- **Action**: if you haven't already, run 024 and 025, then run
+  `packages/db/migrations/026-restore-membership-roles-select-grant.sql`
   once, in full. Safe to run against production - a single additive
-  `grant select on public.memberships to authenticated;`. Does not
-  disable or alter RLS.
+  `grant select on public.membership_roles to authenticated;` plus a
+  read-only verification query. Does not disable or alter RLS.
 - **Expected result**: `getCurrentMembership()` resolves correctly
   again and the admin-console dashboard loads. Verify by opening
   `/api/debug/membership` (while logged in) - it should return your
