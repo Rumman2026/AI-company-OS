@@ -47,7 +47,7 @@ Ordered by urgency.
   additive — the lead pipeline already works without this and will
   keep working identically before and after.
 
-## 3b. Run pending internal-CRM migrations 004-014 (safe, not urgent, run whenever convenient)
+## 3b. Run pending internal-CRM migrations 004-015 (safe, not urgent, run whenever convenient)
 
 - **Screen**: Supabase dashboard → the GreenCal project (`Greencal-production`)
   → SQL Editor. **Different migration chain from item 3 above** - these
@@ -81,7 +81,10 @@ Ordered by urgency.
     service-package catalog and itemized estimate line items)
   - `packages/db/migrations/014-estimate-pricing.sql` (adds tax rate,
     discount amount, and deposit amount columns to Estimates)
-- **Action**: open each file **in order** (004 through 014) and run its
+  - `packages/db/migrations/015-estimate-attachments.sql` (adds a
+    private Storage bucket and table for photos attached to an
+    Estimate)
+- **Action**: open each file **in order** (004 through 015) and run its
   full contents once in the SQL Editor. Each is additive-only (new
   tables, one additive column, or - for 007/008 - new rows only) and
   safe to run against the live production database - no existing table
@@ -105,7 +108,8 @@ Ordered by urgency.
   lets you itemize estimates into priced lines (optionally from a
   reusable service-package catalog) instead of a single flat amount.
   Running 014 lets you set a tax rate, a fixed-dollar discount, and a
-  deposit amount on a draft Estimate. The admin-console itself is not yet deployed
+  deposit amount on a draft Estimate. Running 015 lets you attach
+  reference photos to an Estimate. The admin-console itself is not yet deployed
   to a live Vercel project (see the "not done" note in
   `docs/crm/CRM_ARCHITECTURE.md`), so this has no live-user-facing
   effect until that deployment also happens.

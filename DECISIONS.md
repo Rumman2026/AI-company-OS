@@ -1869,6 +1869,64 @@ next, still-separate clusters per ADR-0026's consequences.
 
 ---
 
+## ADR-0028: Estimate photo attachments as a separate, minimal type from PhotoAsset
+
+**Status**: Confirmed (implemented)
+
+**Context**: Continuing the owner's "Professional estimate builder"
+directive, the next required sub-feature is "Attach photos" to an
+Estimate (e.g. a customer's photo of what needs cleaning, or a
+reference photo taken during the on-site quote visit). `PhotoAsset`
+(`packages/core-models`) already models photo upload, but only for a
+`Job`, and it carries a full public-marketing publication workflow
+(`metadataStripped`, `gpsDataRemoved`, `privacyReviewPassed`,
+`faceReviewPassed`, `licensePlateReviewPassed`,
+`humanPublicationApproved`, `publicationConsentGranted`,
+`publicationStatus`) that exists specifically to gate a photo before it
+can ever be shown publicly as before/after marketing content.
+
+**Decision**: A new, deliberately minimal type,
+`EstimateAttachment` (`id`, `estimateId`, `storageRef`, `fileName`,
+`caption?`, `uploadedBy?`, `uploadedAt`) - not a widened `PhotoAsset`
+with an optional `estimateId` alongside `jobId`. An estimate attachment
+is always a private, internal-only reference image; it is never a
+candidate for public before/after marketing use, so none of
+`PhotoAsset`'s publication-readiness fields have any meaning for it,
+and forcing them onto this type would mean either fabricating false
+`false` values for a workflow that was never run, or making an entire
+type's fields conditionally meaningless depending on which id is set -
+both worse than a second, purpose-built type. `EstimateAttachmentRepository`
+follows the same private-Storage-bucket-plus-signed-URL pattern already
+established by `PhotoAssetRepository` (a new `estimate-attachments`
+bucket, tenant-scoped object-path policies, 1-hour signed URLs), reused
+for its proven shape rather than duplicated ad hoc. Attachments are not
+gated by the Estimate's `draft`/`approved` status the way line items
+and pricing are - a reference photo remains useful context after
+approval too, and attaching one never changes the estimate's computed
+total.
+
+**Alternatives considered**: Widening `PhotoAsset` to make `jobId`
+optional and add an optional `estimateId` - rejected per the reasoning
+above. Reusing the existing `job-photos` Storage bucket for estimate
+attachments too (since an Estimate does not yet have a Job at
+quote-time in many cases) - rejected; a dedicated `estimate-attachments`
+bucket keeps the tenant-scoped path convention
+(`{business_id}/{estimate_id}/{filename}`) unambiguous and avoids
+mixing two different retention/access-policy concerns in one bucket.
+
+**Consequences**: `docs/crm/CRM_ARCHITECTURE.md` and
+`packages/db/README.md` gain a section. Migration
+`015-estimate-attachments.sql` adds one new table and one new private
+Storage bucket. PDF generation and the customer-facing approval
+workflow remain the next, still-separate clusters per ADR-0026's
+consequences.
+
+**Related**: [ADR-0020](#adr-0020-photoasset-persistence-via-supabase-storage-beforeprogressafter-media),
+[ADR-0026](#adr-0026-estimate-line-items-and-a-reusable-service-package-catalog),
+[ADR-0027](#adr-0027-estimate-tax-discount-and-deposit-as-integer-only-pricing-fields).
+
+---
+
 ## Proposed decisions (not yet made)
 
 - Service-to-service communication pattern (REST/gRPC/queue) beyond the

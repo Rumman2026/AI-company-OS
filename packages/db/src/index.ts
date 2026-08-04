@@ -142,6 +142,16 @@ export type {
   DeleteEstimateLineItemResult,
 } from './estimate-line-item-repository';
 
+export { createSupabaseEstimateAttachmentRepository } from './estimate-attachment-repository';
+export type {
+  EstimateAttachmentRepository,
+  UploadEstimateAttachmentInput,
+  UploadEstimateAttachmentResult,
+  EstimateAttachmentWithSignedUrl,
+  ListEstimateAttachmentsResult,
+  DeleteEstimateAttachmentResult,
+} from './estimate-attachment-repository';
+
 export {
   createActivityTimelineRepository,
   IMPLEMENTED_TIMELINE_ENTRY_TYPES,

@@ -47,6 +47,7 @@ export {
   createTaskId,
   createEstimateLineItemId,
   createServicePackageId,
+  createEstimateAttachmentId,
 } from './ids';
 export type {
   LeadId,
@@ -85,6 +86,7 @@ export type {
   TaskId,
   EstimateLineItemId,
   ServicePackageId,
+  EstimateAttachmentId,
 } from './ids';
 
 export { createCurrencyCode, createMoney } from './money';
@@ -139,6 +141,7 @@ export type { Note, NotableEntityType } from './types/note';
 export type { Task } from './types/task';
 export type { EstimateLineItem } from './types/estimate-line-item';
 export type { ServicePackage } from './types/service-package';
+export type { EstimateAttachment } from './types/estimate-attachment';
 
 export { transitionLead } from './state-machines/lead';
 export { transitionJob } from './state-machines/job';

@@ -166,6 +166,18 @@ approved. Totals math (`calculateEstimateTotals()`) lives in
 `packages/core-models`, not here - this package only persists the raw
 rate/discount/deposit fields. See DECISIONS.md ADR-0027.
 
+## Cluster 20: Estimate photo attachments
+
+`migrations/015-estimate-attachments.sql` adds `estimate_attachments`
+and a new private `estimate-attachments` Storage bucket.
+`EstimateAttachmentRepository` reuses `PhotoAssetRepository`'s
+upload/signed-URL pattern, but is a deliberately separate type/table
+from `photo_assets` - an estimate attachment is always a private
+reference image, never a candidate for public marketing use, so none
+of `photo_assets`' publication-readiness columns apply. Not gated by
+Estimate status - unlike line items and pricing, attaching a photo is
+always allowed. See DECISIONS.md ADR-0028.
+
 ## What is deliberately excluded
 
 An authenticated owner interface for Bookings (every other listed

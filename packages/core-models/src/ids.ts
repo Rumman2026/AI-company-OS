@@ -50,6 +50,11 @@ export function createServicePackageId(value: string): ServicePackageId {
   return createBrandedString('ServicePackageId', value);
 }
 
+export type EstimateAttachmentId = Branded<string, 'EstimateAttachmentId'>;
+export function createEstimateAttachmentId(value: string): EstimateAttachmentId {
+  return createBrandedString('EstimateAttachmentId', value);
+}
+
 export type BookingId = Branded<string, 'BookingId'>;
 export function createBookingId(value: string): BookingId {
   return createBrandedString('BookingId', value);

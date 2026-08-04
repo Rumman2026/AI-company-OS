@@ -5,6 +5,8 @@ import {
   createSupabaseEstimateRepository,
   createSupabaseEstimateLineItemRepository,
   createSupabaseServicePackageRepository,
+  createSupabaseEstimateAttachmentRepository,
+  type EstimateAttachmentWithSignedUrl,
 } from '@ai-company-os/db';
 import { formatMinorUnitsAsDollars } from '../../lib/estimates/parse-amount';
 import {
@@ -24,6 +26,7 @@ const errorMessage = Astro.url.searchParams.get('error');
 let estimate: Estimate | null = null;
 let lineItems: EstimateLineItem[] = [];
 let servicePackages: ServicePackage[] = [];
+let attachments: EstimateAttachmentWithSignedUrl[] = [];
 let notFound = false;
 
 if (membership && id) {
@@ -43,6 +46,10 @@ if (membership && id) {
     const servicePackageRepo = createSupabaseServicePackageRepository(Astro.locals.supabase);
     const packagesResult = await servicePackageRepo.listServicePackages(membership.businessId);
     if (packagesResult.ok) servicePackages = packagesResult.servicePackages;
+
+    const attachmentRepo = createSupabaseEstimateAttachmentRepository(Astro.locals.supabase);
+    const attachmentsResult = await attachmentRepo.listAttachments(membership.businessId, id);
+    if (attachmentsResult.ok) attachments = attachmentsResult.attachments;
   } else {
     notFound = true;
   }
@@ -275,6 +282,59 @@ const depositValue = estimate?.depositAmount
             </button>
           </form>
         ) : null}
+
+        <h2>Attachments</h2>
+        {attachments.length === 0 ? (
+          <div class="uikit-empty-state">
+            <p class="uikit-empty-state__title">No reference photos yet</p>
+            <p class="uikit-empty-state__description">
+              Attach photos of the work site or job to reference while pricing this estimate.
+            </p>
+          </div>
+        ) : (
+          <ul>
+            {attachments.map(({ attachment, signedUrl }) => (
+              <li style="margin-bottom: 0.75rem;">
+                {signedUrl ? (
+                  <a href={signedUrl} target="_blank" rel="noreferrer">
+                    {attachment.fileName}
+                  </a>
+                ) : (
+                  <span>{attachment.fileName}</span>
+                )}
+                {attachment.caption ? <span> - {attachment.caption}</span> : null}{' '}
+                <form
+                  method="POST"
+                  action={`/api/estimates/${estimate.id}/attachments/${attachment.id}/delete`}
+                  style="display: inline;"
+                >
+                  <button type="submit" class="uikit-button uikit-button--secondary">
+                    Remove
+                  </button>
+                </form>
+              </li>
+            ))}
+          </ul>
+        )}
+
+        <form
+          method="POST"
+          action={`/api/estimates/${estimate.id}/attachments`}
+          enctype="multipart/form-data"
+          style="max-width: 480px;"
+        >
+          <div class="uikit-form-field">
+            <label for="file">Photo</label>
+            <input id="file" name="file" type="file" accept="image/*" required />
+          </div>
+          <div class="uikit-form-field">
+            <label for="caption">Caption (optional)</label>
+            <input id="caption" name="caption" type="text" />
+          </div>
+          <button type="submit" class="uikit-button uikit-button--secondary">
+            Add attachment
+          </button>
+        </form>
       </>
     ) : (
       <div class="uikit-error-banner" role="alert">

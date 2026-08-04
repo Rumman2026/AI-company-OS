@@ -1,15 +1,15 @@
 # CRM Architecture
 
 Status: durable record of CRM Milestones 1-3 and Clusters 4-8 and
-10-19 (this sprint). See [DECISIONS.md](../../DECISIONS.md) ADR-0009
+10-20 (this sprint). See [DECISIONS.md](../../DECISIONS.md) ADR-0009
 (persistence), ADR-0010 (multi-tenant foundation), ADR-0011
 (admin-console), ADR-0012 (Estimate/Booking/Job), ADR-0014 (Company),
 ADR-0015 (Note), ADR-0016 (Task), ADR-0018 (multi-role memberships),
 ADR-0020 (photos), ADR-0021 (estimate approval), ADR-0022 (audit log
 read access), ADR-0023 (archive/restore), ADR-0024 (appointments
 view), ADR-0025 (activity timeline, actor tracking), ADR-0026
-(estimate line items), and ADR-0027 (tax/discount/deposit) for the
-full rationale, and
+(estimate line items), ADR-0027 (tax/discount/deposit), and ADR-0028
+(estimate attachments) for the full rationale, and
 [`packages/core-models`](../../packages/core-models/README.md) /
 [`packages/db`](../../packages/db/README.md) /
 [`apps/admin-console`](../../apps/admin-console/README.md) for
@@ -379,6 +379,33 @@ directive. See DECISIONS.md ADR-0027.
 tests passing (6 new). `apps/admin-console` typecheck/lint/test/build
 all pass locally. Migration 014 has NOT yet been run against
 production (owner action). Photo attachment, PDF generation, and
+customer-facing approval remain the next, still-separate clusters.
+
+## Cluster 20: Estimate photo attachments
+
+Closes "Attach photos" from the estimate builder directive. See
+DECISIONS.md ADR-0028.
+
+- `EstimateAttachment` (new `packages/core-models` type - `estimateId`,
+  `storageRef`, `fileName`, `caption?`, `uploadedBy?`, `uploadedAt`) -
+  deliberately minimal and separate from `PhotoAsset`, which carries a
+  public-marketing publication workflow that has no meaning for a
+  private estimate reference photo.
+  `packages/db/migrations/015-estimate-attachments.sql` adds the
+  `estimate_attachments` table and a new private `estimate-attachments`
+  Storage bucket, tenant-scoped exactly like the existing `job-photos`
+  bucket.
+- `EstimateAttachmentRepository` reuses `PhotoAssetRepository`'s
+  proven upload/signed-URL pattern. Attachments are not gated by the
+  Estimate's `draft`/`approved` status - a reference photo stays useful
+  after approval and never changes the estimate's computed total.
+- `apps/admin-console`: the `/estimates/[id]` page gains an Attachments
+  section (list with signed-URL links, an upload form, remove buttons).
+
+**Classification: IMPLEMENTED AND TESTED LOCALLY.** 76/76
+`packages/db` tests passing (3 new). `apps/admin-console`
+typecheck/lint/test/build all pass locally. Migration 015 has NOT yet
+been run against production (owner action). PDF generation and
 customer-facing approval remain the next, still-separate clusters.
 
 ## What "CRM" means in this repository today

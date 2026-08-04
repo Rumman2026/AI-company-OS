@@ -338,6 +338,28 @@ MembershipRole[]`, with a fallback to the legacy `memberships.role`
   customer-facing approval workflow. Migration 014 has not yet been run
   against production (owner action).
 
+**Cluster 20 (implemented, tested locally) — Estimate photo attachments (ADR-0028)**
+
+- Scope: see [DECISIONS.md](DECISIONS.md) ADR-0028. Closes "Attach
+  photos" from the "Estimate Line Items" directive.
+- Implemented with repository evidence: `EstimateAttachment` (new,
+  `packages/core-models`) is a deliberately minimal type, separate from
+  `PhotoAsset` - an estimate attachment is always a private reference
+  image, never a candidate for public marketing use, so `PhotoAsset`'s
+  publication-workflow fields don't apply.
+  `packages/db/migrations/015-estimate-attachments.sql` adds
+  `estimate_attachments` and a new private `estimate-attachments`
+  Storage bucket. `EstimateAttachmentRepository` reuses
+  `PhotoAssetRepository`'s upload/signed-URL pattern (76/76
+  `packages/db` tests passing total, 3 new). `apps/admin-console`'s
+  `/estimates/[id]` page gains an Attachments section (list with
+  signed-URL links, upload form, remove buttons) - not gated by
+  Estimate status, unlike line items and pricing.
+- Lint, typecheck, a local production build, and unit tests all pass.
+- **Not done, tracked as separate immediately-following clusters**: PDF
+  generation and a customer-facing approval workflow. Migration 015 has
+  not yet been run against production (owner action).
+
 **Growth-system domain contracts (in progress) — `packages/core-models`**
 
 - Scope: a first, provider-neutral coding slice for the GreenCal
