@@ -37,6 +37,13 @@ export async function getCurrentMembership(
   supabase: SupabaseClient,
   userId: string,
 ): Promise<CurrentMembership | null> {
+  // Unconditional, before any query or early return - if this line is
+  // ever absent from Vercel's runtime logs for a request that reaches
+  // this function, the deployed build does not contain this code path
+  // at all (stale deployment/build cache), which is a different problem
+  // than anything the branches below can diagnose.
+  console.log('getCurrentMembership: called', { userId });
+
   const { data, error } = await supabase
     .from('memberships')
     .select('id, business_id, role, businesses(name), membership_roles(role)')
@@ -85,6 +92,12 @@ export async function getCurrentMembership(
     : [];
   const roles =
     rolesFromChildTable.length > 0 ? rolesFromChildTable : [data.role as MembershipRole];
+
+  console.log('getCurrentMembership: resolved', {
+    userId,
+    businessId: data.business_id,
+    roles,
+  });
 
   return {
     businessId: data.business_id as string,
