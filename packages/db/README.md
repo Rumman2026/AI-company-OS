@@ -77,10 +77,22 @@ express a real foreign key across the polymorphic `entity_type`/
 ever writing an `entity_id` that refers to a real, tenant-scoped row).
 `NoteRepository` is create/list only.
 
+## Cluster 8: Task persistence (boolean-complete, optional entity attachment)
+
+`migrations/006-task-foundation.sql` adds a `tasks` table (tenant-scoped,
+select/insert/update RLS - update is needed to mark a task complete).
+See DECISIONS.md ADR-0016 for why `Task` has no state machine (a plain
+`completed: boolean` plus `completeTask()`, same reasoning as `Company`)
+and why its `entityType`/`entityId` (reusing `Note`'s
+`NotableEntityType`) are optional together, unlike `Note`'s required
+attachment. Two `check` constraints keep `entity_type`/`entity_id` and
+`completed`/`completed_at` internally consistent at the database level.
+`TaskRepository` is create/list/complete.
+
 ## What is deliberately excluded
 
 An authenticated owner interface for Estimates/Bookings (Jobs, Companies,
-and Notes now have one), full RBAC UI, task/media persistence,
+Notes, and Tasks now have one), full RBAC UI, media persistence,
 search/filtering/CSV export/reporting. GreenCal Mobile Detailing and
 Navarro Builders are not onboarded as real tenants - only the schema's
 capacity to support them exists. See `docs/crm/CRM_ARCHITECTURE.md` for

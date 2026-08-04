@@ -1,0 +1,59 @@
+---
+import type { Task } from '@ai-company-os/core-models';
+
+interface Props {
+  entityType: 'lead' | 'contact' | 'company' | 'job';
+  entityId: string;
+  tasks: Task[];
+  redirectTo: string;
+}
+
+const { entityType, entityId, tasks, redirectTo } = Astro.props;
+---
+
+<h2>Tasks</h2>
+{
+  tasks.length === 0 ? (
+    <div class="uikit-empty-state">
+      <p class="uikit-empty-state__title">No tasks yet</p>
+    </div>
+  ) : (
+    <ul>
+      {tasks.map((task) => (
+        <li>
+          {task.completed ? <s>{task.title}</s> : task.title}
+          {task.dueAt ? (
+            <span style="color: var(--color-text-muted); font-size: 0.8125rem;">
+              {' '}
+              &middot; due {new Date(task.dueAt).toLocaleDateString()}
+            </span>
+          ) : null}
+          {task.completed ? null : (
+            <form method="POST" action={`/api/tasks/${task.id}/complete`} style="display: inline;">
+              <input type="hidden" name="redirectTo" value={redirectTo} />
+              <button type="submit" class="uikit-button uikit-button--secondary">
+                Mark complete
+              </button>
+            </form>
+          )}
+        </li>
+      ))}
+    </ul>
+  )
+}
+<form method="POST" action="/api/tasks" style="max-width: 400px;">
+  <input type="hidden" name="entityType" value={entityType} />
+  <input type="hidden" name="entityId" value={entityId} />
+  <input type="hidden" name="redirectTo" value={redirectTo} />
+  <div class="uikit-form-field">
+    <label for="title">Add a task</label>
+    <input id="title" name="title" type="text" required />
+  </div>
+  <div class="uikit-form-field">
+    <label for="dueAt">Due</label>
+    <input id="dueAt" name="dueAt" type="datetime-local" />
+  </div>
+  <button type="submit" class="uikit-button uikit-button--secondary">
+    Add task
+  </button>
+</form>

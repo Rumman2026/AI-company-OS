@@ -1,6 +1,7 @@
 ---
 import AdminLayout from '../../layouts/AdminLayout.astro';
 import NotesSection from '../../components/NotesSection.astro';
+import TasksSection from '../../components/TasksSection.astro';
 import { getCurrentMembership } from '../../lib/auth/membership';
 import {
   createSupabaseLeadRepository,
@@ -10,10 +11,11 @@ import {
   createSupabaseBookingRepository,
   createSupabaseJobRepository,
   createSupabaseNoteRepository,
+  createSupabaseTaskRepository,
 } from '@ai-company-os/db';
 import { leadStatusTone } from '@ai-company-os/ui-kit';
 import { formatMinorUnitsAsDollars } from '../../lib/estimates/parse-amount';
-import type { LeadStatus, Note } from '@ai-company-os/core-models';
+import type { LeadStatus, Note, Task } from '@ai-company-os/core-models';
 
 const user = Astro.locals.user!;
 const membership = await getCurrentMembership(Astro.locals.supabase, user.id);
@@ -46,6 +48,7 @@ let estimates: Array<{
 let bookings: Array<{ id: string; estimateId: string; jobId?: string; scheduledAt: string }> = [];
 let jobsById = new Map<string, { id: string; status: string }>();
 let notes: Note[] = [];
+let tasks: Task[] = [];
 
 const transitionError = Astro.url.searchParams.get('error');
 const infoMessage = Astro.url.searchParams.get('info');
@@ -86,6 +89,14 @@ if (membership && id) {
       entityId: id,
     });
     if (notesResult.ok) notes = notesResult.notes;
+
+    const taskRepo = createSupabaseTaskRepository(Astro.locals.supabase);
+    const tasksResult = await taskRepo.listTasks(membership.businessId, {
+      entityType: 'lead',
+      entityId: id,
+      completed: false,
+    });
+    if (tasksResult.ok) tasks = tasksResult.tasks;
   } else {
     notFound = true;
     loadError = result.error;
@@ -208,6 +219,8 @@ if (membership && id) {
             </button>
           </form>
         ) : null}
+
+        <TasksSection entityType="lead" entityId={lead.id} tasks={tasks} redirectTo={`/leads/${lead.id}`} />
 
         <NotesSection entityType="lead" entityId={lead.id} notes={notes} redirectTo={`/leads/${lead.id}`} />
       </>

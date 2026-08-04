@@ -20,6 +20,7 @@ import type {
   JobId,
   LeadId,
   NoteId,
+  TaskId,
   PublishedProjectId,
   PublishedProjectSlug,
 } from '../ids';
@@ -30,6 +31,7 @@ import {
   createJobId,
   createLeadId,
   createNoteId,
+  createTaskId,
   createPublishedProjectSlug,
 } from '../ids';
 import type { Job } from '../types/job';
@@ -97,6 +99,12 @@ void noteIdAsContactId;
 // @ts-expect-error 'not-a-real-entity-type' is not one of the approved NotableEntityType literals.
 const invalidNotableEntityType: NotableEntityType = 'not-a-real-entity-type';
 void invalidNotableEntityType;
+
+// TaskId must not be assignable to NoteId.
+const taskId: TaskId = createTaskId('task-1');
+// @ts-expect-error TaskId and NoteId are distinct branded types and must never be interchangeable.
+const taskIdAsNoteId: NoteId = taskId;
+void taskIdAsNoteId;
 
 // Transition context requires a valid ActorCategory literal, not an
 // arbitrary string.

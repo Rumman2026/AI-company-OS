@@ -1151,6 +1151,59 @@ missed.
 
 ---
 
+## ADR-0016: Task persistence as a boolean-complete entity with optional entity attachment (CRM Cluster 8)
+
+**Status**: Confirmed (implemented)
+
+**Context**: `Task` (a to-do item, e.g. "follow up with lead X by Friday")
+is the last of the originally-identified missing CRM entities
+(`Appointment` was evaluated during Cluster 7 and found to already be
+covered by the existing `Booking` entity - see ADR-0015 - so it was not
+built separately).
+
+**Decision**: `Task` is a new `packages/core-models` type (`id`, `title`,
+`description?`, `dueAt?`, `assignedTo?`, `entityType?`, `entityId?`,
+`completed: boolean`, `completedAt?`, `createdAt`) - **no state
+machine**, same treatment as `Company` (ADR-0014) and `Note`
+(ADR-0015). A Task moves between exactly two states (open, completed)
+with no authorization rules or precondition evidence governing that
+move, so a full transition function with actor categories and typed
+rejections would be ceremony without benefit - a plain boolean plus a
+`completeTask()` repository method is the correct-sized solution.
+`entityType`/`entityId` reuse `Note`'s `NotableEntityType` union rather
+than introducing a parallel one, and are **optional together** (a Task
+need not attach to any CRM entity - e.g. "call the parts supplier" has
+nothing to attach to), unlike `Note` where the attachment is required.
+The `tasks` table adds a `check` constraint enforcing that
+`entity_type`/`entity_id` are both null or both set together, and a
+second `check` constraint enforcing `completed_at` is set if and only if
+`completed` is true - the two boolean-adjacent fields can never drift
+out of sync at the database level, not just in application code.
+`apps/admin-console` gains a standalone `/tasks` list (open/completed
+toggle, unattached task creation) plus a reusable `TasksSection`
+component embedded on the Lead, Contact, Company, and Job detail pages,
+mirroring `NotesSection`'s (ADR-0015) one-component-not-four pattern.
+
+**Alternatives considered**: A full state machine (`open` → `completed`
+with actor-authorization rules, matching Lead/Job/Invoice/Content/Review
+Request). Rejected: a Task's completion has no real authorization
+requirement (anyone with a business membership can complete any task)
+and no precondition evidence to validate, so the state-machine
+machinery's actual value-add (authorized-actor enforcement, typed
+rejection reasons, precondition evidence) would be simulated rather than
+real - matches the same reasoning already applied to `Company`.
+
+**Consequences**: `docs/crm/CRM_ARCHITECTURE.md` gains a Cluster 8
+section. This closes out the originally-identified set of missing CRM
+entities from the Milestone 3 "not done" list (`Company`, `Task`,
+`Appointment`, `Note`) - `Appointment` resolved via reuse of `Booking`,
+the other three now have persistence and UI.
+
+**Related**: [ADR-0014](#adr-0014-company-persistence-and-contactcompany-linking-crm-cluster-6),
+[ADR-0015](#adr-0015-note-persistence-as-a-polymorphic-entity-agnostic-attachment-crm-cluster-7).
+
+---
+
 ## Proposed decisions (not yet made)
 
 - Service-to-service communication pattern (REST/gRPC/queue) beyond the

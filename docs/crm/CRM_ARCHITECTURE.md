@@ -1,10 +1,10 @@
 # CRM Architecture
 
-Status: durable record of CRM Milestones 1-3 and Clusters 4-7 (this
+Status: durable record of CRM Milestones 1-3 and Clusters 4-8 (this
 sprint). See [DECISIONS.md](../../DECISIONS.md) ADR-0009 (persistence),
 ADR-0010 (multi-tenant foundation), ADR-0011 (admin-console),
-ADR-0012 (Estimate/Booking/Job), ADR-0014 (Company), and ADR-0015
-(Note) for the full rationale, and
+ADR-0012 (Estimate/Booking/Job), ADR-0014 (Company), ADR-0015 (Note),
+and ADR-0016 (Task) for the full rationale, and
 [`packages/core-models`](../../packages/core-models/README.md) /
 [`packages/db`](../../packages/db/README.md) /
 [`apps/admin-console`](../../apps/admin-console/README.md) for
@@ -132,12 +132,45 @@ yet been run against the real `Greencal-production` Supabase project
 (owner action required). Not yet deployed live (same admin-console
 deployment gap as every prior cluster).
 
-**Next**: persistence + UI for the entities still with none - `Task`
-(also needs a new `packages/core-models` type). `Appointment` was
-evaluated and found to already be covered by the existing `Booking`
-entity (which has its own `scheduledAt` field) - no separate
-`Appointment` type is planned unless a real, owner-approved need for a
-non-estimate-linked scheduled event appears.
+## Cluster 8: Task persistence (boolean-complete, optional entity attachment)
+
+Adds `Task` - the last of the originally-identified missing entities.
+See DECISIONS.md ADR-0016 for the full rationale.
+
+- `Task` (`packages/core-models/src/types/task.ts`): `id`, `title`,
+  `description?`, `dueAt?`, `assignedTo?`, `entityType?`, `entityId?`
+  (reuses `Note`'s `NotableEntityType`, but optional - a Task need not
+  attach to anything), `completed: boolean`, `completedAt?`,
+  `createdAt`. **No state machine** - completion is a plain boolean plus
+  a `completeTask()` method, same reasoning as `Company`.
+- `tasks` table (`migrations/006-task-foundation.sql`), tenant-scoped
+  RLS (select/insert/update - update is needed to mark a task complete,
+  unlike the append-only `notes` table). Two `check` constraints enforce
+  `entity_type`/`entity_id` travel together and `completed_at` is set
+  if and only if `completed` is true.
+- `TaskRepository` (`createTask`/`listTasks`/`completeTask`),
+  unit-tested (`packages/db`, 40/40 tests passing).
+- `apps/admin-console`: a standalone `/tasks` list page (open/completed
+  toggle, unattached task creation) plus a reusable `TasksSection`
+  component embedded on the Lead, Contact, Company, and Job detail
+  pages.
+
+**Classification: IMPLEMENTED AND TESTED LOCALLY.** Lint, typecheck, a
+local production build, and unit tests all pass. Migration 006 has NOT
+yet been run against the real `Greencal-production` Supabase project
+(owner action required). Not yet deployed live (same admin-console
+deployment gap as every prior cluster).
+
+This closes out the originally-identified set of missing CRM entities
+(`Company`, `Task`, `Appointment`, `Note`) from the Milestone 3 "not
+done" list - `Appointment` resolved via reuse of the existing `Booking`
+entity, the other three now have persistence and UI.
+
+**Next**: no further CRM entity gaps are currently identified. Remaining
+work is search/filtering/CSV export/reporting, full per-permission RBAC,
+and the much larger scope from the owner's "AI COMPANY OS — FINAL
+EXECUTION DIRECTIVE" (multi-business isolation, infra, Hermes/Jervis/
+Emma agents, SEO/AEO/GEO, commercial SaaS).
 
 ## What "CRM" means in this repository today
 

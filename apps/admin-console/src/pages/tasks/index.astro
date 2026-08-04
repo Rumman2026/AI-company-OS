@@ -1,0 +1,112 @@
+---
+import AdminLayout from '../../layouts/AdminLayout.astro';
+import { getCurrentMembership } from '../../lib/auth/membership';
+import { createSupabaseTaskRepository } from '@ai-company-os/db';
+import type { Task } from '@ai-company-os/core-models';
+
+const ENTITY_ROUTE_PREFIX: Record<string, string> = {
+  lead: '/leads',
+  contact: '/contacts',
+  company: '/companies',
+  job: '/jobs',
+};
+
+const user = Astro.locals.user!;
+const membership = await getCurrentMembership(Astro.locals.supabase, user.id);
+const showCompleted = Astro.url.searchParams.get('completed') === '1';
+const createError = Astro.url.searchParams.get('error');
+
+let tasks: Task[] = [];
+let loadError: string | null = null;
+
+if (membership) {
+  const taskRepo = createSupabaseTaskRepository(Astro.locals.supabase);
+  const result = await taskRepo.listTasks(membership.businessId, { completed: showCompleted });
+  if (result.ok) {
+    tasks = result.tasks;
+  } else {
+    loadError = result.error;
+  }
+}
+---
+
+<AdminLayout title="Tasks" membership={membership}>
+  <h1>Tasks</h1>
+
+  <p>
+    {showCompleted ? (
+      <a href="/tasks">Show open tasks</a>
+    ) : (
+      <a href="/tasks?completed=1">Show completed tasks</a>
+    )}
+  </p>
+
+  {createError ? <div class="uikit-error-banner" role="alert">Could not add task: {createError}</div> : null}
+
+  <form method="POST" action="/api/tasks" style="max-width: 400px; margin-bottom: 2rem;">
+    <input type="hidden" name="redirectTo" value="/tasks" />
+    <div class="uikit-form-field">
+      <label for="title">New task</label>
+      <input id="title" name="title" type="text" required />
+    </div>
+    <div class="uikit-form-field">
+      <label for="dueAt">Due</label>
+      <input id="dueAt" name="dueAt" type="datetime-local" />
+    </div>
+    <button type="submit" class="uikit-button uikit-button--primary">Add task</button>
+  </form>
+
+  {
+    loadError ? (
+      <div class="uikit-error-banner" role="alert">
+        Could not load tasks: {loadError}
+      </div>
+    ) : tasks.length === 0 ? (
+      <div class="uikit-empty-state">
+        <p class="uikit-empty-state__title">
+          {showCompleted ? 'No completed tasks' : 'No open tasks'}
+        </p>
+      </div>
+    ) : (
+      <div class="uikit-table-scroll">
+        <table class="uikit-table">
+          <thead>
+            <tr>
+              <th>Title</th>
+              <th>Due</th>
+              <th>Linked to</th>
+              <th />
+            </tr>
+          </thead>
+          <tbody>
+            {tasks.map((task) => (
+              <tr>
+                <td>{task.completed ? <s>{task.title}</s> : task.title}</td>
+                <td>{task.dueAt ? new Date(task.dueAt).toLocaleString() : '—'}</td>
+                <td>
+                  {task.entityType && task.entityId ? (
+                    <a href={`${ENTITY_ROUTE_PREFIX[task.entityType]}/${task.entityId}`}>
+                      {task.entityType} #{task.entityId}
+                    </a>
+                  ) : (
+                    '—'
+                  )}
+                </td>
+                <td>
+                  {task.completed ? null : (
+                    <form method="POST" action={`/api/tasks/${task.id}/complete`}>
+                      <input type="hidden" name="redirectTo" value={`/tasks${showCompleted ? '?completed=1' : ''}`} />
+                      <button type="submit" class="uikit-button uikit-button--secondary">
+                        Mark complete
+                      </button>
+                    </form>
+                  )}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    )
+  }
+</AdminLayout>

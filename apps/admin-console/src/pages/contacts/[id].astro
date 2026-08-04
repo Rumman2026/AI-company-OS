@@ -1,6 +1,7 @@
 ---
 import AdminLayout from '../../layouts/AdminLayout.astro';
 import NotesSection from '../../components/NotesSection.astro';
+import TasksSection from '../../components/TasksSection.astro';
 import { getCurrentMembership } from '../../lib/auth/membership';
 import {
   createSupabaseContactRepository,
@@ -8,9 +9,10 @@ import {
   createSupabaseAuditLogRepository,
   createSupabaseCompanyRepository,
   createSupabaseNoteRepository,
+  createSupabaseTaskRepository,
 } from '@ai-company-os/db';
 import { leadStatusTone } from '@ai-company-os/ui-kit';
-import type { LeadStatus, CompanyId, Note } from '@ai-company-os/core-models';
+import type { LeadStatus, CompanyId, Note, Task } from '@ai-company-os/core-models';
 
 const user = Astro.locals.user!;
 const membership = await getCurrentMembership(Astro.locals.supabase, user.id);
@@ -28,6 +30,7 @@ let leads: Array<{ id: string; status: LeadStatus; createdAt: string }> = [];
 let companyName: string | null = null;
 let allCompanies: Array<{ id: string; name: string }> = [];
 let notes: Note[] = [];
+let tasks: Task[] = [];
 let notFound = false;
 
 if (membership && id) {
@@ -58,6 +61,14 @@ if (membership && id) {
       entityId: id,
     });
     if (notesResult.ok) notes = notesResult.notes;
+
+    const taskRepo = createSupabaseTaskRepository(Astro.locals.supabase);
+    const tasksResult = await taskRepo.listTasks(membership.businessId, {
+      entityType: 'contact',
+      entityId: id,
+      completed: false,
+    });
+    if (tasksResult.ok) tasks = tasksResult.tasks;
   } else {
     notFound = true;
   }
@@ -146,6 +157,13 @@ if (membership && id) {
             </table>
           </div>
         )}
+
+        <TasksSection
+          entityType="contact"
+          entityId={contact.id}
+          tasks={tasks}
+          redirectTo={`/contacts/${contact.id}`}
+        />
 
         <NotesSection
           entityType="contact"

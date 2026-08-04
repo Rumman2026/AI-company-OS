@@ -248,6 +248,29 @@ repository evidence.
   already be covered by the existing `Booking` entity - not built as a
   separate type.
 
+**CRM Cluster 8 (implemented, tested locally) — Task persistence (ADR-0016)**
+
+- Scope: see [DECISIONS.md](DECISIONS.md) ADR-0016 and
+  `docs/crm/CRM_ARCHITECTURE.md`.
+- Implemented with repository evidence: `Task` is a new
+  `packages/core-models` type (`title`/`dueAt?`/`assignedTo?`/
+  `entityType?`/`entityId?`/`completed: boolean`/`completedAt?` - no
+  state machine, completion is a plain boolean); `tasks` table
+  (`packages/db/migrations/006-task-foundation.sql`, tenant-scoped,
+  with `check` constraints keeping the entity-attachment and
+  completion fields internally consistent); `TaskRepository`
+  (40/40 `packages/db` tests passing total); a standalone `/tasks` list
+  page plus a reusable `TasksSection` component embedded on the Lead,
+  Contact, Company, and Job detail pages in `apps/admin-console`.
+- Lint, typecheck, a local production build, and unit tests all pass.
+- **Not done**: migration 006 has not yet been run against production
+  (owner action). Not deployed live (same admin-console deployment gap
+  as every prior cluster).
+- **This closes out the originally-identified set of missing CRM
+  entities** (`Company`, `Task`, `Appointment`, `Note`) from the
+  Milestone 3 "not done" list - `Appointment` resolved via reuse of the
+  existing `Booking` entity.
+
 ## Proposed future phases
 
 The following are **proposed** and not scheduled or committed:

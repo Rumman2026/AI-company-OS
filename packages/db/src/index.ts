@@ -86,3 +86,13 @@ export type {
   ListNotesResult,
   ListNotesOptions,
 } from './note-repository';
+
+export { createSupabaseTaskRepository } from './task-repository';
+export type {
+  TaskRepository,
+  CreateTaskInput,
+  CreateTaskResult,
+  ListTasksResult,
+  ListTasksOptions,
+  CompleteTaskResult,
+} from './task-repository';

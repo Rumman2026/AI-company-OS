@@ -165,6 +165,11 @@ export function createNoteId(value: string): NoteId {
   return createBrandedString('NoteId', value);
 }
 
+export type TaskId = Branded<string, 'TaskId'>;
+export function createTaskId(value: string): TaskId {
+  return createBrandedString('TaskId', value);
+}
+
 export type AuditRecordId = Branded<string, 'AuditRecordId'>;
 export function createAuditRecordId(value: string): AuditRecordId {
   return createBrandedString('AuditRecordId', value);
