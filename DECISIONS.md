@@ -2368,6 +2368,115 @@ confirming the customer-portal scope.
 
 ---
 
+## ADR-0035: Fix infinite RLS recursion on `memberships`/`membership_roles` via `SECURITY DEFINER` helper functions (corrects ADR-0032)
+
+**Status**: Confirmed (implemented)
+
+**Context**: A real production incident, diagnosed end-to-end against
+the live deployment: every page that resolves the logged-in user's
+business membership failed with Postgres error `42P17`, "infinite
+recursion detected in policy for relation `memberships`" - surfaced
+via a temporary diagnostic endpoint
+(`apps/admin-console/src/pages/api/debug/membership.ts`) added
+specifically to get ground truth independent of Vercel's log viewer,
+after two earlier rounds of code-level logging and build-artifact
+inspection had already ruled out every other explanation (stale
+deployment, wrong runtime, routing bypass, missing code) with direct
+evidence.
+
+**Root cause**: `migrations/022-team-roster.sql`'s
+`memberships_tenant_select` policy is defined **on** `memberships`,
+with a `USING` clause whose own subquery **also queries**
+`memberships`:
+
+```sql
+using (business_id in (select business_id from memberships where user_id = auth.uid()))
+```
+
+ADR-0032 reasoned that keeping the original, non-recursive
+`memberships_own_select` policy (`user_id = auth.uid()`, no subquery)
+alongside this one would give the inner subquery a "safe base case" to
+resolve against, since Postgres OR-combines multiple permissive
+policies for the same command. **That reasoning was wrong** and is
+hereby corrected: Postgres does not selectively apply only the
+non-recursive policy to an inner subquery - it applies the full
+OR-combined policy set uniformly every time the table is referenced,
+including inside that same policy's own subquery. Since one member of
+that combined set is self-referential, every access path into
+`memberships` under RLS - a direct query, or a nested subquery from a
+completely different table's policy - re-triggers evaluation of the
+same broken policy set again, without termination. Postgres detects
+this specific cycle and raises `42P17` rather than actually hanging
+forever. Because nearly every other tenant-scoped table's RLS policy
+in this schema resolves the caller's `business_id` by querying
+`memberships`, this one self-referential policy broke access to
+almost the entire application, not just the team roster feature it
+was written for.
+
+A second, independent instance of the identical bug existed in the
+same migration: `membership_roles_owner_admin_insert`/`_delete` are
+policies **on** `membership_roles` whose subqueries `join membership_roles mr`
+
+- self-referential the same way, on a different table.
+
+**Decision**: `migrations/024-fix-membership-rls-recursion.sql` adds
+two `SECURITY DEFINER` helper functions -
+`get_my_business_ids()` (every `business_id` the caller holds a
+membership in) and `is_owner_admin_for_business(business_id)` (whether
+the caller holds `owner-admin` for that business) - and replaces the
+four self-referential policies' subqueries with calls to them. A
+`SECURITY DEFINER` function runs as its owner, not the querying role,
+so its internal query against `memberships`/`membership_roles` never
+re-invokes RLS and therefore never re-enters the policy currently
+being evaluated - breaking the cycle at its source. `set search_path = public`
+is applied to both functions - required hardening for any
+`SECURITY DEFINER` function, since an unpinned search_path is a known
+privilege-escalation vector (a malicious schema earlier in the
+caller's search_path could shadow an unqualified function/operator
+reference and run with the function owner's elevated privileges).
+`execute` is revoked from `public` and granted only to `authenticated`,
+preserving least-privilege. This preserves the exact authorization
+model ADR-0032 intended (every team member sees the full roster for
+their own business; only an existing `owner-admin` may grant or revoke
+a role) - it changes only _how_ the check is computed so that it
+terminates, not what it authorizes.
+
+Only the four genuinely self-referential policies are touched. Every
+other tenant-scoped policy in this schema (`contacts`, `leads`,
+`estimates`, `businesses`, etc.) references `memberships` from a
+_different_ table's policy, which is not itself recursive; those only
+ever failed as a downstream symptom of `memberships` being
+unqueryable, and resolve automatically once `memberships` does - no
+other policy needed to change.
+
+**Alternatives considered**: Dropping `memberships_tenant_select`/the
+two `membership_roles_owner_admin_*` policies entirely, reverting to
+each table's original own-row-only visibility - rejected; this would
+"fix" the recursion by silently removing the Team Permissions feature
+(ADR-0032) rather than repairing it, contradicting the owner's explicit
+instruction not to work around the root cause. Disabling RLS on
+`memberships`/`membership_roles` - rejected outright; would remove
+tenant isolation entirely on tables holding real authorization data,
+a far worse outcome than the recursion bug itself.
+
+**Consequences**: `docs/crm/CRM_ARCHITECTURE.md` and
+`packages/db/README.md` gain a note. This is the first custom Postgres
+function in this schema (everything prior was tables/policies/indexes
+only) - a real, if narrow, precedent for future RLS work that needs
+this same "resolve the caller's own group membership without
+recursion" pattern (e.g. if a future feature needs "is this user an
+owner-admin for ANY business" or similar). Migration 024 has not yet
+been run against production (owner action). The temporary diagnostic
+route and the verbose `getCurrentMembership()` logging added while
+chasing this incident should be removed in a follow-up cluster once
+the fix is confirmed live - both are safe to leave temporarily
+(diagnostic-only, no data exposure beyond the calling user's own row)
+but were never meant to be permanent.
+
+**Related**: [ADR-0032](#adr-0032-team-rosterrole-management--broadened-memberships-rls-owner-admin-gated-role-writes-denormalized-email).
+
+---
+
 ## Proposed decisions (not yet made)
 
 - Service-to-service communication pattern (REST/gRPC/queue) beyond the

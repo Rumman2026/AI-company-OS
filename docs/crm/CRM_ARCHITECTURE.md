@@ -594,6 +594,36 @@ Customer notifications, and Emma integration hooks all remain blocked
 pending a real provider credential or feature - see DECISIONS.md
 ADR-0034's consequences.
 
+## Post-launch fix: infinite RLS recursion on `memberships`/`membership_roles`
+
+A real production incident, diagnosed live against the deployed
+admin-console: every page resolving the logged-in user's business
+membership failed with Postgres `42P17` ("infinite recursion detected
+in policy"). Root cause: two of migration 022's policies were
+self-referential (a policy on table T whose own subquery also queries
+T) - `memberships_tenant_select` and
+`membership_roles_owner_admin_insert`/`_delete`. Postgres cannot
+evaluate that and rejects it outright. Since nearly every other
+tenant-scoped table's RLS resolves the caller's business via
+`memberships`, this broke access to nearly the entire application, not
+just the team roster feature it was written for.
+
+Fixed in `migrations/024-fix-membership-rls-recursion.sql` via two new
+`SECURITY DEFINER` helper functions (`get_my_business_ids()`,
+`is_owner_admin_for_business()`) - the first custom Postgres functions
+in this schema - that resolve the caller's own membership without
+re-invoking RLS, breaking the cycle while preserving the exact same
+authorization result ADR-0032 intended. See DECISIONS.md ADR-0035,
+which also formally corrects ADR-0032's flawed reasoning about why the
+original policy pairing was believed non-recursive.
+
+**Classification: FIX WRITTEN, NOT YET VERIFIED LIVE.** Migration 024
+has not yet been run against production. A temporary diagnostic route
+(`apps/admin-console/src/pages/api/debug/membership.ts`) and verbose
+logging in `getCurrentMembership()` were added while investigating this
+incident - both should be removed in a follow-up cluster once the fix
+is confirmed working, per ADR-0035's consequences.
+
 ## What "CRM" means in this repository today
 
 The owner's "Master Scope Consolidation" directive asks for an internal

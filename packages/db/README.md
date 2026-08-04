@@ -253,6 +253,21 @@ alongside the `Estimate` (repository-internal detail, not added to the
 domain type) so the public approval route can resolve the team roster
 to notify. See DECISIONS.md ADR-0034.
 
+## Post-launch fix: infinite RLS recursion on `memberships`/`membership_roles`
+
+`migrations/024-fix-membership-rls-recursion.sql` - real production
+incident (`42P17`, diagnosed live against the deployed app). Two of
+migration 022's policies were self-referential (a policy on table T
+whose own subquery also queries T), which Postgres cannot evaluate and
+rejects outright rather than hanging. Fixed via two new
+`SECURITY DEFINER` helper functions (`get_my_business_ids()`,
+`is_owner_admin_for_business()`) - the first custom Postgres functions
+in this schema - that resolve the caller's own membership without
+re-invoking RLS, breaking the cycle while preserving the exact same
+authorization result. See DECISIONS.md ADR-0035, which also corrects
+ADR-0032's flawed reasoning about why the original policy pairing was
+believed safe.
+
 ## What is deliberately excluded
 
 An authenticated owner interface for Bookings (every other listed

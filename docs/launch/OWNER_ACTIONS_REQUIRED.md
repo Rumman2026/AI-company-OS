@@ -3,6 +3,28 @@
 Status: the concise, actionable list — see individual docs for detail.
 Ordered by urgency.
 
+## 0. URGENT — run migration 024 to fix the broken admin-console login
+
+- **Screen**: Supabase dashboard → the GreenCal project
+  (`Greencal-production`) → SQL Editor.
+- **What happened**: after migration 022, admin-console login broke
+  with "Your account has no business membership yet" for every user,
+  caused by a real Postgres RLS bug (`42P17`, infinite recursion) in
+  two of that migration's policies - see DECISIONS.md ADR-0035 for the
+  full diagnosis. This is not a code bug and not fixable by redeploying
+  - it can only be fixed by running the corrective SQL migration.
+- **Action**: run `packages/db/migrations/024-fix-membership-rls-recursion.sql`
+  once, in full. Safe to run against production - it only adds two new
+  helper functions and replaces four policies in place (same names, no
+  duplicates); no table, column, or row is altered.
+- **Expected result**: `getCurrentMembership()` resolves correctly
+  again and the admin-console dashboard loads. Verify by opening
+  `/api/debug/membership` (while logged in) - it should return your
+  real membership data instead of a `42P17` error. Once confirmed
+  working, tell me and I'll remove that temporary diagnostic route and
+  the verbose logging added while investigating this (both currently
+  harmless but not meant to be permanent).
+
 ## 1. Prevent Supabase auto-pause from silently killing lead capture (urgent)
 
 - **Screen**: Supabase dashboard → the GreenCal project (`Greencal-production`)
