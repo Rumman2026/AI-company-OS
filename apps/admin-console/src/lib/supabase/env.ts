@@ -1,3 +1,5 @@
+import { isPlausibleSupabaseUrl } from './url-validation';
+
 export interface SupabaseEnv {
   url: string;
   anonKey: string;
@@ -12,7 +14,7 @@ export interface SupabaseEnv {
 export function getSupabaseEnv(): SupabaseEnv | null {
   const url = import.meta.env.SUPABASE_URL;
   const anonKey = import.meta.env.SUPABASE_ANON_KEY;
-  if (typeof url !== 'string' || url.length === 0) return null;
+  if (typeof url !== 'string' || !isPlausibleSupabaseUrl(url)) return null;
   if (typeof anonKey !== 'string' || anonKey.length === 0) return null;
   return { url, anonKey };
 }
@@ -37,7 +39,7 @@ export interface SupabaseServiceRoleEnv {
 export function getSupabaseServiceRoleEnv(): SupabaseServiceRoleEnv | null {
   const url = import.meta.env.SUPABASE_URL;
   const serviceRoleKey = import.meta.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (typeof url !== 'string' || url.length === 0) return null;
+  if (typeof url !== 'string' || !isPlausibleSupabaseUrl(url)) return null;
   if (typeof serviceRoleKey !== 'string' || serviceRoleKey.length === 0) return null;
   return { url, serviceRoleKey };
 }
