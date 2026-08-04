@@ -1,7 +1,7 @@
 # CRM Architecture
 
 Status: durable record of CRM Milestones 1-3 and Clusters 4-8 and
-10-21 (this sprint). See [DECISIONS.md](../../DECISIONS.md) ADR-0009
+10-22 (this sprint). See [DECISIONS.md](../../DECISIONS.md) ADR-0009
 (persistence), ADR-0010 (multi-tenant foundation), ADR-0011
 (admin-console), ADR-0012 (Estimate/Booking/Job), ADR-0014 (Company),
 ADR-0015 (Note), ADR-0016 (Task), ADR-0018 (multi-role memberships),
@@ -9,8 +9,8 @@ ADR-0020 (photos), ADR-0021 (estimate approval), ADR-0022 (audit log
 read access), ADR-0023 (archive/restore), ADR-0024 (appointments
 view), ADR-0025 (activity timeline, actor tracking), ADR-0026
 (estimate line items), ADR-0027 (tax/discount/deposit), ADR-0028
-(estimate attachments), and ADR-0029 (estimate PDF generation) for the
-full rationale, and
+(estimate attachments), ADR-0029 (estimate PDF generation), and
+ADR-0030 (customer approval link) for the full rationale, and
 [`packages/core-models`](../../packages/core-models/README.md) /
 [`packages/db`](../../packages/db/README.md) /
 [`apps/admin-console`](../../apps/admin-console/README.md) for
@@ -423,6 +423,51 @@ no new PDF-rendering dependency. Shows the calling user's real
 typecheck/lint/test/build all pass locally. No new `packages/db` code -
 this route only reads existing repositories. The customer-facing
 approval workflow remains the next, still-separate cluster.
+
+## Cluster 22: Customer estimate-approval link (public, unauthenticated)
+
+Closes "customer approval workflow" - the last "Estimate Line Items"
+sub-requirement. See DECISIONS.md ADR-0030. **This is the first public,
+unauthenticated, state-mutating route in `apps/admin-console`** - every
+other route requires an authenticated tenant session. Scope was
+confirmed with the owner before building (one-click approval + typed
+name as a lightweight signature, 30-day token expiry, service-role key
+acceptable) rather than decided unilaterally, since it touches
+security architecture and a new secret.
+
+- `Estimate` gains `customerApprovalToken?`, `customerApprovalTokenExpiresAt?`,
+  `customerApproved?`, `customerSignatureName?` -
+  `packages/db/migrations/017-estimate-customer-approval.sql`. Reuses
+  the existing `approved` status/`approvedAt` (ADR-0021) rather than a
+  parallel status.
+- `EstimateRepository` gains `generateCustomerApprovalLink()`
+  (staff-only, tenant-scoped), `getEstimateByPublicToken()`, and
+  `approveEstimateByCustomerToken()` (both token-only, no `businessId`).
+  `EstimateLineItemRepository` gains `listLineItemsByPublicToken()` so
+  the public page shows real, current line items, not a possibly-stale
+  `proposedAmount`.
+- `apps/admin-console`: `/approve/[token]` (public page) and
+  `/api/public/estimates/[token]/approve` (public POST) added to
+  `PUBLIC_PATH_PREFIXES`. Both construct a service-role Supabase client
+  via a new, deliberately narrow `getSupabaseServiceRoleEnv()` - every
+  other route keeps using the anon-key, RLS-enforced client. The
+  `/estimates/[id]` page gains a "Generate customer approval link"
+  button and displays the active link/expiry.
+- **Also fixes a real, pre-existing gap found while building this**:
+  `estimates` never had a tenant-scoped UPDATE RLS policy
+  (`migrations/016-estimates-update-policy-fix.sql`), even though
+  `approveEstimate()` and `setEstimatePricing()` already update it -
+  invisible to local tests since the fake Supabase test double doesn't
+  enforce RLS.
+
+**Classification: IMPLEMENTED AND TESTED LOCALLY.** 87/87
+`packages/db` tests passing (9 new). `apps/admin-console`
+typecheck/lint/test/build all pass locally. Migrations 016 and 017
+have NOT yet been run against production (owner action).
+`SUPABASE_SERVICE_ROLE_KEY` must be added to `apps/admin-console`'s
+deployment environment once it is deployed (see
+`docs/launch/OWNER_ACTIONS_REQUIRED.md`). **"Estimate Line Items" (all
+nine owner-specified sub-requirements) is now fully complete.**
 
 ## What "CRM" means in this repository today
 

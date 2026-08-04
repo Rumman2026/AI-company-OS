@@ -1,0 +1,198 @@
+---
+import { tokensCss, componentsCss } from '@ai-company-os/ui-kit';
+import { createPublicEstimateRepositories } from '../../lib/estimates/public-approval-client';
+import { formatMinorUnitsAsDollars } from '../../lib/estimates/parse-amount';
+import {
+  calculateEstimateTotals,
+  createCurrencyCode,
+  createMoney,
+  type Estimate,
+  type EstimateLineItem,
+} from '@ai-company-os/core-models';
+
+const { token } = Astro.params;
+const errorMessage = Astro.url.searchParams.get('error');
+
+let estimate: Estimate | null = null;
+let lineItems: EstimateLineItem[] = [];
+let notAvailable = false;
+let notFoundOrExpired = false;
+
+if (!token) {
+  notFoundOrExpired = true;
+} else {
+  const repos = createPublicEstimateRepositories();
+  if (!repos) {
+    notAvailable = true;
+  } else {
+    const result = await repos.estimates.getEstimateByPublicToken(token);
+    if (!result.ok) {
+      notFoundOrExpired = true;
+    } else {
+      estimate = result.estimate;
+      const lineItemsResult = await repos.lineItems.listLineItemsByPublicToken(token);
+      if (lineItemsResult.ok) lineItems = lineItemsResult.lineItems;
+    }
+  }
+}
+
+const lineItemsSubtotalMinorUnits = lineItems.reduce(
+  (sum, item) => sum + item.lineTotal.amountMinorUnits,
+  0,
+);
+const effectiveSubtotalMinorUnits =
+  lineItems.length > 0 ? lineItemsSubtotalMinorUnits : (estimate?.proposedAmount.amountMinorUnits ?? 0);
+
+const totals = estimate
+  ? calculateEstimateTotals({
+      subtotal: createMoney(effectiveSubtotalMinorUnits, createCurrencyCode('USD')),
+      taxRateBasisPoints: estimate.taxRateBasisPoints,
+      discountAmount: estimate.discountAmount,
+      depositAmount: estimate.depositAmount,
+    })
+  : null;
+
+const alreadyApproved = estimate?.status === 'approved';
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="robots" content="noindex, nofollow" />
+    <title>Approve your estimate</title>
+    <style set:html={tokensCss} />
+    <style set:html={componentsCss} />
+    <style>
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        font-family: var(--font-sans);
+        color: var(--color-text);
+        background: var(--color-bg);
+        padding: var(--space-6);
+        max-width: 640px;
+        margin-inline: auto;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: var(--space-4) 0;
+      }
+      th,
+      td {
+        text-align: left;
+        padding: var(--space-2);
+        border-bottom: 1px solid var(--color-border);
+      }
+    </style>
+  </head>
+  <body>
+    {
+      notAvailable ? (
+        <div class="uikit-error-banner" role="alert">
+          This approval link isn't available right now. Please contact us directly.
+        </div>
+      ) : notFoundOrExpired ? (
+        <div class="uikit-error-banner" role="alert">
+          This link is invalid or has expired. Please contact us for a new one.
+        </div>
+      ) : estimate && totals ? (
+        <>
+          <h1>Estimate for your review</h1>
+          <p>{estimate.summary}</p>
+
+          {lineItems.length > 0 ? (
+            <table>
+              <thead>
+                <tr>
+                  <th>Description</th>
+                  <th>Qty</th>
+                  <th>Unit price</th>
+                  <th>Line total</th>
+                </tr>
+              </thead>
+              <tbody>
+                {lineItems.map((item) => (
+                  <tr>
+                    <td>{item.description}</td>
+                    <td>{item.quantity}</td>
+                    <td>{formatMinorUnitsAsDollars(item.unitPrice.amountMinorUnits, item.unitPrice.currency)}</td>
+                    <td>{formatMinorUnitsAsDollars(item.lineTotal.amountMinorUnits, item.lineTotal.currency)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          ) : null}
+
+          <table>
+            <tbody>
+              <tr>
+                <td>Subtotal</td>
+                <td>{formatMinorUnitsAsDollars(totals.subtotal.amountMinorUnits, totals.subtotal.currency)}</td>
+              </tr>
+              <tr>
+                <td>Discount</td>
+                <td>
+                  -{formatMinorUnitsAsDollars(totals.discountAmount.amountMinorUnits, totals.discountAmount.currency)}
+                </td>
+              </tr>
+              <tr>
+                <td>
+                  Tax
+                  {estimate.taxRateBasisPoints ? ` (${(estimate.taxRateBasisPoints / 100).toFixed(2)}%)` : ''}
+                </td>
+                <td>{formatMinorUnitsAsDollars(totals.taxAmount.amountMinorUnits, totals.taxAmount.currency)}</td>
+              </tr>
+              <tr>
+                <td style="font-weight: 600;">Total</td>
+                <td style="font-weight: 600;">
+                  {formatMinorUnitsAsDollars(totals.total.amountMinorUnits, totals.total.currency)}
+                </td>
+              </tr>
+              {totals.depositAmount ? (
+                <tr>
+                  <td>Deposit due now</td>
+                  <td>
+                    {formatMinorUnitsAsDollars(totals.depositAmount.amountMinorUnits, totals.depositAmount.currency)}
+                  </td>
+                </tr>
+              ) : null}
+            </tbody>
+          </table>
+
+          {alreadyApproved ? (
+            <div class="uikit-badge uikit-badge--success">
+              Approved{estimate.customerSignatureName ? ` by ${estimate.customerSignatureName}` : ''} on{' '}
+              {estimate.approvedAt ? new Date(estimate.approvedAt).toLocaleDateString() : ''}
+            </div>
+          ) : (
+            <>
+              {errorMessage ? (
+                <div class="uikit-error-banner" role="alert">
+                  {errorMessage === 'invalid-signature-name'
+                    ? 'Please enter your full name to approve.'
+                    : errorMessage === 'estimate_already_approved'
+                      ? 'This estimate was already approved.'
+                      : 'Something went wrong. Please try again.'}
+                </div>
+              ) : null}
+              <form method="POST" action={`/api/public/estimates/${token}/approve`}>
+                <div class="uikit-form-field">
+                  <label for="signatureName">Type your full name to approve</label>
+                  <input id="signatureName" name="signatureName" type="text" required />
+                </div>
+                <button type="submit" class="uikit-button uikit-button--primary">
+                  Approve this estimate
+                </button>
+              </form>
+            </>
+          )}
+        </>
+      ) : null
+    }
+  </body>
+</html>

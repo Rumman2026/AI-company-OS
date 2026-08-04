@@ -377,6 +377,47 @@ MembershipRole[]`, with a fallback to the legacy `memberships.role`
 - **Not done, tracked as a separate immediately-following cluster**: a
   customer-facing approval workflow.
 
+**Cluster 22 (implemented, tested locally) — Customer estimate-approval link (ADR-0030)**
+
+- Scope: see [DECISIONS.md](DECISIONS.md) ADR-0030. Closes "customer
+  approval workflow" - the last of the nine "Estimate Line Items"
+  sub-requirements. **First public, unauthenticated, state-mutating
+  route in `apps/admin-console`** - scope (one-click approval + typed
+  name as a lightweight signature, 30-day token expiry, service-role
+  key) was confirmed with the owner before building rather than
+  decided unilaterally, since it touches security architecture and a
+  new secret.
+- Implemented with repository evidence: `Estimate` gains
+  `customerApprovalToken?`, `customerApprovalTokenExpiresAt?`,
+  `customerApproved?`, `customerSignatureName?` -
+  `packages/db/migrations/017-estimate-customer-approval.sql`. New
+  `EstimateRepository` methods `generateCustomerApprovalLink()`
+  (staff-only), `getEstimateByPublicToken()`, and
+  `approveEstimateByCustomerToken()` (token-only); new
+  `EstimateLineItemRepository.listLineItemsByPublicToken()` (87/87
+  `packages/db` tests passing total, 9 new). `apps/admin-console`
+  gains `/approve/[token]` (public page) and
+  `/api/public/estimates/[token]/approve` (public POST), both using a
+  new service-role client (`getSupabaseServiceRoleEnv()`) - every
+  other route keeps using the anon-key, RLS-enforced client
+  unchanged. The `/estimates/[id]` page gains a "Generate customer
+  approval link" button.
+- **Also fixes a real, pre-existing bug found while building this**:
+  `estimates` never had a tenant-scoped UPDATE RLS policy
+  (`migrations/016-estimates-update-policy-fix.sql`), even though
+  `approveEstimate()` (Cluster 15/ADR-0021) and `setEstimatePricing()`
+  (Cluster 19/ADR-0027) already update it - real Postgres RLS would
+  have silently updated zero rows; invisible to local tests since the
+  fake Supabase test double doesn't enforce RLS.
+- Lint, typecheck, a local production build, and unit tests all pass.
+- **"Estimate Line Items" (all nine owner-specified sub-requirements:
+  builder, service packages, line item editor, taxes, discounts,
+  deposits, photo attachments, PDF generation, customer approval) is
+  now fully complete.** Migrations 016 and 017 have not yet been run
+  against production (owner action).
+  `SUPABASE_SERVICE_ROLE_KEY` must be added to `apps/admin-console`'s
+  deployment environment once it is deployed.
+
 **Growth-system domain contracts (in progress) — `packages/core-models`**
 
 - Scope: a first, provider-neutral coding slice for the GreenCal

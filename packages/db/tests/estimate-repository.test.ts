@@ -264,3 +264,208 @@ test('setEstimatePricing rejects a cross-tenant estimate', async () => {
 
   assert.equal(result.ok, false);
 });
+
+function futureIsoDate(daysFromNow: number): string {
+  return new Date(Date.now() + daysFromNow * 24 * 60 * 60 * 1000).toISOString();
+}
+
+test('generateCustomerApprovalLink sets a token and a 30-day expiry on a draft estimate', async () => {
+  const { repo, estimates } = setup([
+    {
+      id: 'estimate-1',
+      business_id: BUSINESS_A,
+      lead_id: 'lead-1',
+      proposed_amount_minor_units: 50000,
+      proposed_amount_currency: 'USD',
+      summary: 'Roof soft wash',
+      status: 'draft',
+      approved_at: null,
+      customer_approved: false,
+      created_at: '2026-01-01T00:00:00.000Z',
+    },
+  ]);
+
+  const result = await repo.generateCustomerApprovalLink(BUSINESS_A, 'estimate-1');
+
+  assert.equal(result.ok, true);
+  if (result.ok) {
+    assert.ok(result.estimate.customerApprovalToken);
+    assert.equal(result.estimate.customerApprovalToken?.length, 64, 'expects a 256-bit hex token');
+    assert.ok(result.estimate.customerApprovalTokenExpiresAt);
+    assert.ok(
+      new Date(result.estimate.customerApprovalTokenExpiresAt!).getTime() > Date.now(),
+      'expiry must be in the future',
+    );
+  }
+  assert.ok(estimates.rows[0].customer_approval_token);
+});
+
+test('generateCustomerApprovalLink rejects an already-approved estimate', async () => {
+  const { repo } = setup([
+    {
+      id: 'estimate-1',
+      business_id: BUSINESS_A,
+      lead_id: 'lead-1',
+      proposed_amount_minor_units: 50000,
+      proposed_amount_currency: 'USD',
+      summary: 'Roof soft wash',
+      status: 'approved',
+      approved_at: '2026-01-02T00:00:00.000Z',
+      customer_approved: false,
+      created_at: '2026-01-01T00:00:00.000Z',
+    },
+  ]);
+
+  const result = await repo.generateCustomerApprovalLink(BUSINESS_A, 'estimate-1');
+  assert.equal(result.ok, false);
+});
+
+test('getEstimateByPublicToken finds an estimate by token alone, with no business scoping', async () => {
+  const { repo } = setup([
+    {
+      id: 'estimate-1',
+      business_id: BUSINESS_A,
+      lead_id: 'lead-1',
+      proposed_amount_minor_units: 50000,
+      proposed_amount_currency: 'USD',
+      summary: 'Roof soft wash',
+      status: 'draft',
+      approved_at: null,
+      customer_approval_token: 'a-real-token',
+      customer_approval_token_expires_at: futureIsoDate(30),
+      customer_approved: false,
+      created_at: '2026-01-01T00:00:00.000Z',
+    },
+  ]);
+
+  const result = await repo.getEstimateByPublicToken('a-real-token');
+  assert.equal(result.ok, true);
+  if (result.ok) assert.equal(result.estimate.id, 'estimate-1');
+});
+
+test('getEstimateByPublicToken rejects an expired token', async () => {
+  const { repo } = setup([
+    {
+      id: 'estimate-1',
+      business_id: BUSINESS_A,
+      lead_id: 'lead-1',
+      proposed_amount_minor_units: 50000,
+      proposed_amount_currency: 'USD',
+      summary: 'Roof soft wash',
+      status: 'draft',
+      approved_at: null,
+      customer_approval_token: 'expired-token',
+      customer_approval_token_expires_at: futureIsoDate(-1),
+      customer_approved: false,
+      created_at: '2026-01-01T00:00:00.000Z',
+    },
+  ]);
+
+  const result = await repo.getEstimateByPublicToken('expired-token');
+  assert.equal(result.ok, false);
+});
+
+test('getEstimateByPublicToken rejects an unknown token', async () => {
+  const { repo } = setup();
+  const result = await repo.getEstimateByPublicToken('never-issued');
+  assert.equal(result.ok, false);
+});
+
+test('approveEstimateByCustomerToken approves a draft estimate and records the typed signature name', async () => {
+  const { repo, estimates } = setup([
+    {
+      id: 'estimate-1',
+      business_id: BUSINESS_A,
+      lead_id: 'lead-1',
+      proposed_amount_minor_units: 50000,
+      proposed_amount_currency: 'USD',
+      summary: 'Roof soft wash',
+      status: 'draft',
+      approved_at: null,
+      customer_approval_token: 'a-real-token',
+      customer_approval_token_expires_at: futureIsoDate(30),
+      customer_approved: false,
+      created_at: '2026-01-01T00:00:00.000Z',
+    },
+  ]);
+
+  const result = await repo.approveEstimateByCustomerToken('a-real-token', '  Jane Smith  ');
+
+  assert.equal(result.ok, true);
+  if (result.ok) {
+    assert.equal(result.estimate.status, 'approved');
+    assert.equal(result.estimate.customerApproved, true);
+    assert.equal(result.estimate.customerSignatureName, 'Jane Smith', 'must be trimmed');
+  }
+  assert.equal(estimates.rows[0].status, 'approved');
+  assert.equal(estimates.rows[0].customer_approved, true);
+});
+
+test('approveEstimateByCustomerToken rejects an empty or overlong signature name', async () => {
+  const { repo } = setup([
+    {
+      id: 'estimate-1',
+      business_id: BUSINESS_A,
+      lead_id: 'lead-1',
+      proposed_amount_minor_units: 50000,
+      proposed_amount_currency: 'USD',
+      summary: 'Roof soft wash',
+      status: 'draft',
+      approved_at: null,
+      customer_approval_token: 'a-real-token',
+      customer_approval_token_expires_at: futureIsoDate(30),
+      customer_approved: false,
+      created_at: '2026-01-01T00:00:00.000Z',
+    },
+  ]);
+
+  const empty = await repo.approveEstimateByCustomerToken('a-real-token', '   ');
+  assert.equal(empty.ok, false);
+
+  const overlong = await repo.approveEstimateByCustomerToken('a-real-token', 'x'.repeat(201));
+  assert.equal(overlong.ok, false);
+});
+
+test('approveEstimateByCustomerToken rejects an expired token', async () => {
+  const { repo } = setup([
+    {
+      id: 'estimate-1',
+      business_id: BUSINESS_A,
+      lead_id: 'lead-1',
+      proposed_amount_minor_units: 50000,
+      proposed_amount_currency: 'USD',
+      summary: 'Roof soft wash',
+      status: 'draft',
+      approved_at: null,
+      customer_approval_token: 'expired-token',
+      customer_approval_token_expires_at: futureIsoDate(-1),
+      customer_approved: false,
+      created_at: '2026-01-01T00:00:00.000Z',
+    },
+  ]);
+
+  const result = await repo.approveEstimateByCustomerToken('expired-token', 'Jane Smith');
+  assert.equal(result.ok, false);
+});
+
+test('approveEstimateByCustomerToken rejects an already-approved estimate rather than silently re-approving', async () => {
+  const { repo } = setup([
+    {
+      id: 'estimate-1',
+      business_id: BUSINESS_A,
+      lead_id: 'lead-1',
+      proposed_amount_minor_units: 50000,
+      proposed_amount_currency: 'USD',
+      summary: 'Roof soft wash',
+      status: 'approved',
+      approved_at: '2026-01-02T00:00:00.000Z',
+      customer_approval_token: 'a-real-token',
+      customer_approval_token_expires_at: futureIsoDate(30),
+      customer_approved: false,
+      created_at: '2026-01-01T00:00:00.000Z',
+    },
+  ]);
+
+  const result = await repo.approveEstimateByCustomerToken('a-real-token', 'Jane Smith');
+  assert.equal(result.ok, false);
+});

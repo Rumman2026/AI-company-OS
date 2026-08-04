@@ -34,6 +34,19 @@ export interface Estimate {
   readonly discountAmount?: Money;
   /** Amount due upfront if the customer accepts - never subtracted from `total`, tracked separately. */
   readonly depositAmount?: Money;
+  /**
+   * A high-entropy, unguessable token for the public customer-approval
+   * link - see DECISIONS.md ADR-0030. Only ever present after staff
+   * explicitly generates a link (not created automatically for every
+   * Estimate). Undefined once no active link exists.
+   */
+  readonly customerApprovalToken?: string;
+  /** The token stops being accepted after this time - see ADR-0030 (30-day expiry). */
+  readonly customerApprovalTokenExpiresAt?: string;
+  /** True only if this Estimate was approved via the public customer-facing link, not by staff. */
+  readonly customerApproved?: boolean;
+  /** The customer's typed full name, captured as a lightweight, non-binding signature at the moment of public approval. */
+  readonly customerSignatureName?: string;
   readonly createdAt: string;
 }
 

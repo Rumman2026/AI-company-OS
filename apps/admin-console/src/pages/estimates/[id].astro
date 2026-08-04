@@ -80,6 +80,16 @@ const discountValue = estimate?.discountAmount
 const depositValue = estimate?.depositAmount
   ? (estimate.depositAmount.amountMinorUnits / 100).toFixed(2)
   : '';
+
+const hasActiveApprovalLink = Boolean(
+  estimate?.customerApprovalToken &&
+    estimate.customerApprovalTokenExpiresAt &&
+    new Date(estimate.customerApprovalTokenExpiresAt).getTime() > Date.now(),
+);
+const approvalLinkUrl =
+  hasActiveApprovalLink && estimate?.customerApprovalToken
+    ? `${Astro.url.origin}/approve/${estimate.customerApprovalToken}`
+    : '';
 ---
 
 <AdminLayout title="Estimate detail" membership={membership}>
@@ -339,6 +349,38 @@ const depositValue = estimate?.depositAmount
             Add attachment
           </button>
         </form>
+
+        <h2>Customer approval</h2>
+        {estimate.customerApproved ? (
+          <p>
+            Approved by the customer
+            {estimate.customerSignatureName ? ` (${estimate.customerSignatureName})` : ''} on{' '}
+            {estimate.approvedAt ? new Date(estimate.approvedAt).toLocaleString() : ''}.
+          </p>
+        ) : hasActiveApprovalLink ? (
+          <>
+            <p>Share this link with the customer so they can review and approve the estimate:</p>
+            <p>
+              <code>{approvalLinkUrl}</code>
+            </p>
+            <p style="color: var(--color-text-muted); font-size: 0.875rem;">
+              Expires {estimate.customerApprovalTokenExpiresAt
+                ? new Date(estimate.customerApprovalTokenExpiresAt).toLocaleDateString()
+                : ''}.
+            </p>
+          </>
+        ) : (
+          <p style="color: var(--color-text-muted); font-size: 0.875rem;">
+            No active customer approval link.
+          </p>
+        )}
+        {isDraft ? (
+          <form method="POST" action={`/api/estimates/${estimate.id}/generate-approval-link`}>
+            <button type="submit" class="uikit-button uikit-button--secondary">
+              {hasActiveApprovalLink ? 'Generate a new link' : 'Generate customer approval link'}
+            </button>
+          </form>
+        ) : null}
       </>
     ) : (
       <div class="uikit-error-banner" role="alert">

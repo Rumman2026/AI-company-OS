@@ -47,7 +47,7 @@ Ordered by urgency.
   additive — the lead pipeline already works without this and will
   keep working identically before and after.
 
-## 3b. Run pending internal-CRM migrations 004-015 (safe, not urgent, run whenever convenient)
+## 3b. Run pending internal-CRM migrations 004-017 (safe, not urgent, run whenever convenient)
 
 - **Screen**: Supabase dashboard → the GreenCal project (`Greencal-production`)
   → SQL Editor. **Different migration chain from item 3 above** - these
@@ -84,7 +84,16 @@ Ordered by urgency.
   - `packages/db/migrations/015-estimate-attachments.sql` (adds a
     private Storage bucket and table for photos attached to an
     Estimate)
-- **Action**: open each file **in order** (004 through 015) and run its
+  - `packages/db/migrations/016-estimates-update-policy-fix.sql` (fixes
+    a real gap: `estimates` was missing an update permission that
+    Estimate-approval and pricing changes have depended on since they
+    were added - **this one matters more than the others**, since
+    without it those two features silently fail against real
+    production data)
+  - `packages/db/migrations/017-estimate-customer-approval.sql` (adds
+    the token/expiry columns behind the public customer
+    estimate-approval link)
+- **Action**: open each file **in order** (004 through 017) and run its
   full contents once in the SQL Editor. Each is additive-only (new
   tables, one additive column, or - for 007/008 - new rows only) and
   safe to run against the live production database - no existing table
@@ -109,10 +118,35 @@ Ordered by urgency.
   reusable service-package catalog) instead of a single flat amount.
   Running 014 lets you set a tax rate, a fixed-dollar discount, and a
   deposit amount on a draft Estimate. Running 015 lets you attach
-  reference photos to an Estimate. The admin-console itself is not yet deployed
+  reference photos to an Estimate. Running 016 fixes Estimate approval
+  and pricing updates actually taking effect against real data (see the
+  callout above). Running 017 lets staff generate a public link a
+  customer can use to review and approve an Estimate without an
+  account. The admin-console itself is not yet deployed
   to a live Vercel project (see the "not done" note in
   `docs/crm/CRM_ARCHITECTURE.md`), so this has no live-user-facing
   effect until that deployment also happens.
+
+## 3c. Add `SUPABASE_SERVICE_ROLE_KEY` to `apps/admin-console`'s deployment (only once that app is deployed)
+
+- **Screen**: Vercel → the `apps/admin-console` project (once it
+  exists) → Settings → Environment Variables.
+- **Why**: the new public customer estimate-approval link
+  (`/approve/[token]`, see item 3b's migration 017 and DECISIONS.md
+  ADR-0030) needs the Supabase **service-role** key to look up an
+  Estimate by its token without a staff login. Every other route in
+  this app continues to use only the anon key - this is the one
+  narrow exception.
+- **Action**: add `SUPABASE_SERVICE_ROLE_KEY` (Supabase dashboard →
+  Settings → API → `service_role`) alongside the existing
+  `SUPABASE_URL`/`SUPABASE_ANON_KEY` variables, matching
+  `apps/admin-console/.env.example`'s documented format. Treat it as a
+  real secret - if it is ever exposed, rotate it immediately in the
+  Supabase dashboard.
+- **Expected result**: without it, the public approval page shows an
+  honest "this approval link isn't available right now" message rather
+  than erroring - not required for anything else in `apps/admin-console`
+  to work.
 
 ## 4. Z.ai account balance (only if real GLM classification is wanted)
 

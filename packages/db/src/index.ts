@@ -72,6 +72,9 @@ export type {
   ApproveEstimateResult,
   SetEstimatePricingInput,
   SetEstimatePricingResult,
+  GenerateCustomerApprovalLinkResult,
+  GetEstimateByPublicTokenResult,
+  ApproveEstimateByCustomerTokenResult,
 } from './estimate-repository';
 
 export { createSupabaseBookingRepository } from './booking-repository';

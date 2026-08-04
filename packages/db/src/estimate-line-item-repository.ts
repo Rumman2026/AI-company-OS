@@ -41,6 +41,15 @@ export interface EstimateLineItemRepository {
     estimateId: string,
     lineItemId: string,
   ): Promise<DeleteEstimateLineItemResult>;
+  /**
+   * Public, token-only lookup (no businessId) - resolves the Estimate
+   * via the injected EstimateRepository's getEstimateByPublicToken()
+   * first (which already rejects an unknown/expired token), so this
+   * never lists line items for an id the caller didn't prove
+   * possession of. Callers must pass a service-role client - see
+   * DECISIONS.md ADR-0030.
+   */
+  listLineItemsByPublicToken(token: string): Promise<ListEstimateLineItemsResult>;
 }
 
 interface EstimateLineItemRow {
@@ -152,6 +161,24 @@ export function createSupabaseEstimateLineItemRepository(
         return { ok: false, error: error.message ?? 'estimate_line_item_delete_failed' };
       }
       return { ok: true };
+    },
+
+    async listLineItemsByPublicToken(token) {
+      const estimateResult = await estimateRepository.getEstimateByPublicToken(token);
+      if (!estimateResult.ok) {
+        return { ok: false, error: estimateResult.error };
+      }
+
+      const { data, error } = await client
+        .from('estimate_line_items')
+        .select(SELECT_COLUMNS)
+        .eq('estimate_id', estimateResult.estimate.id)
+        .order('sort_order', { ascending: true });
+
+      if (error || !data) {
+        return { ok: false, error: error?.message ?? 'estimate_line_item_list_failed' };
+      }
+      return { ok: true, lineItems: (data as EstimateLineItemRow[]).map(toEstimateLineItem) };
     },
   };
 }

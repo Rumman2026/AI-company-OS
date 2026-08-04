@@ -185,6 +185,29 @@ No schema or repository change - `apps/admin-console`'s
 and `EstimateLineItemRepository` and renders a browser-printable HTML
 page. See DECISIONS.md ADR-0029.
 
+## Cluster 22: Customer estimate-approval link
+
+`migrations/017-estimate-customer-approval.sql` adds
+`customer_approval_token` (unique, nullable), `customer_approval_token_expires_at`,
+`customer_approved`, and `customer_signature_name` to `estimates`. No
+RLS carve-out for anonymous access - the public route uses the
+service-role key (bypasses RLS entirely), the same trusted-server
+pattern `apps/greencal-website`'s public quote intake already uses.
+`EstimateRepository.generateCustomerApprovalLink()` is staff-only and
+tenant-scoped; `getEstimateByPublicToken()` and
+`approveEstimateByCustomerToken()` are token-only (no `businessId` -
+the token itself is the authorization). `EstimateLineItemRepository.listLineItemsByPublicToken()`
+resolves the estimate via the same token first, so it can never leak
+another estimate's line items. See DECISIONS.md ADR-0030.
+
+`migrations/016-estimates-update-policy-fix.sql` fixes a real,
+pre-existing gap found while building this: `estimates` never had a
+tenant-scoped UPDATE RLS policy, even though `approveEstimate()`
+(ADR-0021) and `setEstimatePricing()` (ADR-0027) both already update
+it - real RLS would have silently no-op'd both; the local fake
+Supabase test double doesn't enforce RLS, so this was invisible to
+tests until now.
+
 ## What is deliberately excluded
 
 An authenticated owner interface for Bookings (every other listed

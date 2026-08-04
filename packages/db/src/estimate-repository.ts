@@ -1,3 +1,4 @@
+import { randomBytes } from 'node:crypto';
 import {
   createEstimateId,
   createMoney,
@@ -7,6 +8,8 @@ import {
   type LeadId,
 } from '@ai-company-os/core-models';
 import type { MinimalSupabaseClient } from './supabase-client';
+
+const CUSTOMER_APPROVAL_TOKEN_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 
 export interface CreateEstimateInput {
   readonly businessId: string;
@@ -28,6 +31,12 @@ export type ListEstimatesResult =
   { ok: true; estimates: Estimate[] } | { ok: false; error: string };
 export type ApproveEstimateResult = { ok: true; estimate: Estimate } | { ok: false; error: string };
 export type SetEstimatePricingResult =
+  { ok: true; estimate: Estimate } | { ok: false; error: string };
+export type GenerateCustomerApprovalLinkResult =
+  { ok: true; estimate: Estimate } | { ok: false; error: string };
+export type GetEstimateByPublicTokenResult =
+  { ok: true; estimate: Estimate } | { ok: false; error: string };
+export type ApproveEstimateByCustomerTokenResult =
   { ok: true; estimate: Estimate } | { ok: false; error: string };
 
 export interface ListEstimatesOptions {
@@ -59,6 +68,32 @@ export interface EstimateRepository {
     estimateId: string,
     input: SetEstimatePricingInput,
   ): Promise<SetEstimatePricingResult>;
+  /**
+   * Staff-only, tenant-scoped: generates a fresh, high-entropy token
+   * with a 30-day expiry for the public customer-approval link,
+   * replacing any prior token. Rejects once the Estimate is already
+   * approved (see DECISIONS.md ADR-0030).
+   */
+  generateCustomerApprovalLink(
+    businessId: string,
+    estimateId: string,
+  ): Promise<GenerateCustomerApprovalLinkResult>;
+  /**
+   * Public, token-only lookup (no businessId) - callers must pass a
+   * service-role client, since no tenant session exists at this point.
+   * Rejects if the token is unknown or expired.
+   */
+  getEstimateByPublicToken(token: string): Promise<GetEstimateByPublicTokenResult>;
+  /**
+   * Public, token-only approval - callers must pass a service-role
+   * client. Rejects if the token is unknown, expired, or the Estimate
+   * is already approved; rejects an empty/overlong signature name
+   * rather than silently accepting it.
+   */
+  approveEstimateByCustomerToken(
+    token: string,
+    customerSignatureName: string,
+  ): Promise<ApproveEstimateByCustomerTokenResult>;
 }
 
 interface EstimateRow {
@@ -76,6 +111,10 @@ interface EstimateRow {
   discount_amount_currency: string | null;
   deposit_amount_minor_units: number | null;
   deposit_amount_currency: string | null;
+  customer_approval_token: string | null;
+  customer_approval_token_expires_at: string | null;
+  customer_approved: boolean;
+  customer_signature_name: string | null;
   created_at: string;
 }
 
@@ -107,12 +146,21 @@ function toEstimate(row: EstimateRow): Estimate {
             createCurrencyCode(row.deposit_amount_currency),
           )
         : undefined,
+    customerApprovalToken: row.customer_approval_token ?? undefined,
+    customerApprovalTokenExpiresAt: row.customer_approval_token_expires_at ?? undefined,
+    customerApproved: row.customer_approved,
+    customerSignatureName: row.customer_signature_name ?? undefined,
     createdAt: row.created_at,
   };
 }
 
 const SELECT_COLUMNS =
-  'id, lead_id, proposed_amount_minor_units, proposed_amount_currency, summary, status, created_by, approved_at, approved_by, tax_rate_basis_points, discount_amount_minor_units, discount_amount_currency, deposit_amount_minor_units, deposit_amount_currency, created_at';
+  'id, lead_id, proposed_amount_minor_units, proposed_amount_currency, summary, status, created_by, approved_at, approved_by, tax_rate_basis_points, discount_amount_minor_units, discount_amount_currency, deposit_amount_minor_units, deposit_amount_currency, customer_approval_token, customer_approval_token_expires_at, customer_approved, customer_signature_name, created_at';
+
+function isTokenExpired(expiresAt: string | undefined): boolean {
+  if (!expiresAt) return true;
+  return new Date(expiresAt).getTime() <= Date.now();
+}
 
 export function createSupabaseEstimateRepository(
   client: MinimalSupabaseClient,
@@ -136,6 +184,10 @@ export function createSupabaseEstimateRepository(
           discount_amount_currency: null,
           deposit_amount_minor_units: null,
           deposit_amount_currency: null,
+          customer_approval_token: null,
+          customer_approval_token_expires_at: null,
+          customer_approved: false,
+          customer_signature_name: null,
         })
         .select(SELECT_COLUMNS)
         .single();
@@ -225,6 +277,118 @@ export function createSupabaseEstimateRepository(
           taxRateBasisPoints: input.taxRateBasisPoints,
           discountAmount: input.discountAmount,
           depositAmount: input.depositAmount,
+        },
+      };
+    },
+
+    async generateCustomerApprovalLink(businessId, estimateId) {
+      const { data, error } = await client
+        .from('estimates')
+        .select(SELECT_COLUMNS)
+        .eq('id', estimateId)
+        .eq('business_id', businessId)
+        .single();
+
+      if (error || !data) {
+        return { ok: false, error: error?.message ?? 'estimate_not_found' };
+      }
+
+      const current = toEstimate(data as EstimateRow);
+      if (current.status === 'approved') {
+        return { ok: false, error: 'estimate_already_approved' };
+      }
+
+      const token = randomBytes(32).toString('hex');
+      const expiresAt = new Date(Date.now() + CUSTOMER_APPROVAL_TOKEN_TTL_MS).toISOString();
+
+      const { error: updateError } = await client
+        .from('estimates')
+        .update({
+          customer_approval_token: token,
+          customer_approval_token_expires_at: expiresAt,
+        })
+        .eq('id', estimateId)
+        .eq('business_id', businessId);
+
+      if (updateError) {
+        return { ok: false, error: updateError.message ?? 'estimate_link_generation_failed' };
+      }
+
+      return {
+        ok: true,
+        estimate: {
+          ...current,
+          customerApprovalToken: token,
+          customerApprovalTokenExpiresAt: expiresAt,
+        },
+      };
+    },
+
+    async getEstimateByPublicToken(token) {
+      const { data, error } = await client
+        .from('estimates')
+        .select(SELECT_COLUMNS)
+        .eq('customer_approval_token', token)
+        .single();
+
+      if (error || !data) {
+        return { ok: false, error: error?.message ?? 'estimate_not_found' };
+      }
+
+      const estimate = toEstimate(data as EstimateRow);
+      if (isTokenExpired(estimate.customerApprovalTokenExpiresAt)) {
+        return { ok: false, error: 'approval_link_expired' };
+      }
+      return { ok: true, estimate };
+    },
+
+    async approveEstimateByCustomerToken(token, customerSignatureName) {
+      const trimmedName = customerSignatureName.trim();
+      if (trimmedName.length === 0 || trimmedName.length > 200) {
+        return { ok: false, error: 'invalid_signature_name' };
+      }
+
+      const { data, error } = await client
+        .from('estimates')
+        .select(SELECT_COLUMNS)
+        .eq('customer_approval_token', token)
+        .single();
+
+      if (error || !data) {
+        return { ok: false, error: error?.message ?? 'estimate_not_found' };
+      }
+
+      const current = toEstimate(data as EstimateRow);
+      if (isTokenExpired(current.customerApprovalTokenExpiresAt)) {
+        return { ok: false, error: 'approval_link_expired' };
+      }
+      if (current.status === 'approved') {
+        return { ok: false, error: 'estimate_already_approved' };
+      }
+
+      const approvedAt = new Date().toISOString();
+      const { error: updateError } = await client
+        .from('estimates')
+        .update({
+          status: 'approved',
+          approved_at: approvedAt,
+          customer_approved: true,
+          customer_signature_name: trimmedName,
+        })
+        .eq('customer_approval_token', token);
+
+      if (updateError) {
+        return { ok: false, error: updateError.message ?? 'estimate_approve_failed' };
+      }
+
+      return {
+        ok: true,
+        estimate: {
+          ...current,
+          status: 'approved',
+          approvedAt,
+          customerApproved: true,
+          customerSignatureName: trimmedName,
         },
       };
     },

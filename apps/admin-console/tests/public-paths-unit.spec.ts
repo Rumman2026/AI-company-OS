@@ -15,6 +15,11 @@ test.describe('isPublicPath', () => {
     expect(isPublicPath('/api/auth/callback')).toBe(true);
   });
 
+  test('the public customer estimate-approval link and its API route are public', () => {
+    expect(isPublicPath('/approve/some-token-value')).toBe(true);
+    expect(isPublicPath('/api/public/estimates/some-token-value/approve')).toBe(true);
+  });
+
   test('the dashboard and every CRM route require authentication', () => {
     expect(isPublicPath('/')).toBe(false);
     expect(isPublicPath('/leads')).toBe(false);
@@ -29,5 +34,6 @@ test.describe('isPublicPath', () => {
     // "/login-history" page being wrongly treated as public.
     expect(isPublicPath('/login-history')).toBe(false);
     expect(isPublicPath('/reset-password-policy')).toBe(false);
+    expect(isPublicPath('/approved-vendors')).toBe(false);
   });
 });

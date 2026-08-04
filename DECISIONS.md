@@ -1970,6 +1970,100 @@ cluster per ADR-0026's consequences.
 
 ---
 
+## ADR-0030: Public customer estimate-approval link via a service-role key and a high-entropy token
+
+**Status**: Confirmed (implemented)
+
+**Context**: The last remaining "Estimate Line Items" sub-requirement
+is a "customer approval workflow" - a way for the customer, who has no
+admin-console account, to review and approve an Estimate. This is a
+genuinely different kind of feature from everything else built in this
+CRM so far: every other route in `apps/admin-console` requires an
+authenticated, tenant-scoped session (see ADR-0011); this one must work
+for an anonymous customer with only a link. That means introducing the
+app's first public, unauthenticated, state-mutating route, which
+required checking scope with the owner before building (see this
+session's clarifying questions) rather than choosing unilaterally,
+per root `CLAUDE.md`'s "ask when ambiguity would materially affect
+architecture, security, data models." The owner confirmed: (1) a
+one-click approval with a typed full name captured as a lightweight,
+non-binding signature (not a legal e-signature service); (2) a 30-day
+token expiry; (3) it is acceptable to add a Supabase service-role key
+to `apps/admin-console` for this one route.
+
+**Decision**: `Estimate` gains four fields:
+`customerApprovalToken?: string` (a 256-bit/64-hex-char token from
+Node's `crypto.randomBytes(32)`, generated only when staff explicitly
+click "Generate customer approval link" - never created automatically
+for every Estimate), `customerApprovalTokenExpiresAt?: string` (30
+days from generation), `customerApproved?: boolean` (true only when
+the approval came through this public link, distinguishing it from
+staff-side `approvedBy`), and `customerSignatureName?: string` (the
+typed name, trimmed, 1-200 characters). The public flow reuses the
+existing `approved` status and `approvedAt` field (ADR-0021) rather
+than inventing a parallel status - approving via the link has the
+same effect as staff clicking Approve internally (line items and
+pricing become immutable), just with different provenance. A new
+route, `apps/admin-console`'s `/approve/[token]` (GET, public page)
+and `/api/public/estimates/[token]/approve` (POST, public), are added
+to `PUBLIC_PATH_PREFIXES` (`lib/auth/public-paths.ts`) so the
+middleware never requires a session for them - authorization instead
+comes entirely from possession of the token itself.
+
+Both public routes construct their own service-role Supabase client
+via `packages/db`'s already-existing `createDbClient()` (the same
+trusted-server pattern `apps/greencal-website`'s public quote intake
+already uses), reading a new, deliberately narrow
+`getSupabaseServiceRoleEnv()` (`lib/supabase/env.ts`) - every other
+route in this app continues to use `getSupabaseEnv()`'s anon-key,
+RLS-enforced client unchanged. `EstimateRepository` gains three new
+methods: `generateCustomerApprovalLink()` (staff-only, tenant-scoped,
+rejects once already approved), `getEstimateByPublicToken()` (token-only,
+no `businessId`, rejects an unknown or expired token), and
+`approveEstimateByCustomerToken()` (token-only, rejects an expired
+token, an already-approved estimate, or an empty/overlong signature
+name). `EstimateLineItemRepository` gains a matching
+`listLineItemsByPublicToken()` so the public page shows the real,
+current line items (not the possibly-stale `proposedAmount`) - showing
+a customer an inaccurate total before they approve would be a real
+correctness problem, not just a cosmetic gap.
+
+**Alternatives considered**: A Postgres RLS policy granting the `anon`
+role read/update access keyed on a token passed as a custom claim -
+rejected as meaningfully more complex to get right (session-variable
+plumbing, harder to reason about and audit) than the already-proven
+service-role-bypasses-RLS pattern this repository already uses
+elsewhere, for no real security benefit - both approaches ultimately
+trust "the caller supplied a valid token" as the sole authorization
+check. No expiry / manual revoke only - rejected per the owner's
+explicit 30-day-expiry choice. A third-party e-signature service (e.g.
+DocuSign) - rejected as unnecessary infrastructure/cost for a
+lightweight, non-binding acknowledgment, consistent with the owner's
+"typed name" choice.
+
+**Consequences**: `docs/crm/CRM_ARCHITECTURE.md` and
+`packages/db/README.md` gain a section.
+`packages/db/migrations/016-estimates-update-policy-fix.sql` also
+fixes an unrelated, pre-existing gap discovered while building this
+feature: `estimates` never had a tenant-scoped UPDATE RLS policy, even
+though `approveEstimate()` (ADR-0021) and `setEstimatePricing()`
+(ADR-0027) both already update it - real Postgres RLS would have
+silently no-op'd both, a gap invisible to local tests since the fake
+Supabase test double doesn't enforce RLS. `apps/admin-console/.env.example`
+documents the new `SUPABASE_SERVICE_ROLE_KEY` variable; the owner must
+add a real value in Vercel once this app is deployed (tracked in
+`docs/launch/OWNER_ACTIONS_REQUIRED.md`). "Estimate Line Items" (all
+nine sub-requirements from the owner's original directive) is now
+fully complete.
+
+**Related**: [ADR-0010](#adr-0010-multi-tenant-crm-foundation-businessesmemberships-tenant-scoped-rls),
+ADR-0011 (admin-console architecture),
+[ADR-0021](#adr-0021-estimate-approval-status-no-state-machine),
+[ADR-0026](#adr-0026-estimate-line-items-and-a-reusable-service-package-catalog),
+[ADR-0027](#adr-0027-estimate-tax-discount-and-deposit-as-integer-only-pricing-fields).
+
+---
+
 ## Proposed decisions (not yet made)
 
 - Service-to-service communication pattern (REST/gRPC/queue) beyond the

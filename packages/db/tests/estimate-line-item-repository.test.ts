@@ -182,3 +182,59 @@ test('deleteLineItem rejects once the parent Estimate is approved', async () => 
   assert.equal(result.ok, false);
   assert.equal(estimate_line_items.rows.length, 1, 'the line item must remain untouched');
 });
+
+function futureIsoDate(daysFromNow: number): string {
+  return new Date(Date.now() + daysFromNow * 24 * 60 * 60 * 1000).toISOString();
+}
+
+test("listLineItemsByPublicToken returns the token's estimate's line items with no businessId required", async () => {
+  const { repo } = setup(
+    [
+      draftEstimate({
+        customer_approval_token: 'a-real-token',
+        customer_approval_token_expires_at: futureIsoDate(30),
+      }),
+    ],
+    [
+      {
+        id: 'line-1',
+        business_id: BUSINESS_A,
+        estimate_id: 'estimate-1',
+        description: 'Roof soft wash',
+        quantity: 1,
+        unit_price_minor_units: 20000,
+        unit_price_currency: 'USD',
+        line_total_minor_units: 20000,
+        line_total_currency: 'USD',
+        service_package_id: null,
+        sort_order: 0,
+        created_at: '2026-01-01T00:00:00.000Z',
+      },
+    ],
+  );
+
+  const result = await repo.listLineItemsByPublicToken('a-real-token');
+  assert.equal(result.ok, true);
+  if (result.ok) {
+    assert.equal(result.lineItems.length, 1);
+    assert.equal(result.lineItems[0].description, 'Roof soft wash');
+  }
+});
+
+test('listLineItemsByPublicToken rejects an unknown or expired token', async () => {
+  const { repo } = setup(
+    [
+      draftEstimate({
+        customer_approval_token: 'expired-token',
+        customer_approval_token_expires_at: futureIsoDate(-1),
+      }),
+    ],
+    [],
+  );
+
+  const expired = await repo.listLineItemsByPublicToken('expired-token');
+  assert.equal(expired.ok, false);
+
+  const unknown = await repo.listLineItemsByPublicToken('never-issued');
+  assert.equal(unknown.ok, false);
+});
