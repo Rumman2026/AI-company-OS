@@ -1,6 +1,8 @@
 import {
   createJobId,
   transitionJob,
+  resolveTransitionAcrossActorCategories,
+  type ActorCategory,
   type Job,
   type JobStatus,
   type JobTransitionOptions,
@@ -39,6 +41,19 @@ export interface JobRepository {
     jobId: string,
     requestedStatus: JobStatus,
     context: TransitionContext,
+    options?: JobTransitionOptions,
+  ): Promise<TransitionJobResult>;
+  /**
+   * Same as `transitionJobStatus`, but for a caller that may legitimately
+   * hold more than one role at once (see DECISIONS.md ADR-0018).
+   * `actorCategories` must be non-empty.
+   */
+  transitionJobStatusForRoles(
+    businessId: string,
+    jobId: string,
+    requestedStatus: JobStatus,
+    actorCategories: readonly ActorCategory[],
+    context: Omit<TransitionContext, 'actorCategory'>,
     options?: JobTransitionOptions,
   ): Promise<TransitionJobResult>;
   getJob(businessId: string, jobId: string): Promise<GetJobResult>;
@@ -106,6 +121,51 @@ export function createSupabaseJobRepository(
 
       const currentJob = toJob(data as JobRow);
       const result = transitionJob(currentJob, requestedStatus, context, options);
+
+      if (result.outcome === 'rejected') {
+        return { ok: true, result };
+      }
+
+      const { error: updateError } = await client
+        .from('jobs')
+        .update({ status: result.nextState })
+        .eq('id', jobId)
+        .eq('business_id', businessId);
+
+      if (updateError) {
+        return { ok: false, error: updateError.message ?? 'job_update_failed' };
+      }
+
+      await auditLog.writeAuditRecord(businessId, result.auditRecord);
+
+      return { ok: true, result };
+    },
+
+    async transitionJobStatusForRoles(
+      businessId,
+      jobId,
+      requestedStatus,
+      actorCategories,
+      context,
+      options,
+    ) {
+      const { data, error } = await client
+        .from('jobs')
+        .select(SELECT_COLUMNS)
+        .eq('id', jobId)
+        .eq('business_id', businessId)
+        .single();
+
+      if (error || !data) {
+        return { ok: false, error: error?.message ?? 'job_not_found' };
+      }
+
+      const currentJob = toJob(data as JobRow);
+      const result = resolveTransitionAcrossActorCategories(
+        (ctx) => transitionJob(currentJob, requestedStatus, ctx, options),
+        actorCategories,
+        context,
+      );
 
       if (result.outcome === 'rejected') {
         return { ok: true, result };

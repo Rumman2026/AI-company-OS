@@ -154,6 +154,67 @@ test('service-completed requires a completion record - missing one is a typed re
   assert.equal(records.length, 0);
 });
 
+test('transitionJobStatusForRoles succeeds for an owner-admin who also holds office-manager', async () => {
+  const { repo, jobs, records } = setup([
+    {
+      id: 'job-1',
+      business_id: BUSINESS_A,
+      lead_id: 'lead-1',
+      booking_id: 'booking-1',
+      status: 'draft',
+      technician_id: null,
+      scheduled_at: null,
+      created_at: '2026-01-01T00:00:00.000Z',
+    },
+  ]);
+
+  const result = await repo.transitionJobStatusForRoles(
+    BUSINESS_A,
+    'job-1',
+    'scheduled',
+    ['owner-admin', 'office-manager'],
+    { actorId: 'test-actor', occurredAt: '2026-01-02T00:00:00.000Z' },
+  );
+
+  assert.equal(result.ok, true);
+  if (result.ok) assert.equal(result.result.outcome, 'success');
+  assert.equal(jobs.rows[0].status, 'scheduled');
+  assert.equal(records.length, 1);
+});
+
+test('transitionJobStatusForRoles rejects an owner-admin-only membership for an edge that requires office-manager/dispatcher', async () => {
+  const { repo, jobs, records } = setup([
+    {
+      id: 'job-1',
+      business_id: BUSINESS_A,
+      lead_id: 'lead-1',
+      booking_id: 'booking-1',
+      status: 'draft',
+      technician_id: null,
+      scheduled_at: null,
+      created_at: '2026-01-01T00:00:00.000Z',
+    },
+  ]);
+
+  const result = await repo.transitionJobStatusForRoles(
+    BUSINESS_A,
+    'job-1',
+    'scheduled',
+    ['owner-admin'],
+    { actorId: 'test-actor', occurredAt: '2026-01-02T00:00:00.000Z' },
+  );
+
+  assert.equal(result.ok, true);
+  if (result.ok) {
+    assert.equal(result.result.outcome, 'rejected');
+    if (result.result.outcome === 'rejected') {
+      assert.equal(result.result.errorCode, 'unauthorized-actor');
+    }
+  }
+  assert.equal(jobs.rows[0].status, 'draft');
+  assert.equal(records.length, 0);
+});
+
 test('getJob rejects a cross-tenant lookup', async () => {
   const { repo } = setup([
     {

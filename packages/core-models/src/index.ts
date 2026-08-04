@@ -151,3 +151,5 @@ export type { RequiredConsentEffect, ConsentRevocationEvaluation } from './conse
 
 export { evaluatePhotoPublicationEligibility } from './photo-eligibility';
 export type { PhotoPublicationEligibility } from './photo-eligibility';
+
+export { resolveTransitionAcrossActorCategories } from './transition-resolution';

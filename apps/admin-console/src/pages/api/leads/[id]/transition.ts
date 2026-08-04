@@ -25,12 +25,17 @@ export const POST: APIRoute = async ({ request, locals, params, redirect }) => {
   const auditLog = createSupabaseAuditLogRepository(locals.supabase);
   const leadRepo = createSupabaseLeadRepository(locals.supabase, auditLog);
 
-  const result = await leadRepo.transitionLeadStatus(membership.businessId, id, requestedStatus, {
-    actorCategory: membership.role,
-    actorId: user.id,
-    occurredAt: new Date().toISOString(),
-    reason: typeof reason === 'string' && reason.length > 0 ? reason : undefined,
-  });
+  const result = await leadRepo.transitionLeadStatusForRoles(
+    membership.businessId,
+    id,
+    requestedStatus,
+    membership.roles,
+    {
+      actorId: user.id,
+      occurredAt: new Date().toISOString(),
+      reason: typeof reason === 'string' && reason.length > 0 ? reason : undefined,
+    },
+  );
 
   if (!result.ok) {
     return redirect(`/leads/${id}?error=${encodeURIComponent(result.error)}`);

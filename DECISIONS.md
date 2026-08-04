@@ -1024,8 +1024,8 @@ directly on this.
 
 ## ADR-0013: Lead → Estimate → Booking → Job creation workflow (CRM Cluster 5)
 
-**Status**: Confirmed (implemented; one design limitation documented,
-not fixed this cluster)
+**Status**: Confirmed (implemented). The "known limitation" below is
+resolved as of [ADR-0018](#adr-0018-multi-role-memberships-owner-directed).
 
 **Context**: Cluster 4 (ADR-0012) added persistence for `Estimate`/
 `Booking`/`Job` but no way to actually create one. This cluster adds the
@@ -1046,14 +1046,15 @@ exist specifically to require a human with the right role for this
 step; bypassing them with a fake actor would defeat the purpose of
 having role-based authorization at all.
 
-**Known limitation, surfaced not fixed**: `memberships`' unique
-constraint is `(business_id, user_id)` - one role per user per business.
-An `owner-admin`-only account (the only membership that exists today)
-cannot also act as `office-manager` for day-to-day Job/Lead progression.
-Two real paths exist (change the existing row's role, accepting the
-trade-off of losing owner-only actions; or a future multi-role schema
-change) - neither implemented here, since resolving it is a real design
-decision requiring the owner's input, not a bug to quietly patch.
+**Known limitation, surfaced not fixed at the time**: `memberships`'
+unique constraint is `(business_id, user_id)` - one role per user per
+business. An `owner-admin`-only account (the only membership that
+existed at the time) could not also act as `office-manager` for
+day-to-day Job/Lead progression. Two real paths were identified (change
+the existing row's role, accepting the trade-off of losing owner-only
+actions; or a future multi-role schema change) - resolved via the
+multi-role schema change, per the owner's explicit direction - see
+[ADR-0018](#adr-0018-multi-role-memberships-owner-directed).
 
 **Consequences**: `docs/crm/CRM_ARCHITECTURE.md` gains a Cluster 5
 section documenting this and the limitation above.
@@ -1290,6 +1291,161 @@ Emma's voice/chat capability, Hermes, or any real provider network call
   ... without separate, explicit owner authorization").
 
 **Related**: [ADR-0008](#adr-0008-cost-efficient-multi-model-cloud-infrastructure-direction-hostinger-vps--docker-compose-provider-neutral-ai-gateway).
+
+---
+
+## ADR-0018: Multi-role memberships (owner-directed)
+
+**Status**: Confirmed (implemented)
+
+**Context**: ADR-0013 documented, but deliberately did not fix, a real
+limitation: `memberships`' `(business_id, user_id)` unique constraint
+meant one Supabase Auth user could hold exactly one `MembershipRole` per
+business. The only provisioned account (GreenCal Pressure Washing's
+owner, `owner-admin`) could not also act as `office-manager`, which most
+Lead/Job transitions require - resolving it was left as a real design
+decision requiring owner input. The owner has now explicitly directed:
+"Implement support for multiple roles per user (owner-admin and
+office-manager) in a future-proof way without breaking the current
+GreenCal owner account."
+
+**Decision**: A new `membership_roles` child table
+(`packages/db/migrations/007-multi-role-memberships.sql`) holds
+`(membership_id, role)` rows, unique per pair, `on delete cascade`
+from `memberships`. The existing `memberships` table and its
+`(business_id, user_id)` unique constraint are **untouched** -
+`memberships.role` (the legacy single-role column) is left in place,
+read only as a fallback. A backfill statement copies every existing
+membership's single role into `membership_roles`, and a second,
+separately-idempotent statement grants the real GreenCal owner
+(looked up by business slug + email, never a pasted UUID - the
+established pattern in this project's migration history) an additional
+`office-manager` role alongside their existing `owner-admin` role.
+
+Three application-layer changes support this:
+
+1. `packages/core-models` gains `resolveTransitionAcrossActorCategories()`
+   (`src/transition-resolution.ts`) - a pure, generic helper that tries
+   a transition attempt against several candidate `ActorCategory` values
+   in order, returning the first success or the most informative
+   rejection (preferring a rejection more specific than
+   `unauthorized-actor` once any candidate got that far). It changes
+   nothing about how any individual state machine authorizes a
+   transition - each candidate is evaluated exactly as if it were the
+   caller's only role.
+2. `packages/db`'s `LeadRepository`/`JobRepository` each gain a new
+   `transitionXStatusForRoles()` method (`transitionLeadStatus`/
+   `transitionJobStatus`, the original single-actor methods, are
+   **left completely unchanged** - a new capability is added alongside,
+   not a modification of a tested, working path).
+3. `apps/admin-console`'s `CurrentMembership.role: MembershipRole`
+   becomes `CurrentMembership.roles: MembershipRole[]`.
+   `getCurrentMembership()` reads `membership_roles` first and **falls
+   back to the legacy `memberships.role` column** when the child table
+   has no rows yet for that membership - so an admin-console instance
+   pointed at a Supabase project where migration 007 has not yet been
+   run (a real, current state - migrations 004-006 are still pending
+   too) keeps working exactly as it did before this ADR, never silently
+   resolving to zero roles. Every transition-attempting API route
+   (`leads/[id]/transition`, `jobs/[id]/transition`,
+   `estimates/[id]/bookings`) now calls the `*ForRoles` methods with
+   `membership.roles` instead of a single role.
+
+**Alternatives considered**: Changing `memberships`' unique constraint
+to `(business_id, user_id, role)` and allowing multiple `memberships`
+rows per user per business - rejected in favor of a normalized child
+table, since a membership (business+user) is a single real-world
+relationship with N roles, not N separate relationships; the child-table
+design also means zero changes to the `memberships` table itself,
+directly satisfying "without breaking the current GreenCal owner
+account." Making `TransitionContext.actorCategory` accept an array -
+rejected: that type is shared by all five state machines across
+`packages/core-models`, most of which have no concept of a
+multi-role caller (e.g. `automation`, `customer`); widening it would
+ripple a CRM-specific concern into the whole domain model. Resolving the
+multi-role question at the repository layer (retry loop inline in each
+`*Status` method) instead of a shared core-models helper - rejected as
+duplicated logic across `LeadRepository`/`JobRepository`/any future
+repository needing the same behavior.
+
+**Consequences**: `docs/crm/CRM_ARCHITECTURE.md`,
+`packages/db/README.md`, and `docs/launch/OWNER_ACTIONS_REQUIRED.md`
+are updated. Migration 007 has not yet been run against the real
+`Greencal-production` Supabase project (owner action, queued behind
+004-006).
+
+**Related**: [ADR-0013](#adr-0013-lead--estimate--booking--job-creation-workflow-crm-cluster-5),
+[ADR-0010](#adr-0010-multi-tenant-crm-foundation-businessesmemberships-tenant-scoped-rls).
+
+---
+
+## ADR-0019: GreenCal Mobile Detailing / Navarro Builders CRM tenant seeding (no fabricated business content)
+
+**Status**: Confirmed (implemented)
+
+**Context**: The owner directed: "Build the full multi-tenant
+architecture now using the same framework as GreenCal Pressure Washing.
+Leave business-specific content, pricing, branding, services, and
+assets as placeholders that can be populated later. Do not fabricate
+any business data." `BUSINESSES.md` lists exactly two approved facts
+for these businesses: their names, "GreenCal Mobile Detailing" and
+"Navarro Builders" - everything else (address, services, pricing,
+branding, domain) is explicitly `TBD`, with no repository evidence.
+
+**Decision**: "The same framework as GreenCal Pressure Washing" is
+interpreted as the **multi-tenant CRM architecture** specifically
+(ADR-0010: `businesses`/`memberships`/tenant-scoped RLS/`apps/admin-console`),
+not a second/third public marketing website. A repository-wide audit
+confirmed `apps/admin-console`'s CRM code has zero hardcoded
+`greencal-pressure-washing` (or any single-business) assumptions
+anywhere - every repository call, every RLS policy, is already
+`business_id`-scoped and entirely generic. This means the entire
+existing CRM (Leads, Jobs, Companies, Notes, Tasks, and everything
+already built in Clusters 4-10) becomes usable by either business the
+moment two things exist: (1) a `businesses` row (this ADR -
+`packages/db/migrations/008-additional-business-tenants.sql`, inserting
+only `name` - an approved fact - and `slug` - a derived technical
+identifier, nothing else) and (2) a real owner/staff Supabase Auth user
+linked via a `memberships` row (a genuine future owner action, not
+performed here - no such user exists for either business, and
+fabricating one would violate "do not fabricate any business data").
+
+**A public marketing website for either business was deliberately NOT
+built** in this cluster. Reasons: (1) `BUSINESSES.md` currently and
+correctly states neither business has a dedicated repository module -
+this ADR does not change that statement, since a `businesses` row is
+data, not a module; (2) `.claude/rules/websites.md` explicitly warns
+against designing a shared multi-business template prematurely,
+mirroring root `CLAUDE.md`'s "don't design for hypothetical future
+requirements"; (3) `apps/greencal-website`'s own `astro.config.mjs`
+documents an extensive, hard-won Vercel/tslib packaging investigation -
+standing up a second and third website is a materially larger,
+separately-scoped deliverable (its own app, its own eventual
+deployment, its own domain) than "leave content as a placeholder"
+plausibly authorizes on its own; (4) `services`/`pricing`/`branding`,
+which the owner explicitly said to leave as placeholders, are exactly
+the kind of content a marketing website exists to present - a website
+with literally nothing real to say is not obviously more useful than no
+website, whereas the CRM is useful today, business-content-free, the
+moment a membership exists.
+
+**Alternatives considered**: Scaffolding empty `apps/greencal-mobile-detailing`/
+`apps/navarro-builders` Astro apps mirroring `apps/greencal-website`'s
+Phase 2A Checkpoint 1 technical-foundation-only precedent (real Astro
+site, one unpublished/`noindex` placeholder page, no business content).
+Not ruled out for the future, but not built here without the owner
+explicitly confirming that reading of "the same framework" - flagged
+back rather than guessed, per root `CLAUDE.md`'s standing instruction to
+ask when ambiguity would materially affect architecture or scope, not
+silently pick the larger interpretation.
+
+**Consequences**: `ROADMAP.md` gains a Cluster 11 entry documenting
+this scope decision explicitly, including what was deliberately not
+built and why. `BUSINESSES.md` is unchanged, since none of its stated
+facts became inaccurate.
+
+**Related**: [ADR-0010](#adr-0010-multi-tenant-crm-foundation-businessesmemberships-tenant-scoped-rls),
+[ADR-0004](#adr-0004-dedicated-appsgreencal-website-for-greencal-pressure-washing-designated-phase-2a).
 
 ---
 

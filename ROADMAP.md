@@ -116,6 +116,59 @@ repository evidence.
   any real task today honestly resolves to `not-implemented`, not a
   fabricated success - this is expected Phase 1 fidelity, not a bug.
 
+**Cluster 10 (implemented, tested locally) — multi-role memberships (ADR-0018)**
+
+- Scope: see [DECISIONS.md](DECISIONS.md) ADR-0018 and
+  `docs/crm/CRM_ARCHITECTURE.md`.
+- Implemented with repository evidence: a new `membership_roles` child
+  table (`packages/db/migrations/007-multi-role-memberships.sql`,
+  fully additive - `memberships` and its `(business_id, user_id)`
+  unique constraint are untouched); `packages/core-models` gained
+  `resolveTransitionAcrossActorCategories()` (100/100 tests passing,
+  including the new resolution-logic tests); `LeadRepository`/
+  `JobRepository` each gained a `transitionXStatusForRoles()` method
+  alongside the original, unmodified single-actor method (44/44
+  `packages/db` tests passing); `apps/admin-console`'s
+  `CurrentMembership.role` became `CurrentMembership.roles:
+MembershipRole[]`, with a fallback to the legacy `memberships.role`
+  column so an unmigrated Supabase project keeps working unchanged.
+  Resolves the ADR-0013 known limitation (owner-admin-only membership
+  couldn't also act as office-manager) per explicit owner direction.
+- Lint, typecheck, a local production build, and unit tests all pass.
+- **Not done**: migration 007 has not yet been run against production
+  (owner action, queued behind 004-006). Until it runs, the owner's
+  account keeps resolving to its single existing `owner-admin` role via
+  the fallback path.
+
+**Cluster 11 (implemented, tested locally) — GreenCal Mobile Detailing / Navarro Builders multi-tenant CRM scaffolding (ADR-0019)**
+
+- Scope: see [DECISIONS.md](DECISIONS.md) ADR-0019.
+- Implemented with repository evidence: `businesses` rows for both
+  businesses (name/slug only - the name is an already-approved fact
+  from `BUSINESSES.md`, the slug is a technical identifier derived from
+  it, not a fabricated business fact), making the entire existing CRM
+  (Leads/Jobs/Companies/Notes/Tasks, every `apps/admin-console` screen)
+  immediately usable for either business the moment a real owner
+  membership is created - the framework was already fully
+  tenant-generic (confirmed: zero hardcoded `greencal-pressure-washing`
+  references anywhere in `apps/admin-console`'s CRM code).
+- **Deliberately not built, and why**: a public marketing website for
+  either business (like `apps/greencal-website`). `BUSINESSES.md`
+  currently and correctly states neither business has a dedicated
+  repository module, and `.claude/rules/websites.md` explicitly warns
+  against designing a shared multi-business template prematurely. "The
+  same framework as GreenCal Pressure Washing" is interpreted here as
+  the multi-tenant CRM architecture (ADR-0010) specifically, not a
+  second/third marketing website - that is a materially different,
+  larger, separately-scoped deliverable (its own app, its own domain,
+  its own eventual Vercel deployment with the tslib packaging
+  complexity already documented at length in
+  `apps/greencal-website/astro.config.mjs`) that was not inferred from
+  this instruction alone. Flagged back to the owner rather than guessed.
+- **Not done**: no owner/staff Supabase Auth user or membership exists
+  for either business yet (a real owner action, not something to
+  fabricate).
+
 **Growth-system domain contracts (in progress) — `packages/core-models`**
 
 - Scope: a first, provider-neutral coding slice for the GreenCal

@@ -169,6 +169,65 @@ test('an unauthorized actor is rejected and never reaches the database update', 
   assert.equal(records.length, 0);
 });
 
+test('transitionLeadStatusForRoles succeeds using whichever supplied role is authorized', async () => {
+  const { repo, leads, records } = setup([
+    {
+      id: 'lead-1',
+      business_id: BUSINESS_A,
+      contact_id: 'contact-1',
+      status: 'contacted',
+      attribution: fixtureAttribution,
+      duplicate_of_lead_id: null,
+      created_at: '2026-01-01T00:00:00.000Z',
+    },
+  ]);
+
+  const result = await repo.transitionLeadStatusForRoles(
+    BUSINESS_A,
+    'lead-1',
+    'qualified',
+    ['technician', 'office-manager'],
+    { actorId: 'test-actor', occurredAt: '2026-01-02T00:00:00.000Z' },
+  );
+
+  assert.equal(result.ok, true);
+  if (result.ok) assert.equal(result.result.outcome, 'success');
+  assert.equal(leads.rows[0].status, 'qualified');
+  assert.equal(records.length, 1);
+});
+
+test('transitionLeadStatusForRoles rejects and never writes when none of the supplied roles are authorized', async () => {
+  const { repo, leads, records } = setup([
+    {
+      id: 'lead-1',
+      business_id: BUSINESS_A,
+      contact_id: 'contact-1',
+      status: 'contacted',
+      attribution: fixtureAttribution,
+      duplicate_of_lead_id: null,
+      created_at: '2026-01-01T00:00:00.000Z',
+    },
+  ]);
+
+  const result = await repo.transitionLeadStatusForRoles(
+    BUSINESS_A,
+    'lead-1',
+    'qualified',
+    ['technician', 'dispatcher'],
+    { actorId: 'test-actor', occurredAt: '2026-01-02T00:00:00.000Z' },
+  );
+
+  assert.equal(result.ok, true);
+  if (result.ok) {
+    assert.equal(result.result.outcome, 'rejected');
+    if (result.result.outcome === 'rejected') {
+      assert.equal(result.result.errorCode, 'unauthorized-actor');
+    }
+  }
+  assert.equal(leads.rows[0].status, 'contacted');
+  assert.equal(records.length, 0);
+});
+
 test('a non-existent lead id is reported as a typed error', async () => {
   const { repo } = setup([]);
 

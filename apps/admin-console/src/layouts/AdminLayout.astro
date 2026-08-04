@@ -119,7 +119,7 @@ const { title, membership = null } = Astro.props;
           membership ? (
             <>
               <p class="admin-nav__business">{membership.businessName}</p>
-              <p class="admin-nav__role">{membership.role}</p>
+              <p class="admin-nav__role">{membership.roles.join(', ')}</p>
             </>
           ) : null
         }

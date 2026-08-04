@@ -1,10 +1,11 @@
 # CRM Architecture
 
-Status: durable record of CRM Milestones 1-3 and Clusters 4-8 (this
-sprint). See [DECISIONS.md](../../DECISIONS.md) ADR-0009 (persistence),
-ADR-0010 (multi-tenant foundation), ADR-0011 (admin-console),
-ADR-0012 (Estimate/Booking/Job), ADR-0014 (Company), ADR-0015 (Note),
-and ADR-0016 (Task) for the full rationale, and
+Status: durable record of CRM Milestones 1-3 and Clusters 4-8 and 10
+(this sprint). See [DECISIONS.md](../../DECISIONS.md) ADR-0009
+(persistence), ADR-0010 (multi-tenant foundation), ADR-0011
+(admin-console), ADR-0012 (Estimate/Booking/Job), ADR-0014 (Company),
+ADR-0015 (Note), ADR-0016 (Task), and ADR-0018 (multi-role memberships)
+for the full rationale, and
 [`packages/core-models`](../../packages/core-models/README.md) /
 [`packages/db`](../../packages/db/README.md) /
 [`apps/admin-console`](../../apps/admin-console/README.md) for
@@ -56,16 +57,9 @@ deployment gap as Milestone 3) - the actual create-estimate → create-booking
 → auto-create-job → best-effort-schedule chain has not been exercised
 against a real browser session.
 
-**Known limitation, not silently worked around**: a single Supabase Auth
-user can hold exactly one `role` per business (`memberships`' unique
-constraint is `(business_id, user_id)`). The owner's `owner-admin`
-membership cannot also act as `office-manager` day-to-day - most Job/Lead
-transitions require that role. Two real options exist if the owner wants
-one account to do both: (a) change the existing membership row's `role`
-to `office-manager` (trading away owner-only actions like marking
-something `lost`/`canceled`), or (b) a future schema change allowing
-multiple roles per business per user - not built, since it's a real
-design decision, not a bug fix.
+**Known limitation - resolved, see Cluster 10 below**: a single Supabase
+Auth user originally could hold exactly one `role` per business. Fixed
+by the multi-role membership schema (ADR-0018).
 
 ## Cluster 6: Company persistence + Contact→Company linking
 
@@ -171,6 +165,45 @@ work is search/filtering/CSV export/reporting, full per-permission RBAC,
 and the much larger scope from the owner's "AI COMPANY OS — FINAL
 EXECUTION DIRECTIVE" (multi-business isolation, infra, Hermes/Jervis/
 Emma agents, SEO/AEO/GEO, commercial SaaS).
+
+## Cluster 10: multi-role memberships
+
+(Cluster 9, `apps/agent-orchestrator`, is agent infrastructure, not
+CRM - documented in DECISIONS.md ADR-0017 and ROADMAP.md instead.)
+
+Resolves the Cluster 5 known limitation: a single Supabase Auth user can
+now hold more than one `MembershipRole` per business (e.g. `owner-admin`
+**and** `office-manager`), per explicit owner direction. See
+DECISIONS.md ADR-0018 for the full rationale.
+
+- New `membership_roles` child table
+  (`packages/db/migrations/007-multi-role-memberships.sql`) - fully
+  additive, the existing `memberships` table and its
+  `(business_id, user_id)` unique constraint are untouched. Backfills
+  every existing membership's single role, then separately grants the
+  real GreenCal owner an additional `office-manager` role.
+- `packages/core-models` gains `resolveTransitionAcrossActorCategories()`
+  - tries a transition against each of a caller's held roles in order,
+    changing nothing about any individual state machine's own
+    authorization rules.
+- `LeadRepository`/`JobRepository` each gain a new
+  `transitionXStatusForRoles()` method alongside the original
+  single-actor method (left unchanged).
+- `apps/admin-console`'s `CurrentMembership.role` becomes
+  `CurrentMembership.roles: MembershipRole[]`; `getCurrentMembership()`
+  falls back to the legacy `memberships.role` column when
+  `membership_roles` has no rows yet, so this keeps working against an
+  unmigrated Supabase project exactly as before.
+
+**Classification: IMPLEMENTED AND TESTED LOCALLY.** Lint, typecheck, a
+local production build, and unit tests all pass (`packages/core-models`
+100/100, `packages/db` 44/44). Migration 007 has NOT yet been run
+against the real `Greencal-production` Supabase project (owner action,
+queued behind 004-006). Until it runs, the owner's account continues to
+resolve to its existing single `owner-admin` role via the fallback path
+
+- once run, it gains `office-manager` too and most Job/Lead transitions
+  that previously required an honest rejection will succeed.
 
 ## What "CRM" means in this repository today
 

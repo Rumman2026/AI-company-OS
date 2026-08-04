@@ -1,6 +1,8 @@
 import {
   createLeadId,
   transitionLead,
+  resolveTransitionAcrossActorCategories,
+  type ActorCategory,
   type Lead,
   type LeadAttribution,
   type LeadStatus,
@@ -54,6 +56,20 @@ export interface LeadRepository {
     leadId: string,
     requestedStatus: LeadStatus,
     context: TransitionContext,
+  ): Promise<TransitionLeadResult>;
+  /**
+   * Same as `transitionLeadStatus`, but for a caller that may legitimately
+   * hold more than one role at once (see DECISIONS.md ADR-0018) - tries
+   * each candidate actor category in order via
+   * core-models' `resolveTransitionAcrossActorCategories()` and persists
+   * at most one successful outcome. `actorCategories` must be non-empty.
+   */
+  transitionLeadStatusForRoles(
+    businessId: string,
+    leadId: string,
+    requestedStatus: LeadStatus,
+    actorCategories: readonly ActorCategory[],
+    context: Omit<TransitionContext, 'actorCategory'>,
   ): Promise<TransitionLeadResult>;
   /** A single Lead, scoped to `businessId`. */
   getLead(businessId: string, leadId: string): Promise<GetLeadResult>;
@@ -115,6 +131,50 @@ export function createSupabaseLeadRepository(
 
       const currentLead = toLead(data as LeadRow);
       const result = transitionLead(currentLead, requestedStatus, context);
+
+      if (result.outcome === 'rejected') {
+        return { ok: true, result };
+      }
+
+      const { error: updateError } = await client
+        .from('leads')
+        .update({ status: result.nextState })
+        .eq('id', leadId)
+        .eq('business_id', businessId);
+
+      if (updateError) {
+        return { ok: false, error: updateError.message ?? 'lead_update_failed' };
+      }
+
+      await auditLog.writeAuditRecord(businessId, result.auditRecord);
+
+      return { ok: true, result };
+    },
+
+    async transitionLeadStatusForRoles(
+      businessId,
+      leadId,
+      requestedStatus,
+      actorCategories,
+      context,
+    ) {
+      const { data, error } = await client
+        .from('leads')
+        .select('id, contact_id, status, attribution, duplicate_of_lead_id, created_at')
+        .eq('id', leadId)
+        .eq('business_id', businessId)
+        .single();
+
+      if (error || !data) {
+        return { ok: false, error: error?.message ?? 'lead_not_found' };
+      }
+
+      const currentLead = toLead(data as LeadRow);
+      const result = resolveTransitionAcrossActorCategories(
+        (ctx) => transitionLead(currentLead, requestedStatus, ctx),
+        actorCategories,
+        context,
+      );
 
       if (result.outcome === 'rejected') {
         return { ok: true, result };

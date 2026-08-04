@@ -12,11 +12,12 @@ export const prerender = false;
 /**
  * Creates a Booking from an Estimate, then immediately creates its Job
  * (at 'draft' - see DECISIONS.md ADR-0012) and links the two. Also
- * best-effort attempts the draft -> scheduled transition using the
- * calling user's real role - core-models' transitionJob() only allows
- * office-manager/dispatcher for that edge, so an owner-admin-only
- * membership will see the Job created but left at 'draft', with an
- * honest note rather than a silent failure or a fabricated success.
+ * best-effort attempts the draft -> scheduled transition, trying every
+ * role the calling user holds (see DECISIONS.md ADR-0018) -
+ * core-models' transitionJob() only allows office-manager/dispatcher
+ * for that edge, so a membership holding none of those roles will see
+ * the Job created but left at 'draft', with an honest note rather than
+ * a silent failure or a fabricated success.
  */
 export const POST: APIRoute = async ({ request, locals, params, redirect }) => {
   const { id: estimateId } = params;
@@ -70,11 +71,12 @@ export const POST: APIRoute = async ({ request, locals, params, redirect }) => {
 
   await bookings.linkJob(membership.businessId, bookingResult.booking.id, jobResult.job.id);
 
-  const transitionResult = await jobs.transitionJobStatus(
+  const transitionResult = await jobs.transitionJobStatusForRoles(
     membership.businessId,
     jobResult.job.id,
     'scheduled',
-    { actorCategory: membership.role, actorId: user.id, occurredAt: new Date().toISOString() },
+    membership.roles,
+    { actorId: user.id, occurredAt: new Date().toISOString() },
   );
 
   if (transitionResult.ok && transitionResult.result.outcome === 'rejected') {

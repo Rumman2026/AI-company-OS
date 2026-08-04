@@ -89,6 +89,20 @@ attachment. Two `check` constraints keep `entity_type`/`entity_id` and
 `completed`/`completed_at` internally consistent at the database level.
 `TaskRepository` is create/list/complete.
 
+## Cluster 10: multi-role memberships
+
+`migrations/007-multi-role-memberships.sql` adds `membership_roles`
+(one row per `(membership_id, role)` pair) so a single Supabase Auth
+user can hold more than one `MembershipRole` per business - fully
+additive, `memberships` and its `(business_id, user_id)` unique
+constraint are untouched. See DECISIONS.md ADR-0018.
+`LeadRepository.transitionLeadStatusForRoles()` and
+`JobRepository.transitionJobStatusForRoles()` are new methods (the
+original single-actor `transitionLeadStatus`/`transitionJobStatus` are
+unchanged) that try a transition against each of several candidate
+`ActorCategory` values via `@ai-company-os/core-models`'
+`resolveTransitionAcrossActorCategories()`.
+
 ## What is deliberately excluded
 
 An authenticated owner interface for Estimates/Bookings (Jobs, Companies,
