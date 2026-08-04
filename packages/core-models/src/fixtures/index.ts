@@ -152,6 +152,7 @@ export function makeFixturePhotoAsset(overrides: Partial<PhotoAsset> = {}): Phot
     humanPublicationApproved: false,
     publicationConsentGranted: false,
     publicationStatus: 'not-published',
+    uploadedAt: '2026-01-10T00:00:00.000Z',
     ...overrides,
   };
 }

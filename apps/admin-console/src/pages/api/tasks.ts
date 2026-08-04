@@ -46,6 +46,7 @@ export const POST: APIRoute = async ({ request, locals, redirect }) => {
       typeof dueAt === 'string' && dueAt.length > 0 ? new Date(dueAt).toISOString() : undefined,
     entityType: hasEntityType ? (entityType as NotableEntityType) : undefined,
     entityId: hasEntityId ? (entityId as string) : undefined,
+    createdBy: user.id,
   });
 
   if (!result.ok) {

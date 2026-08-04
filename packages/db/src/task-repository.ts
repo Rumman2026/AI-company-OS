@@ -9,6 +9,7 @@ export interface CreateTaskInput {
   readonly assignedTo?: string;
   readonly entityType?: NotableEntityType;
   readonly entityId?: string;
+  readonly createdBy?: string;
 }
 
 export interface ListTasksOptions {
@@ -25,7 +26,11 @@ export interface TaskRepository {
   createTask(input: CreateTaskInput): Promise<CreateTaskResult>;
   listTasks(businessId: string, options?: ListTasksOptions): Promise<ListTasksResult>;
   /** Marks a Task completed - the only state change a Task ever undergoes. */
-  completeTask(businessId: string, taskId: string): Promise<CompleteTaskResult>;
+  completeTask(
+    businessId: string,
+    taskId: string,
+    completedBy?: string,
+  ): Promise<CompleteTaskResult>;
 }
 
 interface TaskRow {
@@ -37,7 +42,9 @@ interface TaskRow {
   entity_type: NotableEntityType | null;
   entity_id: string | null;
   completed: boolean;
+  created_by: string | null;
   completed_at: string | null;
+  completed_by: string | null;
   created_at: string;
 }
 
@@ -51,13 +58,15 @@ function toTask(row: TaskRow): Task {
     entityType: row.entity_type ?? undefined,
     entityId: row.entity_id ?? undefined,
     completed: row.completed,
+    createdBy: row.created_by ?? undefined,
     completedAt: row.completed_at ?? undefined,
+    completedBy: row.completed_by ?? undefined,
     createdAt: row.created_at,
   };
 }
 
 const SELECT_COLUMNS =
-  'id, title, description, due_at, assigned_to, entity_type, entity_id, completed, completed_at, created_at';
+  'id, title, description, due_at, assigned_to, entity_type, entity_id, completed, created_by, completed_at, completed_by, created_at';
 
 export function createSupabaseTaskRepository(client: MinimalSupabaseClient): TaskRepository {
   return {
@@ -73,7 +82,9 @@ export function createSupabaseTaskRepository(client: MinimalSupabaseClient): Tas
           entity_type: input.entityType ?? null,
           entity_id: input.entityId ?? null,
           completed: false,
+          created_by: input.createdBy ?? null,
           completed_at: null,
+          completed_by: null,
         })
         .select(SELECT_COLUMNS)
         .single();
@@ -103,10 +114,14 @@ export function createSupabaseTaskRepository(client: MinimalSupabaseClient): Tas
       return { ok: true, tasks: (data as TaskRow[]).map(toTask) };
     },
 
-    async completeTask(businessId, taskId) {
+    async completeTask(businessId, taskId, completedBy) {
       const { error } = await client
         .from('tasks')
-        .update({ completed: true, completed_at: new Date().toISOString() })
+        .update({
+          completed: true,
+          completed_at: new Date().toISOString(),
+          completed_by: completedBy ?? null,
+        })
         .eq('id', taskId)
         .eq('business_id', businessId);
 

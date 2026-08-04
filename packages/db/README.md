@@ -133,6 +133,14 @@ types, not core-models changes) and `archiveX()`/`restoreX()` methods;
 every `listX()` gains `includeArchived` (default `false`). See
 DECISIONS.md ADR-0023.
 
+## Cluster 17 (part 1): actor tracking for Task/PhotoAsset/Estimate/Booking
+
+`migrations/012-actor-tracking.sql` adds `created_by`/`completed_by`
+(Task), `uploaded_by` (PhotoAsset), `created_by`/`approved_by`
+(Estimate), and `created_by` (Booking) - closes a real gap blocking
+"filterable by... employee" in the Activity Timeline. See DECISIONS.md
+ADR-0025. Part 2 (`ActivityTimelineRepository`) is a follow-up commit.
+
 ## What is deliberately excluded
 
 An authenticated owner interface for Bookings (every other listed

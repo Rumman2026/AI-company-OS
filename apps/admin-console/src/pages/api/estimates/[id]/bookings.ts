@@ -57,6 +57,7 @@ export const POST: APIRoute = async ({ request, locals, params, redirect }) => {
     leadId,
     estimateId,
     scheduledAt: scheduledAtDate.toISOString(),
+    createdBy: user.id,
   });
   if (!bookingResult.ok) {
     return redirect(`/leads/${leadId}?error=${encodeURIComponent(bookingResult.error)}`);

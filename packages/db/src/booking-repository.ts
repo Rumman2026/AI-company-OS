@@ -12,6 +12,7 @@ export interface CreateBookingInput {
   readonly leadId: string;
   readonly estimateId: string;
   readonly scheduledAt: string;
+  readonly createdBy?: string;
 }
 
 export type CreateBookingResult = { ok: true; booking: Booking } | { ok: false; error: string };
@@ -37,6 +38,7 @@ interface BookingRow {
   estimate_id: string;
   job_id: string | null;
   scheduled_at: string;
+  created_by: string | null;
   created_at: string;
 }
 
@@ -47,11 +49,12 @@ function toBooking(row: BookingRow): Booking {
     estimateId: row.estimate_id as EstimateId,
     jobId: row.job_id ? (row.job_id as JobId) : undefined,
     scheduledAt: row.scheduled_at,
+    createdBy: row.created_by ?? undefined,
     createdAt: row.created_at,
   };
 }
 
-const SELECT_COLUMNS = 'id, lead_id, estimate_id, job_id, scheduled_at, created_at';
+const SELECT_COLUMNS = 'id, lead_id, estimate_id, job_id, scheduled_at, created_by, created_at';
 
 export function createSupabaseBookingRepository(client: MinimalSupabaseClient): BookingRepository {
   return {
@@ -63,6 +66,7 @@ export function createSupabaseBookingRepository(client: MinimalSupabaseClient): 
           lead_id: input.leadId,
           estimate_id: input.estimateId,
           scheduled_at: input.scheduledAt,
+          created_by: input.createdBy ?? null,
         })
         .select(SELECT_COLUMNS)
         .single();

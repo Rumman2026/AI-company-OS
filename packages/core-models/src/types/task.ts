@@ -23,6 +23,10 @@ export interface Task {
   readonly entityType?: NotableEntityType;
   readonly entityId?: string;
   readonly completed: boolean;
+  /** The actor who created this Task - see DECISIONS.md ADR-0025 (activity timeline, employee filtering). */
+  readonly createdBy?: string;
   readonly completedAt?: string;
+  /** The actor who marked this Task completed. */
+  readonly completedBy?: string;
   readonly createdAt: string;
 }

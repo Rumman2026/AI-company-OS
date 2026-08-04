@@ -19,7 +19,7 @@ export const POST: APIRoute = async ({ request, locals, params, redirect }) => {
   }
 
   const tasks = createSupabaseTaskRepository(locals.supabase);
-  const result = await tasks.completeTask(membership.businessId, id);
+  const result = await tasks.completeTask(membership.businessId, id, user.id);
 
   if (!result.ok) {
     return redirect(`${fallback}?error=${encodeURIComponent(result.error)}`);

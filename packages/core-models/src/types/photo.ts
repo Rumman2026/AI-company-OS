@@ -23,6 +23,9 @@ export interface PhotoAsset {
   readonly publicationStatus: PhotoPublicationStatus;
   readonly caption?: string;
   readonly altTextDraft?: string;
+  /** The actor who uploaded this photo - see DECISIONS.md ADR-0025 (activity timeline, employee filtering). */
+  readonly uploadedBy?: string;
+  readonly uploadedAt: string;
 }
 
 export interface PhotoPair {

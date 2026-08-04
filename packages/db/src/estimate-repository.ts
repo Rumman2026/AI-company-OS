@@ -13,6 +13,7 @@ export interface CreateEstimateInput {
   readonly leadId: string;
   readonly proposedAmount: Money;
   readonly summary: string;
+  readonly createdBy?: string;
 }
 
 export type CreateEstimateResult = { ok: true; estimate: Estimate } | { ok: false; error: string };
@@ -34,7 +35,11 @@ export interface EstimateRepository {
    * `approved` - rejects (does not throw) if the estimate is already
    * approved or does not exist, rather than silently re-approving.
    */
-  approveEstimate(businessId: string, estimateId: string): Promise<ApproveEstimateResult>;
+  approveEstimate(
+    businessId: string,
+    estimateId: string,
+    approvedBy?: string,
+  ): Promise<ApproveEstimateResult>;
 }
 
 interface EstimateRow {
@@ -44,7 +49,9 @@ interface EstimateRow {
   proposed_amount_currency: string;
   summary: string;
   status: Estimate['status'];
+  created_by: string | null;
   approved_at: string | null;
+  approved_by: string | null;
   created_at: string;
 }
 
@@ -58,13 +65,15 @@ function toEstimate(row: EstimateRow): Estimate {
     ),
     summary: row.summary,
     status: row.status,
+    createdBy: row.created_by ?? undefined,
     approvedAt: row.approved_at ?? undefined,
+    approvedBy: row.approved_by ?? undefined,
     createdAt: row.created_at,
   };
 }
 
 const SELECT_COLUMNS =
-  'id, lead_id, proposed_amount_minor_units, proposed_amount_currency, summary, status, approved_at, created_at';
+  'id, lead_id, proposed_amount_minor_units, proposed_amount_currency, summary, status, created_by, approved_at, approved_by, created_at';
 
 export function createSupabaseEstimateRepository(
   client: MinimalSupabaseClient,
@@ -80,7 +89,9 @@ export function createSupabaseEstimateRepository(
           proposed_amount_currency: input.proposedAmount.currency,
           summary: input.summary,
           status: 'draft',
+          created_by: input.createdBy ?? null,
           approved_at: null,
+          approved_by: null,
         })
         .select(SELECT_COLUMNS)
         .single();
@@ -91,7 +102,7 @@ export function createSupabaseEstimateRepository(
       return { ok: true, estimate: toEstimate(data as EstimateRow) };
     },
 
-    async approveEstimate(businessId, estimateId) {
+    async approveEstimate(businessId, estimateId, approvedBy) {
       const { data, error } = await client
         .from('estimates')
         .select(SELECT_COLUMNS)
@@ -111,7 +122,7 @@ export function createSupabaseEstimateRepository(
       const approvedAt = new Date().toISOString();
       const { error: updateError } = await client
         .from('estimates')
-        .update({ status: 'approved', approved_at: approvedAt })
+        .update({ status: 'approved', approved_at: approvedAt, approved_by: approvedBy ?? null })
         .eq('id', estimateId)
         .eq('business_id', businessId);
 
@@ -119,7 +130,15 @@ export function createSupabaseEstimateRepository(
         return { ok: false, error: updateError.message ?? 'estimate_approve_failed' };
       }
 
-      return { ok: true, estimate: { ...current, status: 'approved', approvedAt } };
+      return {
+        ok: true,
+        estimate: {
+          ...current,
+          status: 'approved',
+          approvedAt,
+          approvedBy: approvedBy ?? undefined,
+        },
+      };
     },
 
     async getEstimate(businessId, estimateId) {

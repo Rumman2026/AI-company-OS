@@ -244,6 +244,25 @@ MembershipRole[]`, with a fallback to the legacy `memberships.role`
   building the richer widget now would be over-engineering ahead of a
   real need.
 
+**Cluster 17, part 1 (implemented, tested locally) — actor tracking (ADR-0025)**
+
+- Scope: see [DECISIONS.md](DECISIONS.md) ADR-0025. Prerequisite for
+  "filterable by... employee" in the upcoming Activity Timeline
+  (Cluster 17, part 2).
+- Implemented with repository evidence: `Task` gained `createdBy`/
+  `completedBy`; `PhotoAsset` gained `uploadedBy` (and a newly-required
+  `uploadedAt`, matching every other entity's `createdAt` convention);
+  `Estimate` gained `createdBy`/`approvedBy`; `Booking` gained
+  `createdBy` (`packages/db/migrations/012-actor-tracking.sql`). Every
+  `apps/admin-console` API route that creates/completes/approves/
+  uploads one of these now passes the real logged-in user's id through.
+  55/55 `packages/db` tests and 100/100 `packages/core-models` tests
+  still passing.
+- Lint, typecheck, a local production build, and unit tests all pass.
+- **Not done**: migration 012 has not yet been run against production
+  (owner action). Part 2 (`ActivityTimelineRepository` + admin-console
+  UI) is a follow-up commit in this same cluster.
+
 **Growth-system domain contracts (in progress) — `packages/core-models`**
 
 - Scope: a first, provider-neutral coding slice for the GreenCal

@@ -1663,6 +1663,95 @@ repository change.
 
 ---
 
+## ADR-0025: Customer Activity Timeline as a read-time composition, plus actor tracking
+
+**Status**: Confirmed (implemented)
+
+**Context**: The owner directed: "Every customer has a complete
+chronological activity timeline. Every estimate, job, invoice, payment,
+appointment, note, call, SMS, email, review request, review received,
+before/after media upload, technician update, and status change is
+automatically recorded. Timeline entries must be filterable by type,
+employee, and date... Design everything to be reusable across GreenCal
+Auto Detailing and Navarro Builders... Do not fabricate business data."
+Two things were true before this cluster: (1) several event sources
+already existed with real persistence (Estimates, Bookings, Jobs, Notes,
+Tasks, Photos, Lead/Job status changes via `audit_log`), but nowhere
+recorded _which staff member_ performed the action - `Task`/`PhotoAsset`/
+`Estimate`/`Booking` had no actor field at all, which would have made
+"filterable by... employee" impossible for those event types; (2) four
+requested event categories - Invoice, Payment, Call/SMS/Email, and
+Review request/received - have **no persistence anywhere in this
+repository**. `packages/core-models` defines `Invoice`/`Payment`/
+`CallRecord`/`FormSubmission`/`ReviewRequest` types, but no
+`packages/db` repository, no admin-console UI, and no trigger point
+exists for any of them.
+
+**Decision, part 1 (actor tracking)**: `Task` gains `createdBy?`/
+`completedBy?`; `PhotoAsset` gains `uploadedBy?` (and a newly-required
+`uploadedAt`, matching the `createdAt` convention every other
+core-models entity with a creation timestamp already follows -
+`PhotoAsset` was previously the odd one out, like `Contact` still is);
+`Estimate` gains `createdBy?`/`approvedBy?`; `Booking` gains
+`createdBy?`. All additive/optional except `PhotoAsset.uploadedAt`
+(fixed via the existing fixture, no other construction site existed).
+`migrations/012-actor-tracking.sql` adds the matching nullable columns.
+Every `apps/admin-console` API route that creates/completes/approves/
+uploads one of these already has the calling user's id from the
+session (`locals.user.id`) - each now passes it through.
+
+**Decision, part 2 (timeline architecture)**: The Activity Timeline is
+a **read-time composition** (`packages/db`'s new
+`ActivityTimelineRepository.listTimelineForContact()`), not a
+separate write-time event-sourcing table. It queries the existing
+`LeadRepository`/`EstimateRepository`/`BookingRepository`/
+`JobRepository`/`NoteRepository`/`TaskRepository`/`PhotoAssetRepository`/
+`AuditLogRepository` for everything already scoped to a Contact
+(directly, or transitively through that Contact's Leads → Estimates/
+Bookings/Jobs), normalizes each into a common `TimelineEntry` shape
+(`type`, `occurredAt`, `actorId`, `summary`, a link back to the source
+entity), and merge-sorts chronologically. Filtering by type/employee/
+date happens over the normalized, merged list. This was chosen over a
+dedicated `activity_events` write-time table because every source of
+truth already exists and is already correctly tenant-scoped and
+tested - a parallel event-sourcing table would either duplicate that
+data (a second place the same fact can drift out of sync) or require
+every existing repository method to additionally write to it, a much
+larger and riskier change than composing at read time. `TimelineEntryType`
+is deliberately a superset of what's recorded today - it includes
+`invoice-created`, `payment-received`, `call-logged`, `sms-sent`,
+`email-sent`, `review-request-sent`, and `review-received` as real,
+named literal values (satisfying "design everything to be reusable"
+for when those features are built), but **no code path ever produces
+one** - `listTimelineForContact()` honestly returns zero entries of
+those types today, and the admin-console timeline UI documents this
+directly rather than fabricating any. Every underlying repository is
+already generic across businesses (no GreenCal-specific code anywhere
+in the composition), so the timeline is automatically reusable for
+GreenCal Auto Detailing and Navarro Builders the moment either has real
+CRM data.
+
+**Alternatives considered**: A dedicated `activity_events` table
+populated by every write path (classic event-sourcing) - rejected per
+the duplication/consistency-risk reasoning above; may be revisited if
+read-time composition proves too slow at real data volumes (not
+observable from this repository - no production data exists yet).
+Fabricating placeholder Invoice/Payment/Call/SMS/Email/Review records
+so every timeline entry type had at least one example - rejected
+outright; explicitly prohibited by "do not fabricate business data" and
+root `CLAUDE.md`'s "no production mock records."
+
+**Consequences**: `docs/crm/CRM_ARCHITECTURE.md` and
+`packages/db/README.md` gain a section. `apps/admin-console`'s Contact
+detail page gains the timeline view with type/employee/date filters,
+replacing the narrower ad-hoc "Leads" list that only showed Lead
+status, not the full cross-entity history.
+
+**Related**: [ADR-0009](#adr-0009-packagesdb-persistence-engine-and-crm-milestone-1-scope-leadcontact-persistence-for-the-existing-growth-system-domain-model),
+[ADR-0023](#adr-0023-archiverestore-for-contacts-companies-and-leads).
+
+---
+
 ## Proposed decisions (not yet made)
 
 - Service-to-service communication pattern (REST/gRPC/queue) beyond the

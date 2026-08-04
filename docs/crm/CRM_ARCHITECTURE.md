@@ -1,13 +1,14 @@
 # CRM Architecture
 
 Status: durable record of CRM Milestones 1-3 and Clusters 4-8 and
-10-16 (this sprint). See [DECISIONS.md](../../DECISIONS.md) ADR-0009
+10-17 (this sprint). See [DECISIONS.md](../../DECISIONS.md) ADR-0009
 (persistence), ADR-0010 (multi-tenant foundation), ADR-0011
 (admin-console), ADR-0012 (Estimate/Booking/Job), ADR-0014 (Company),
 ADR-0015 (Note), ADR-0016 (Task), ADR-0018 (multi-role memberships),
 ADR-0020 (photos), ADR-0021 (estimate approval), ADR-0022 (audit log
-read access), ADR-0023 (archive/restore), and ADR-0024 (appointments
-view) for the full rationale, and
+read access), ADR-0023 (archive/restore), ADR-0024 (appointments
+view), and ADR-0025 (activity timeline, actor tracking) for the full
+rationale, and
 [`packages/core-models`](../../packages/core-models/README.md) /
 [`packages/db`](../../packages/db/README.md) /
 [`apps/admin-console`](../../apps/admin-console/README.md) for
@@ -290,6 +291,32 @@ DECISIONS.md ADR-0024.
   this repository yet).
 
 **Classification: IMPLEMENTED AND TESTED LOCALLY.**
+
+## Cluster 17: Activity Timeline and actor tracking (in progress)
+
+See DECISIONS.md ADR-0025 for the full rationale. Two parts:
+
+**Part 1 (this commit) - actor tracking**: `Task`/`PhotoAsset`/
+`Estimate`/`Booking` gained `createdBy`/`completedBy`/`uploadedBy`/
+`approvedBy` fields (`migrations/012-actor-tracking.sql`) - a real
+prerequisite gap for "filterable by... employee," since none of these
+four entities previously recorded which staff member performed the
+action. Every `apps/admin-console` API route that creates/completes/
+approves/uploads one of these now passes the calling user's id through.
+
+**Part 2 (follow-up commit) - the timeline itself**: a new
+`ActivityTimelineRepository` will compose the Contact's full history at
+read time from every existing repository (Leads, Estimates, Bookings,
+Jobs, Notes, Tasks, Photos, `audit_log`) rather than a separate
+write-time event table - see the ADR for why. `TimelineEntryType`
+includes Invoice/Payment/Call/SMS/Email/Review-request/Review-received
+as named values for forward compatibility, but no code path produces
+them yet - **no persistence exists anywhere in this repository for
+those four entity categories**, and nothing here fabricates data for
+them.
+
+**Classification: PART 1 IMPLEMENTED AND TESTED LOCALLY.** Migration
+012 has NOT yet been run against production (owner action).
 
 ## What "CRM" means in this repository today
 

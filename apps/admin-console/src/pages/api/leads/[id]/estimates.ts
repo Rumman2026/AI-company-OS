@@ -31,6 +31,7 @@ export const POST: APIRoute = async ({ request, locals, params, redirect }) => {
     leadId: id,
     proposedAmount: createMoney(minorUnits, createCurrencyCode('USD')),
     summary: summary.trim(),
+    createdBy: user.id,
   });
 
   if (!result.ok) {

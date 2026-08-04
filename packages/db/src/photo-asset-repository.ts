@@ -11,6 +11,7 @@ export interface UploadPhotoInput {
   readonly file: Blob;
   readonly filename: string;
   readonly contentType?: string;
+  readonly uploadedBy?: string;
 }
 
 export type UploadPhotoResult = { ok: true; photo: PhotoAsset } | { ok: false; error: string };
@@ -55,6 +56,8 @@ interface PhotoAssetRow {
   publication_status: PhotoAsset['publicationStatus'];
   caption: string | null;
   alt_text_draft: string | null;
+  uploaded_by: string | null;
+  created_at: string;
 }
 
 function toPhotoAsset(row: PhotoAssetRow): PhotoAsset {
@@ -74,11 +77,13 @@ function toPhotoAsset(row: PhotoAssetRow): PhotoAsset {
     publicationStatus: row.publication_status,
     caption: row.caption ?? undefined,
     altTextDraft: row.alt_text_draft ?? undefined,
+    uploadedBy: row.uploaded_by ?? undefined,
+    uploadedAt: row.created_at,
   };
 }
 
 const SELECT_COLUMNS =
-  'id, job_id, kind, private_original_ref, public_derivative_ref, metadata_stripped, gps_data_removed, privacy_review_passed, face_review_passed, license_plate_review_passed, human_publication_approved, publication_consent_granted, publication_status, caption, alt_text_draft';
+  'id, job_id, kind, private_original_ref, public_derivative_ref, metadata_stripped, gps_data_removed, privacy_review_passed, face_review_passed, license_plate_review_passed, human_publication_approved, publication_consent_granted, publication_status, caption, alt_text_draft, uploaded_by, created_at';
 
 export function createSupabasePhotoAssetRepository(
   client: MinimalSupabaseClient,
@@ -108,6 +113,7 @@ export function createSupabasePhotoAssetRepository(
           human_publication_approved: false,
           publication_consent_granted: false,
           publication_status: 'not-published',
+          uploaded_by: input.uploadedBy ?? null,
         })
         .select(SELECT_COLUMNS)
         .single();

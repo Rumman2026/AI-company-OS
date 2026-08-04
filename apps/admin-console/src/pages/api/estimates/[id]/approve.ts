@@ -20,7 +20,7 @@ export const POST: APIRoute = async ({ locals, params, redirect }) => {
   }
   const leadId = estimateResult.estimate.leadId;
 
-  const result = await estimates.approveEstimate(membership.businessId, estimateId);
+  const result = await estimates.approveEstimate(membership.businessId, estimateId, user.id);
   if (!result.ok) {
     return redirect(`/leads/${leadId}?error=${encodeURIComponent(result.error)}`);
   }

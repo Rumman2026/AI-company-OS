@@ -47,7 +47,7 @@ Ordered by urgency.
   additive — the lead pipeline already works without this and will
   keep working identically before and after.
 
-## 3b. Run pending internal-CRM migrations 004-011 (safe, not urgent, run whenever convenient)
+## 3b. Run pending internal-CRM migrations 004-012 (safe, not urgent, run whenever convenient)
 
 - **Screen**: Supabase dashboard → the GreenCal project (`Greencal-production`)
   → SQL Editor. **Different migration chain from item 3 above** - these
@@ -73,7 +73,11 @@ Ordered by urgency.
     approval step to Estimates)
   - `packages/db/migrations/011-archive-support.sql` (adds
     archive/restore for Contacts, Companies, and Leads)
-- **Action**: open each file **in order** (004 through 011) and run its
+  - `packages/db/migrations/012-actor-tracking.sql` (records which
+    staff member created/completed/approved/uploaded a Task, Photo,
+    Estimate, or Booking - needed for the Activity Timeline's
+    "filter by employee")
+- **Action**: open each file **in order** (004 through 012) and run its
   full contents once in the SQL Editor. Each is additive-only (new
   tables, one additive column, or - for 007/008 - new rows only) and
   safe to run against the live production database - no existing table
@@ -92,7 +96,8 @@ Ordered by urgency.
   before/progress/after photo uploads. Running 010 lets Estimates be
   approved before being booked into a Job. Running 011 lets you archive
   (and restore) old Contacts, Companies, and Leads from the default
-  list views without deleting them. The admin-console itself is not yet deployed
+  list views without deleting them. Running 012 lets the upcoming
+  Activity Timeline show which staff member performed each action. The admin-console itself is not yet deployed
   to a live Vercel project (see the "not done" note in
   `docs/crm/CRM_ARCHITECTURE.md`), so this has no live-user-facing
   effect until that deployment also happens.

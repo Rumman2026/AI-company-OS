@@ -19,7 +19,11 @@ export interface Estimate {
   readonly proposedAmount: Money;
   readonly summary: string;
   readonly status: EstimateStatus;
+  /** The actor who created this Estimate - see DECISIONS.md ADR-0025 (activity timeline, employee filtering). */
+  readonly createdBy?: string;
   readonly approvedAt?: string;
+  /** The actor who approved this Estimate. */
+  readonly approvedBy?: string;
   readonly createdAt: string;
 }
 
@@ -29,5 +33,7 @@ export interface Booking {
   readonly estimateId: EstimateId;
   readonly jobId?: JobId;
   readonly scheduledAt: string;
+  /** The actor who created this Booking - see DECISIONS.md ADR-0025 (activity timeline, employee filtering). */
+  readonly createdBy?: string;
   readonly createdAt: string;
 }

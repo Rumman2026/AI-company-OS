@@ -34,6 +34,7 @@ export const POST: APIRoute = async ({ request, locals, params, redirect }) => {
     file,
     filename: file.name,
     contentType: file.type || undefined,
+    uploadedBy: user.id,
   });
 
   if (!result.ok) {
