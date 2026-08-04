@@ -15,7 +15,7 @@ const user = Astro.locals.user!;
 const membership = await getCurrentMembership(Astro.locals.supabase, user.id);
 const { id } = Astro.params;
 
-let company: { id: string; name: string } | null = null;
+let company: { id: string; name: string; archivedAt?: string } | null = null;
 let contacts: Array<{ id: string; displayName: string; phone?: string; email?: string }> = [];
 let notes: Note[] = [];
 let tasks: Task[] = [];
@@ -60,7 +60,20 @@ if (membership && id) {
       </div>
     ) : company ? (
       <>
-        <h1>{company.name}</h1>
+        <h1>
+          {company.name}{' '}
+          {company.archivedAt ? <span class="uikit-badge uikit-badge--neutral">Archived</span> : null}
+        </h1>
+
+        <form
+          method="POST"
+          action={`/api/companies/${company.id}/${company.archivedAt ? 'restore' : 'archive'}`}
+          style="margin-bottom: 1rem;"
+        >
+          <button type="submit" class="uikit-button uikit-button--secondary">
+            {company.archivedAt ? 'Restore company' : 'Archive company'}
+          </button>
+        </form>
 
         <h2>Contacts</h2>
         {contacts.length === 0 ? (

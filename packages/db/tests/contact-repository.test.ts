@@ -195,3 +195,42 @@ test('linkCompany sets company_id on the correct business-scoped contact only', 
   assert.equal(getResult.ok, true);
   if (getResult.ok) assert.equal(getResult.contact.companyId, 'company-1');
 });
+
+test('archiveContact removes a contact from the default list view without deleting it, and restoreContact reverses it', async () => {
+  const { repo, contacts } = setup([
+    {
+      id: 'contact-1',
+      business_id: BUSINESS_A,
+      display_name: 'Jane Doe',
+      phone: '5551234567',
+      email: 'jane@example.com',
+      archived_at: null,
+      created_at: '2025-01-01T00:00:00.000Z',
+    },
+  ]);
+
+  const archiveResult = await repo.archiveContact(BUSINESS_A, 'contact-1');
+  assert.equal(archiveResult.ok, true);
+  assert.ok(contacts.rows[0].archived_at);
+
+  const defaultList = await repo.listContacts(BUSINESS_A);
+  assert.equal(defaultList.ok, true);
+  if (defaultList.ok) {
+    assert.equal(defaultList.contacts.length, 0, 'archived contact must not appear by default');
+  }
+
+  const withArchived = await repo.listContacts(BUSINESS_A, { includeArchived: true });
+  assert.equal(withArchived.ok, true);
+  if (withArchived.ok) assert.equal(withArchived.contacts.length, 1);
+
+  const stillFetchable = await repo.getContact(BUSINESS_A, 'contact-1');
+  assert.equal(stillFetchable.ok, true, 'archiving must not delete the record');
+
+  const restoreResult = await repo.restoreContact(BUSINESS_A, 'contact-1');
+  assert.equal(restoreResult.ok, true);
+  assert.equal(contacts.rows[0].archived_at, null);
+
+  const afterRestore = await repo.listContacts(BUSINESS_A);
+  assert.equal(afterRestore.ok, true);
+  if (afterRestore.ok) assert.equal(afterRestore.contacts.length, 1);
+});

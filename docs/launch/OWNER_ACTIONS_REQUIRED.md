@@ -47,7 +47,7 @@ Ordered by urgency.
   additive — the lead pipeline already works without this and will
   keep working identically before and after.
 
-## 3b. Run pending internal-CRM migrations 004-010 (safe, not urgent, run whenever convenient)
+## 3b. Run pending internal-CRM migrations 004-011 (safe, not urgent, run whenever convenient)
 
 - **Screen**: Supabase dashboard → the GreenCal project (`Greencal-production`)
   → SQL Editor. **Different migration chain from item 3 above** - these
@@ -71,7 +71,9 @@ Ordered by urgency.
     after job photo storage - creates a private Storage bucket)
   - `packages/db/migrations/010-estimate-approval.sql` (adds an
     approval step to Estimates)
-- **Action**: open each file **in order** (004 through 010) and run its
+  - `packages/db/migrations/011-archive-support.sql` (adds
+    archive/restore for Contacts, Companies, and Leads)
+- **Action**: open each file **in order** (004 through 011) and run its
   full contents once in the SQL Editor. Each is additive-only (new
   tables, one additive column, or - for 007/008 - new rows only) and
   safe to run against the live production database - no existing table
@@ -88,7 +90,9 @@ Ordered by urgency.
   linked to either yet; that is a separate future action once you're
   ready to onboard them). Running 009 lets Job detail pages accept
   before/progress/after photo uploads. Running 010 lets Estimates be
-  approved before being booked into a Job. The admin-console itself is not yet deployed
+  approved before being booked into a Job. Running 011 lets you archive
+  (and restore) old Contacts, Companies, and Leads from the default
+  list views without deleting them. The admin-console itself is not yet deployed
   to a live Vercel project (see the "not done" note in
   `docs/crm/CRM_ARCHITECTURE.md`), so this has no live-user-facing
   effect until that deployment also happens.

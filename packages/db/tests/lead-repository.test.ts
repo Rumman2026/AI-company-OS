@@ -228,6 +228,45 @@ test('transitionLeadStatusForRoles rejects and never writes when none of the sup
   assert.equal(records.length, 0);
 });
 
+test('archiveLead removes a lead from the default list view without changing its status, and restoreLead reverses it', async () => {
+  const { repo, leads } = setup([
+    {
+      id: 'lead-1',
+      business_id: BUSINESS_A,
+      contact_id: 'contact-1',
+      status: 'qualified',
+      attribution: fixtureAttribution,
+      duplicate_of_lead_id: null,
+      archived_at: null,
+      created_at: '2026-01-01T00:00:00.000Z',
+    },
+  ]);
+
+  const archiveResult = await repo.archiveLead(BUSINESS_A, 'lead-1');
+  assert.equal(archiveResult.ok, true);
+  assert.ok(leads.rows[0].archived_at);
+  assert.equal(
+    leads.rows[0].status,
+    'qualified',
+    'archiving must never change the pipeline status',
+  );
+
+  const defaultList = await repo.listLeads(BUSINESS_A);
+  assert.equal(defaultList.ok, true);
+  if (defaultList.ok) assert.equal(defaultList.leads.length, 0);
+
+  const withArchived = await repo.listLeads(BUSINESS_A, { includeArchived: true });
+  assert.equal(withArchived.ok, true);
+  if (withArchived.ok) {
+    assert.equal(withArchived.leads.length, 1);
+    assert.equal(withArchived.leads[0].status, 'qualified');
+  }
+
+  const restoreResult = await repo.restoreLead(BUSINESS_A, 'lead-1');
+  assert.equal(restoreResult.ok, true);
+  assert.equal(leads.rows[0].archived_at, null);
+});
+
 test('a non-existent lead id is reported as a typed error', async () => {
   const { repo } = setup([]);
 

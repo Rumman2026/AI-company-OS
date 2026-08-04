@@ -9,8 +9,9 @@ const user = Astro.locals.user!;
 const membership = await getCurrentMembership(Astro.locals.supabase, user.id);
 
 const statusFilter = Astro.url.searchParams.get('status') as LeadStatus | null;
+const includeArchived = Astro.url.searchParams.get('includeArchived') === '1';
 
-let leads: Array<{ id: string; status: LeadStatus; createdAt: string }> = [];
+let leads: Array<{ id: string; status: LeadStatus; createdAt: string; archivedAt?: string }> = [];
 let loadError: string | null = null;
 
 if (membership) {
@@ -18,9 +19,15 @@ if (membership) {
   const leadRepo = createSupabaseLeadRepository(Astro.locals.supabase, auditLog);
   const result = await leadRepo.listLeads(membership.businessId, {
     status: statusFilter ?? undefined,
+    includeArchived,
   });
   if (result.ok) {
-    leads = result.leads.map((l) => ({ id: l.id, status: l.status, createdAt: l.createdAt }));
+    leads = result.leads.map((l) => ({
+      id: l.id,
+      status: l.status,
+      createdAt: l.createdAt,
+      archivedAt: l.archivedAt,
+    }));
   } else {
     loadError = result.error;
   }
@@ -47,7 +54,7 @@ const ALL_STATUSES: LeadStatus[] = [
   <form method="GET" style="margin-bottom: 1rem; max-width: 240px;">
     <div class="uikit-form-field">
       <label for="status">Filter by status</label>
-      <select id="status" name="status" onchange="this.form.submit()">
+      <select id="status" name="status">
         <option value="">All statuses</option>
         {
           ALL_STATUSES.map((status) => (
@@ -58,6 +65,11 @@ const ALL_STATUSES: LeadStatus[] = [
         }
       </select>
     </div>
+    <label style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 1rem;">
+      <input type="checkbox" name="includeArchived" value="1" checked={includeArchived} />
+      Show archived
+    </label>
+    <button type="submit" class="uikit-button uikit-button--secondary">Filter</button>
   </form>
 
   {
@@ -81,6 +93,7 @@ const ALL_STATUSES: LeadStatus[] = [
             <tr>
               <th>Status</th>
               <th>Created</th>
+              <th>Archived</th>
               <th />
             </tr>
           </thead>
@@ -93,6 +106,13 @@ const ALL_STATUSES: LeadStatus[] = [
                   </span>
                 </td>
                 <td>{new Date(lead.createdAt).toLocaleString()}</td>
+                <td>
+                  {lead.archivedAt ? (
+                    <span class="uikit-badge uikit-badge--neutral">Archived</span>
+                  ) : (
+                    '—'
+                  )}
+                </td>
                 <td>
                   <a href={`/leads/${lead.id}`}>View</a>
                 </td>

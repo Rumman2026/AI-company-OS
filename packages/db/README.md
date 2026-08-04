@@ -123,15 +123,25 @@ from `draft` to `approved`. See DECISIONS.md ADR-0021.
 `AuditLogRepository.listAuditRecords()` - no schema change; the RLS
 policy making this safe already existed. See DECISIONS.md ADR-0022.
 
+## Cluster 15: Archive/restore for Contacts, Companies, and Leads
+
+`migrations/011-archive-support.sql` adds `archived_at` to `contacts`/
+`companies`/`leads` only (not Estimates/Bookings/Jobs, which already
+have terminal statuses for the same purpose). `ArchivableContact`/
+`ArchivableCompany`/`ArchivableLead` (packages/db-layer intersection
+types, not core-models changes) and `archiveX()`/`restoreX()` methods;
+every `listX()` gains `includeArchived` (default `false`). See
+DECISIONS.md ADR-0023.
+
 ## What is deliberately excluded
 
 An authenticated owner interface for Bookings (every other listed
-entity now has one), full RBAC UI, search/filtering/CSV export/
-reporting, and any automated media-processing pipeline (EXIF stripping,
-GPS removal, face/plate detection, human review). GreenCal Mobile
-Detailing and Navarro Builders are not onboarded as real tenants - only
-the schema's capacity to support them exists. See
-`docs/crm/CRM_ARCHITECTURE.md` for the full status breakdown.
+entity now has one), full RBAC UI, CSV export/reporting, and any
+automated media-processing pipeline (EXIF stripping, GPS removal,
+face/plate detection, human review). GreenCal Mobile Detailing and
+Navarro Builders are not onboarded as real tenants - only the schema's
+capacity to support them exists. See `docs/crm/CRM_ARCHITECTURE.md` for
+the full status breakdown.
 
 ## Security model
 

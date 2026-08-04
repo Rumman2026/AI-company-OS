@@ -1576,6 +1576,54 @@ implemented directly.
 
 ---
 
+## ADR-0023: Archive/restore for Contacts, Companies, and Leads
+
+**Status**: Confirmed (implemented)
+
+**Context**: The owner's directive requires every admin-console module
+to support "Archive... Restore where appropriate." No entity in this
+repository had any archive concept - a mistaken or stale Contact/
+Company/Lead could only ever be edited, never removed from the default
+list view without deletion (which does not exist either, deliberately -
+CRM records are never hard-deleted).
+
+**Decision**: `archived_at` (nullable timestamp) is added to `contacts`,
+`companies`, and `leads` - deliberately **not** added to `estimates`/
+`bookings`/`jobs`, which already have workflow-driven terminal statuses
+(`lost`/`canceled`/`completed`) serving the same "no longer active"
+purpose; adding a second, parallel "inactive" concept to those would be
+confusing, not clarifying. `archived_at` is treated as a pure list-
+visibility/administrative concern, not a `packages/core-models` domain
+concept - it lives entirely in `packages/db` via a new
+`Archivable{Contact,Company,Lead}` interface (`Entity & { archivedAt?:
+string }`) rather than a change to the domain type itself, so
+`core-models` stays free of a concern its own state machines (Lead's in
+particular) have no reason to know about. Archiving a Lead **never**
+changes its pipeline `status` - the two are orthogonal; a `qualified`
+Lead can be archived and later restored still `qualified`. Every
+`listX()` method gains an `includeArchived` option, defaulting to
+`false` (archived records are excluded from the default view, never
+deleted or hidden from direct lookup by id). `apps/admin-console` gains
+a "Show archived" checkbox on each list page and an Archive/Restore
+button on each detail page.
+
+**Alternatives considered**: Adding `archivedAt` to the `core-models`
+domain types directly (`Contact`/`Company`/`Lead`) - rejected in favor
+of the `packages/db`-layer intersection type, since whether a record is
+hidden from a staff list view is not a fact about the entity's own
+meaning the way `Lead.status` is; keeping it out of `core-models` also
+sidesteps `Contact`'s existing inconsistency (it has no `createdAt` in
+`core-models` either, unlike `Company`/`Lead`) rather than deepening it
+further. Adding archive support to Estimates/Bookings/Jobs too -
+rejected per the terminal-status reasoning above.
+
+**Consequences**: `docs/crm/CRM_ARCHITECTURE.md` and
+`packages/db/README.md` gain a section.
+
+**Related**: [ADR-0014](#adr-0014-company-persistence-and-contactcompany-linking-crm-cluster-6).
+
+---
+
 ## Proposed decisions (not yet made)
 
 - Service-to-service communication pattern (REST/gRPC/queue) beyond the

@@ -14,32 +14,41 @@ export type { MinimalSupabaseClient } from './supabase-client';
 export { createSupabaseContactRepository } from './contact-repository';
 export type {
   ContactRepository,
+  ArchivableContact,
   FindOrCreateContactInput,
   FindOrCreateContactResult,
   GetContactResult,
   ListContactsResult,
   ListContactsOptions,
   LinkCompanyResult,
+  ArchiveContactResult,
+  RestoreContactResult,
 } from './contact-repository';
 
 export { createSupabaseCompanyRepository } from './company-repository';
 export type {
   CompanyRepository,
+  ArchivableCompany,
   CreateCompanyInput,
   CreateCompanyResult,
   GetCompanyResult,
   ListCompaniesResult,
   ListCompaniesOptions,
+  ArchiveCompanyResult,
+  RestoreCompanyResult,
 } from './company-repository';
 
 export { createSupabaseLeadRepository } from './lead-repository';
 export type {
   LeadRepository,
+  ArchivableLead,
   CreateLeadResult,
   TransitionLeadResult,
   GetLeadResult,
   ListLeadsResult,
   ListLeadsOptions,
+  ArchiveLeadResult,
+  RestoreLeadResult,
 } from './lead-repository';
 
 export { createSupabaseAuditLogRepository } from './audit-log-repository';

@@ -35,7 +35,13 @@ const ALL_STATUSES: LeadStatus[] = [
   'duplicate',
 ];
 
-let lead: { id: string; status: LeadStatus; createdAt: string; contactId: string } | null = null;
+let lead: {
+  id: string;
+  status: LeadStatus;
+  createdAt: string;
+  contactId: string;
+  archivedAt?: string;
+} | null = null;
 let contactName: string | null = null;
 let notFound = false;
 let loadError: string | null = null;
@@ -65,6 +71,7 @@ if (membership && id) {
       status: result.lead.status,
       createdAt: result.lead.createdAt,
       contactId: result.lead.contactId,
+      archivedAt: result.lead.archivedAt,
     };
     const contacts = createSupabaseContactRepository(Astro.locals.supabase);
     const contactResult = await contacts.getContact(membership.businessId, lead.contactId);
@@ -115,7 +122,8 @@ if (membership && id) {
     ) : lead ? (
       <>
         <h1>
-          Lead <span class={`uikit-badge uikit-badge--${leadStatusTone(lead.status)}`}>{lead.status}</span>
+          Lead <span class={`uikit-badge uikit-badge--${leadStatusTone(lead.status)}`}>{lead.status}</span>{' '}
+          {lead.archivedAt ? <span class="uikit-badge uikit-badge--neutral">Archived</span> : null}
         </h1>
         <dl>
           <dt>Contact</dt>
@@ -123,6 +131,16 @@ if (membership && id) {
           <dt>Created</dt>
           <dd>{new Date(lead.createdAt).toLocaleString()}</dd>
         </dl>
+
+        <form
+          method="POST"
+          action={`/api/leads/${lead.id}/${lead.archivedAt ? 'restore' : 'archive'}`}
+          style="margin-bottom: 1rem;"
+        >
+          <button type="submit" class="uikit-button uikit-button--secondary">
+            {lead.archivedAt ? 'Restore lead' : 'Archive lead'}
+          </button>
+        </form>
 
         {transitionError ? (
           <div class="uikit-error-banner" role="alert">

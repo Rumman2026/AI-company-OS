@@ -25,6 +25,7 @@ let contact: {
   phone?: string;
   email?: string;
   companyId?: CompanyId;
+  archivedAt?: string;
 } | null = null;
 let leads: Array<{ id: string; status: LeadStatus; createdAt: string }> = [];
 let companyName: string | null = null;
@@ -84,7 +85,10 @@ if (membership && id) {
       </div>
     ) : contact ? (
       <>
-        <h1>{contact.displayName}</h1>
+        <h1>
+          {contact.displayName}{' '}
+          {contact.archivedAt ? <span class="uikit-badge uikit-badge--neutral">Archived</span> : null}
+        </h1>
         <dl>
           <dt>Phone</dt>
           <dd>{contact.phone ?? '—'}</dd>
@@ -95,6 +99,16 @@ if (membership && id) {
             {companyName ? <a href={`/companies/${contact.companyId}`}>{companyName}</a> : '—'}
           </dd>
         </dl>
+
+        <form
+          method="POST"
+          action={`/api/contacts/${contact.id}/${contact.archivedAt ? 'restore' : 'archive'}`}
+          style="margin-bottom: 1rem;"
+        >
+          <button type="submit" class="uikit-button uikit-button--secondary">
+            {contact.archivedAt ? 'Restore contact' : 'Archive contact'}
+          </button>
+        </form>
 
         {linkError ? (
           <div class="uikit-error-banner" role="alert">

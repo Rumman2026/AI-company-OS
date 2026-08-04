@@ -209,6 +209,25 @@ MembershipRole[]`, with a fallback to the legacy `memberships.role`
   gains an `/audit-log` page with an entity-type filter.
 - Lint, typecheck, a local production build, and unit tests all pass.
 
+**Cluster 15 (implemented, tested locally) — Archive/restore for Contacts, Companies, Leads (ADR-0023)**
+
+- Scope: see [DECISIONS.md](DECISIONS.md) ADR-0023. Closes the
+  "Archive... Restore where appropriate" gap named for every
+  admin-console module in the owner's directive.
+- Implemented with repository evidence: `archived_at`
+  (`packages/db/migrations/011-archive-support.sql`) on `contacts`/
+  `companies`/`leads` only; `Archivable{Contact,Company,Lead}`
+  (packages/db-layer intersection types, not core-models changes);
+  `archiveX()`/`restoreX()` methods; every `listX()` gains
+  `includeArchived` (55/55 `packages/db` tests passing total).
+  `apps/admin-console`: "Show archived" checkbox on each list page,
+  Archive/Restore button on each detail page.
+- Lint, typecheck, a local production build, and unit tests all pass.
+- **Not done**: migration 011 has not yet been run against production
+  (owner action). Archive/restore not added to Estimates/Bookings/Jobs
+  (already have terminal statuses serving the same purpose - see the
+  ADR).
+
 **Growth-system domain contracts (in progress) — `packages/core-models`**
 
 - Scope: a first, provider-neutral coding slice for the GreenCal

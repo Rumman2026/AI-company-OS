@@ -78,3 +78,32 @@ test("listCompanies returns only the calling business's companies, and supports 
     assert.equal(searched.companies[0].id, 'company-1');
   }
 });
+
+test('archiveCompany removes a company from the default list view without deleting it, and restoreCompany reverses it', async () => {
+  const { repo, companies } = setup([
+    {
+      id: 'company-1',
+      business_id: BUSINESS_A,
+      name: 'Acme HOA',
+      primary_contact_id: null,
+      archived_at: null,
+      created_at: '2026-01-01T00:00:00.000Z',
+    },
+  ]);
+
+  const archiveResult = await repo.archiveCompany(BUSINESS_A, 'company-1');
+  assert.equal(archiveResult.ok, true);
+  assert.ok(companies.rows[0].archived_at);
+
+  const defaultList = await repo.listCompanies(BUSINESS_A);
+  assert.equal(defaultList.ok, true);
+  if (defaultList.ok) assert.equal(defaultList.companies.length, 0);
+
+  const withArchived = await repo.listCompanies(BUSINESS_A, { includeArchived: true });
+  assert.equal(withArchived.ok, true);
+  if (withArchived.ok) assert.equal(withArchived.companies.length, 1);
+
+  const restoreResult = await repo.restoreCompany(BUSINESS_A, 'company-1');
+  assert.equal(restoreResult.ok, true);
+  assert.equal(companies.rows[0].archived_at, null);
+});

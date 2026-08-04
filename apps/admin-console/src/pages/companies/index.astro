@@ -6,14 +6,18 @@ import { createSupabaseCompanyRepository } from '@ai-company-os/db';
 const user = Astro.locals.user!;
 const membership = await getCurrentMembership(Astro.locals.supabase, user.id);
 const search = Astro.url.searchParams.get('q') ?? '';
+const includeArchived = Astro.url.searchParams.get('includeArchived') === '1';
 const createError = Astro.url.searchParams.get('error');
 
-let companies: Array<{ id: string; name: string }> = [];
+let companies: Array<{ id: string; name: string; archivedAt?: string }> = [];
 let loadError: string | null = null;
 
 if (membership) {
   const companyRepo = createSupabaseCompanyRepository(Astro.locals.supabase);
-  const result = await companyRepo.listCompanies(membership.businessId, { search: search || undefined });
+  const result = await companyRepo.listCompanies(membership.businessId, {
+    search: search || undefined,
+    includeArchived,
+  });
   if (result.ok) {
     companies = result.companies;
   } else {
@@ -30,6 +34,10 @@ if (membership) {
       <label for="q">Search by name</label>
       <input id="q" name="q" type="search" value={search} />
     </div>
+    <label style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 1rem;">
+      <input type="checkbox" name="includeArchived" value="1" checked={includeArchived} />
+      Show archived
+    </label>
     <button type="submit" class="uikit-button uikit-button--secondary">Search</button>
   </form>
 
@@ -61,6 +69,7 @@ if (membership) {
           <thead>
             <tr>
               <th>Name</th>
+              <th>Status</th>
               <th />
             </tr>
           </thead>
@@ -68,6 +77,13 @@ if (membership) {
             {companies.map((company) => (
               <tr>
                 <td>{company.name}</td>
+                <td>
+                  {company.archivedAt ? (
+                    <span class="uikit-badge uikit-badge--neutral">Archived</span>
+                  ) : (
+                    '—'
+                  )}
+                </td>
                 <td>
                   <a href={`/companies/${company.id}`}>View</a>
                 </td>

@@ -49,6 +49,10 @@ export function createFakeSupabaseClient(tables: Record<string, FakeTable>) {
         filtered = filtered.filter((r) => String(r[col]) === String(value));
         return chain;
       },
+      is(col: string, value: null | boolean) {
+        filtered = filtered.filter((r) => (r[col] ?? null) === value);
+        return chain;
+      },
       or(filter: string) {
         const conditions = parseOrFilter(filter);
         filtered = filtered.filter((r) => conditions.some((c) => String(r[c.col]) === c.value));

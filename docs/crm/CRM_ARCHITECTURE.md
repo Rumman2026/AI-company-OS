@@ -1,12 +1,12 @@
 # CRM Architecture
 
 Status: durable record of CRM Milestones 1-3 and Clusters 4-8 and
-10-14 (this sprint). See [DECISIONS.md](../../DECISIONS.md) ADR-0009
+10-15 (this sprint). See [DECISIONS.md](../../DECISIONS.md) ADR-0009
 (persistence), ADR-0010 (multi-tenant foundation), ADR-0011
 (admin-console), ADR-0012 (Estimate/Booking/Job), ADR-0014 (Company),
 ADR-0015 (Note), ADR-0016 (Task), ADR-0018 (multi-role memberships),
-ADR-0020 (photos), ADR-0021 (estimate approval), and ADR-0022 (audit
-log read access) for the full rationale, and
+ADR-0020 (photos), ADR-0021 (estimate approval), ADR-0022 (audit log
+read access), and ADR-0023 (archive/restore) for the full rationale, and
 [`packages/core-models`](../../packages/core-models/README.md) /
 [`packages/db`](../../packages/db/README.md) /
 [`apps/admin-console`](../../apps/admin-console/README.md) for
@@ -252,6 +252,26 @@ ADR-0022.
   filter and links back to the Lead/Job each record concerns.
 
 **Classification: IMPLEMENTED AND TESTED LOCALLY.**
+
+## Cluster 15: Archive/restore for Contacts, Companies, and Leads
+
+Closes the "Archive... Restore where appropriate" gap. See DECISIONS.md
+ADR-0023.
+
+- `archived_at` (nullable, `migrations/011-archive-support.sql`) on
+  `contacts`/`companies`/`leads` only - deliberately not on Estimates/
+  Bookings/Jobs, which already have terminal statuses serving the same
+  purpose.
+- `packages/db`-layer only: a new `Archivable{Contact,Company,Lead}`
+  intersection type, not a `core-models` change. Archiving a Lead never
+  changes its pipeline `status` - the two are orthogonal.
+- Every `listX()` method gains `includeArchived` (default `false`).
+- `apps/admin-console`: "Show archived" checkbox on each list page,
+  Archive/Restore button on each detail page.
+
+**Classification: IMPLEMENTED AND TESTED LOCALLY.** 55/55
+`packages/db` tests passing. Migration 011 has NOT yet been run against
+production (owner action).
 
 ## What "CRM" means in this repository today
 

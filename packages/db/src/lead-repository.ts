@@ -13,19 +13,28 @@ import {
 import type { MinimalSupabaseClient } from './supabase-client';
 import type { AuditLogRepository } from './audit-log-repository';
 
-export type CreateLeadResult = { ok: true; lead: Lead } | { ok: false; error: string };
+/** See DECISIONS.md ADR-0023 - archived_at is a packages/db-layer concern, not a core-models one. */
+export interface ArchivableLead extends Lead {
+  readonly archivedAt?: string;
+}
+
+export type CreateLeadResult = { ok: true; lead: ArchivableLead } | { ok: false; error: string };
 
 export type TransitionLeadResult =
   { ok: true; result: TransitionResult<LeadStatus, Lead> } | { ok: false; error: string };
 
-export type GetLeadResult = { ok: true; lead: Lead } | { ok: false; error: string };
-export type ListLeadsResult = { ok: true; leads: Lead[] } | { ok: false; error: string };
+export type GetLeadResult = { ok: true; lead: ArchivableLead } | { ok: false; error: string };
+export type ListLeadsResult = { ok: true; leads: ArchivableLead[] } | { ok: false; error: string };
+export type ArchiveLeadResult = { ok: true } | { ok: false; error: string };
+export type RestoreLeadResult = { ok: true } | { ok: false; error: string };
 
 export interface ListLeadsOptions {
   readonly status?: LeadStatus;
   readonly contactId?: string;
   readonly limit?: number;
   readonly offset?: number;
+  /** Excluded from the default list unless true - see DECISIONS.md ADR-0023. */
+  readonly includeArchived?: boolean;
 }
 
 export interface LeadRepository {
@@ -73,8 +82,14 @@ export interface LeadRepository {
   ): Promise<TransitionLeadResult>;
   /** A single Lead, scoped to `businessId`. */
   getLead(businessId: string, leadId: string): Promise<GetLeadResult>;
-  /** Every Lead for `businessId`, most recent first, optionally filtered by status. */
+  /** Every non-archived Lead for `businessId` by default, most recent first, optionally filtered by status. */
   listLeads(businessId: string, options?: ListLeadsOptions): Promise<ListLeadsResult>;
+  /**
+   * Removes this Lead from the default list view - does not delete it
+   * or change its pipeline `status`.
+   */
+  archiveLead(businessId: string, leadId: string): Promise<ArchiveLeadResult>;
+  restoreLead(businessId: string, leadId: string): Promise<RestoreLeadResult>;
 }
 
 interface LeadRow {
@@ -83,10 +98,11 @@ interface LeadRow {
   status: LeadStatus;
   attribution: LeadAttribution;
   duplicate_of_lead_id: string | null;
+  archived_at: string | null;
   created_at: string;
 }
 
-function toLead(row: LeadRow): Lead {
+function toLead(row: LeadRow): ArchivableLead {
   return {
     id: createLeadId(row.id),
     contactId: row.contact_id as ContactId,
@@ -95,9 +111,13 @@ function toLead(row: LeadRow): Lead {
     duplicateOfLeadId: row.duplicate_of_lead_id
       ? createLeadId(row.duplicate_of_lead_id)
       : undefined,
+    archivedAt: row.archived_at ?? undefined,
     createdAt: row.created_at,
   };
 }
+
+const SELECT_COLUMNS =
+  'id, contact_id, status, attribution, duplicate_of_lead_id, archived_at, created_at';
 
 export function createSupabaseLeadRepository(
   client: MinimalSupabaseClient,
@@ -108,7 +128,7 @@ export function createSupabaseLeadRepository(
       const { data, error } = await client
         .from('leads')
         .insert({ business_id: businessId, contact_id: contactId, status: 'new', attribution })
-        .select('id, contact_id, status, attribution, duplicate_of_lead_id, created_at')
+        .select(SELECT_COLUMNS)
         .single();
 
       if (error || !data) {
@@ -120,7 +140,7 @@ export function createSupabaseLeadRepository(
     async transitionLeadStatus(businessId, leadId, requestedStatus, context) {
       const { data, error } = await client
         .from('leads')
-        .select('id, contact_id, status, attribution, duplicate_of_lead_id, created_at')
+        .select(SELECT_COLUMNS)
         .eq('id', leadId)
         .eq('business_id', businessId)
         .single();
@@ -160,7 +180,7 @@ export function createSupabaseLeadRepository(
     ) {
       const { data, error } = await client
         .from('leads')
-        .select('id, contact_id, status, attribution, duplicate_of_lead_id, created_at')
+        .select(SELECT_COLUMNS)
         .eq('id', leadId)
         .eq('business_id', businessId)
         .single();
@@ -198,7 +218,7 @@ export function createSupabaseLeadRepository(
     async getLead(businessId, leadId) {
       const { data, error } = await client
         .from('leads')
-        .select('id, contact_id, status, attribution, duplicate_of_lead_id, created_at')
+        .select(SELECT_COLUMNS)
         .eq('id', leadId)
         .eq('business_id', businessId)
         .single();
@@ -212,12 +232,13 @@ export function createSupabaseLeadRepository(
     async listLeads(businessId, options = {}) {
       let query = client
         .from('leads')
-        .select('id, contact_id, status, attribution, duplicate_of_lead_id, created_at')
+        .select(SELECT_COLUMNS)
         .eq('business_id', businessId)
         .order('created_at', { ascending: false });
 
       if (options.status) query = query.eq('status', options.status);
       if (options.contactId) query = query.eq('contact_id', options.contactId);
+      if (!options.includeArchived) query = query.is('archived_at', null);
       if (typeof options.limit === 'number') {
         const from = options.offset ?? 0;
         query = query.range(from, from + options.limit - 1);
@@ -229,6 +250,32 @@ export function createSupabaseLeadRepository(
         return { ok: false, error: error?.message ?? 'lead_list_failed' };
       }
       return { ok: true, leads: (data as LeadRow[]).map(toLead) };
+    },
+
+    async archiveLead(businessId, leadId) {
+      const { error } = await client
+        .from('leads')
+        .update({ archived_at: new Date().toISOString() })
+        .eq('id', leadId)
+        .eq('business_id', businessId);
+
+      if (error) {
+        return { ok: false, error: error.message ?? 'lead_archive_failed' };
+      }
+      return { ok: true };
+    },
+
+    async restoreLead(businessId, leadId) {
+      const { error } = await client
+        .from('leads')
+        .update({ archived_at: null })
+        .eq('id', leadId)
+        .eq('business_id', businessId);
+
+      if (error) {
+        return { ok: false, error: error.message ?? 'lead_restore_failed' };
+      }
+      return { ok: true };
     },
   };
 }
