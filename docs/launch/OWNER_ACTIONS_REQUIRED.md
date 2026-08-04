@@ -3,41 +3,32 @@
 Status: the concise, actionable list — see individual docs for detail.
 Ordered by urgency.
 
-## 0. URGENT — run migration 026 to fix the broken admin-console login
+## 0. RESOLVED — admin-console login incident (migrations 024-026)
 
-- **Screen**: Supabase dashboard → the GreenCal project
-  (`Greencal-production`) → SQL Editor.
-- **What happened**: after migration 022, admin-console login broke
-  with "Your account has no business membership yet" for every user.
-  Three migrations were needed to fully resolve it:
+- **Status**: fully resolved and owner-verified. After migration 022,
+  admin-console login broke with "Your account has no business
+  membership yet" for every user. Three migrations, all confirmed run
+  against `Greencal-production`, were needed:
   - `packages/db/migrations/024-fix-membership-rls-recursion.sql` -
-    **confirmed run** - fixed a real Postgres RLS bug (`42P17`,
-    infinite recursion) in two of migration 022's policies. See
-    DECISIONS.md ADR-0035.
+    fixed a real Postgres RLS bug (`42P17`, infinite recursion) in two
+    of migration 022's policies. See DECISIONS.md ADR-0035.
   - `packages/db/migrations/025-restore-memberships-select-grant.sql` -
-    **confirmed run** - fixed a second, unrelated issue: `42501`,
-    "permission denied for table memberships" - a missing base
-    table-level `SELECT` grant for `authenticated` (a different
-    privilege layer from RLS, evaluated before RLS policies ever run).
-    See DECISIONS.md ADR-0036.
+    fixed a second, unrelated issue: `42501`, "permission denied for
+    table memberships" - a missing base table-level `SELECT` grant for
+    `authenticated` (a different privilege layer from RLS, evaluated
+    before RLS policies ever run). See DECISIONS.md ADR-0036.
   - `packages/db/migrations/026-restore-membership-roles-select-grant.sql` -
     the identical `42501` issue recurred one table further into the
-    same query, this time for `membership_roles`. Same fix, same
-    reasoning. See DECISIONS.md ADR-0036's addendum.
-    None of these are code bugs and none are fixable by redeploying -
-    each can only be fixed by running its corrective SQL migration.
-- **Action**: if you haven't already, run 024 and 025, then run
-  `packages/db/migrations/026-restore-membership-roles-select-grant.sql`
-  once, in full. Safe to run against production - a single additive
-  `grant select on public.membership_roles to authenticated;` plus a
-  read-only verification query. Does not disable or alter RLS.
-- **Expected result**: `getCurrentMembership()` resolves correctly
-  again and the admin-console dashboard loads. Verify by opening
-  `/api/debug/membership` (while logged in) - it should return your
-  real membership data instead of any error. Once confirmed working,
-  tell me and I'll remove that temporary diagnostic route and the
-  verbose logging added while investigating this (both currently
-  harmless but not meant to be permanent).
+    same query, for `membership_roles`. Same fix, same reasoning.
+- **Verified**: `/api/debug/membership` returned real membership data
+  (business `GreenCal Pressure Washing`, roles
+  `owner-admin`/`office-manager`) with no error, and the dashboard
+  loads normally. The temporary diagnostic route
+  (`apps/admin-console/src/pages/api/debug/membership.ts`) and the
+  investigative logging added while chasing this have been removed;
+  only the permanent error-path logging improvement in
+  `getCurrentMembership()` remains. No action needed - kept for
+  reference only.
 
 ## 1. Prevent Supabase auto-pause from silently killing lead capture (urgent)
 

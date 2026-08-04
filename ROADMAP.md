@@ -524,29 +524,41 @@ MembershipRole[]`, with a fallback to the legacy `memberships.role`
 - Migration 023 has not yet been run against production (owner
   action).
 
-**Post-launch fix (SQL written, not yet verified live) — infinite RLS recursion on memberships/membership_roles (ADR-0035)**
+**Post-launch fix (CONFIRMED LIVE) — infinite RLS recursion + missing table grants on memberships/membership_roles (ADR-0035, ADR-0036)**
 
-- Scope: see [DECISIONS.md](DECISIONS.md) ADR-0035. A real production
-  incident, diagnosed live against the deployed admin-console (Postgres
-  `42P17`, "infinite recursion detected in policy for relation
-  memberships") - not a code bug, a real gap in two of migration 022's
-  RLS policies that were self-referential (a policy on table T whose
-  own subquery also queries T). Broke nearly the entire app, since
-  almost every other table's RLS resolves the caller's business via
-  `memberships`.
-- Fix: `migrations/024-fix-membership-rls-recursion.sql` adds two new
-  `SECURITY DEFINER` helper functions (`get_my_business_ids()`,
-  `is_owner_admin_for_business()`) - the first custom Postgres
-  functions in this schema - and replaces the four broken policies'
-  subqueries with calls to them, preserving the exact authorization
-  model ADR-0032 intended without the recursion. This ADR also formally
-  corrects ADR-0032's flawed reasoning about why the original policy
-  pairing was believed safe.
-- **Not yet done**: migration 024 has not been run against production;
-  the temporary diagnostic route
-  (`apps/admin-console/src/pages/api/debug/membership.ts`) and verbose
-  `getCurrentMembership()` logging added while investigating this
-  incident should be removed once the fix is confirmed live.
+- Scope: see [DECISIONS.md](DECISIONS.md) ADR-0035 and ADR-0036. A real
+  production incident, diagnosed live against the deployed
+  admin-console via a temporary debug endpoint, in three parts:
+  1. Postgres `42P17`, "infinite recursion detected in policy for
+     relation memberships" - not a code bug, a real gap in two of
+     migration 022's RLS policies that were self-referential (a policy
+     on table T whose own subquery also queries T). Broke nearly the
+     entire app, since almost every other table's RLS resolves the
+     caller's business via `memberships`. Fixed by
+     `migrations/024-fix-membership-rls-recursion.sql` - two new
+     `SECURITY DEFINER` helper functions (`get_my_business_ids()`,
+     `is_owner_admin_for_business()`, the first custom Postgres
+     functions in this schema) replacing the four broken policies'
+     subqueries, preserving the exact authorization model ADR-0032
+     intended without the recursion. Also formally corrects ADR-0032's
+     flawed reasoning about why the original policy pairing was
+     believed safe.
+  2. Postgres `42501`, "permission denied for table memberships" (then
+     `membership_roles`) - an unrelated, separate privilege layer:
+     missing base table-level `SELECT` grants for `authenticated`,
+     evaluated before RLS ever runs. Fixed by
+     `migrations/025-restore-memberships-select-grant.sql` and
+     `migrations/026-restore-membership-roles-select-grant.sql`, each
+     granting exactly the missing `SELECT`, nothing broader.
+- **Confirmed live**: owner ran all three migrations against
+  production and verified `/api/debug/membership` returns real
+  membership data (business `GreenCal Pressure Washing`, roles
+  `owner-admin`/`office-manager`) with no error, and the dashboard
+  loads normally. The temporary diagnostic route
+  (`apps/admin-console/src/pages/api/debug/membership.ts`) and the
+  investigative entry/success logging in `getCurrentMembership()` have
+  been removed - only the permanent error-path logging improvement
+  remains.
 
 **Growth-system domain contracts (in progress) — `packages/core-models`**
 

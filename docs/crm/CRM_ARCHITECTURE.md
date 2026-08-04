@@ -617,12 +617,25 @@ authorization result ADR-0032 intended. See DECISIONS.md ADR-0035,
 which also formally corrects ADR-0032's flawed reasoning about why the
 original policy pairing was believed non-recursive.
 
-**Classification: FIX WRITTEN, NOT YET VERIFIED LIVE.** Migration 024
-has not yet been run against production. A temporary diagnostic route
-(`apps/admin-console/src/pages/api/debug/membership.ts`) and verbose
-logging in `getCurrentMembership()` were added while investigating this
-incident - both should be removed in a follow-up cluster once the fix
-is confirmed working, per ADR-0035's consequences.
+Two further, unrelated incidents surfaced immediately after the
+recursion fix, diagnosed via the same temporary debug endpoint: the
+`authenticated` role was missing its base table-level `SELECT` grant
+on `memberships` (Postgres `42501`, a different privilege layer than
+RLS - evaluated before RLS runs), then the identical issue on
+`membership_roles`. Fixed by `migrations/025-restore-memberships-select-grant.sql`
+and `migrations/026-restore-membership-roles-select-grant.sql`, each
+granting exactly the missing `SELECT`, nothing broader. See
+DECISIONS.md ADR-0036.
+
+**Classification: CONFIRMED LIVE.** Migrations 024, 025, and 026 have
+all been run against production and owner-verified: `/api/debug/membership`
+returned real membership data (business `GreenCal Pressure Washing`,
+roles `owner-admin`/`office-manager`) with no error, and the
+admin-console dashboard loads normally. The temporary diagnostic route
+and the investigative entry/success logging added while chasing this
+incident have been removed - `getCurrentMembership()` keeps only the
+permanent improvement (distinguishing a real query error from "no
+membership" in its error-path logging).
 
 ## What "CRM" means in this repository today
 

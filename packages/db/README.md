@@ -268,6 +268,14 @@ authorization result. See DECISIONS.md ADR-0035, which also corrects
 ADR-0032's flawed reasoning about why the original policy pairing was
 believed safe.
 
+Two further incidents surfaced immediately after: `migrations/025-restore-memberships-select-grant.sql`
+and `migrations/026-restore-membership-roles-select-grant.sql` each
+restore a missing base table-level `SELECT` grant for `authenticated`
+(Postgres `42501` - a privilege layer separate from and evaluated
+before RLS). See DECISIONS.md ADR-0036. All three migrations are
+confirmed run against production; `getCurrentMembership()` and the
+admin-console dashboard work correctly.
+
 ## What is deliberately excluded
 
 An authenticated owner interface for Bookings (every other listed
