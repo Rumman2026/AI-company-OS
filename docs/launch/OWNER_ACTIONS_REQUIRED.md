@@ -47,6 +47,34 @@ Ordered by urgency.
   additive — the lead pipeline already works without this and will
   keep working identically before and after.
 
+## 3b. Run pending internal-CRM migrations 004-006 (safe, not urgent, run whenever convenient)
+
+- **Screen**: Supabase dashboard → the GreenCal project (`Greencal-production`)
+  → SQL Editor. **Different migration chain from item 3 above** - these
+  are the internal admin-console CRM (`apps/admin-console`), not the
+  public quote-form pipeline.
+- **Status so far**: `packages/db/migrations/001-crm-foundation.sql`,
+  `002-multi-tenant-foundation.sql`, and
+  `003-job-pipeline-foundation.sql` are already confirmed run
+  (owner-confirmed during this session). Three more have been added
+  since and are **not yet run**:
+  - `packages/db/migrations/004-company-foundation.sql` (Company
+    persistence)
+  - `packages/db/migrations/005-note-foundation.sql` (Note persistence)
+  - `packages/db/migrations/006-task-foundation.sql` (Task persistence)
+- **Action**: open each file in order (004, then 005, then 006) and run
+  its full contents once in the SQL Editor. Each is additive-only (new
+  tables, one additive column on `contacts`) and safe to run against the
+  live production database - no existing table or row is altered. Each
+  file's own header comment repeats this.
+- **Expected result**: `companies`, `notes`, and `tasks` tables exist
+  with tenant-scoped RLS, and `apps/admin-console`'s Companies/Notes/
+  Tasks UI (already built and locally tested) can read/write real data
+  once these are applied. The admin-console itself is not yet deployed
+  to a live Vercel project (see the "not done" note in
+  `docs/crm/CRM_ARCHITECTURE.md`), so this has no live-user-facing
+  effect until that deployment also happens.
+
 ## 4. Z.ai account balance (only if real GLM classification is wanted)
 
 - **Screen**: Z.ai account dashboard → billing/balance.
