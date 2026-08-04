@@ -1,14 +1,14 @@
 # CRM Architecture
 
 Status: durable record of CRM Milestones 1-3 and Clusters 4-8 and
-10-17 (this sprint). See [DECISIONS.md](../../DECISIONS.md) ADR-0009
+10-18 (this sprint). See [DECISIONS.md](../../DECISIONS.md) ADR-0009
 (persistence), ADR-0010 (multi-tenant foundation), ADR-0011
 (admin-console), ADR-0012 (Estimate/Booking/Job), ADR-0014 (Company),
 ADR-0015 (Note), ADR-0016 (Task), ADR-0018 (multi-role memberships),
 ADR-0020 (photos), ADR-0021 (estimate approval), ADR-0022 (audit log
 read access), ADR-0023 (archive/restore), ADR-0024 (appointments
-view), and ADR-0025 (activity timeline, actor tracking) for the full
-rationale, and
+view), ADR-0025 (activity timeline, actor tracking), and ADR-0026
+(estimate line items) for the full rationale, and
 [`packages/core-models`](../../packages/core-models/README.md) /
 [`packages/db`](../../packages/db/README.md) /
 [`apps/admin-console`](../../apps/admin-console/README.md) for
@@ -324,6 +324,31 @@ is a real, separate security-scope decision, not made here).
 `packages/db` tests passing (6 new timeline-composition tests). A local
 production build, lint, and typecheck all pass. Migration 012 has NOT
 yet been run against production (owner action).
+
+## Cluster 18: Estimate line items and service-package catalog
+
+Closes "Professional estimate builder / Service packages / Line item
+editor." See DECISIONS.md ADR-0026.
+
+- `ServicePackage` (reusable catalog entry, no state machine) and
+  `EstimateLineItem` (`description`/`quantity`/`unitPrice`/
+  `lineTotal` - `lineTotal` is a stored snapshot, not recomputed from a
+  linked package's current price) - both new `packages/core-models`
+  types, `packages/db/migrations/013-estimate-line-items.sql`.
+- `EstimateLineItemRepository` enforces the same "mutable only while
+  draft" rule ADR-0021 established for `Estimate` itself.
+- `apps/admin-console`: new `/estimates/[id]` page (the actual
+  "estimate builder" - line-item table, add form with an optional
+  service-package picker, computed subtotal, the Approve action moved
+  here from the Lead page); new `/service-packages` page
+  (create/deactivate catalog management).
+
+**Classification: IMPLEMENTED AND TESTED LOCALLY.** 70/70
+`packages/db` tests passing (9 new). Migration 013 has NOT yet been run
+against production (owner action). Tax, discount, deposit, photo
+attachment, PDF generation, and customer-facing approval are explicitly
+out of scope for this commit - each is a separate, immediately-following
+cluster (see ROADMAP.md).
 
 ## What "CRM" means in this repository today
 

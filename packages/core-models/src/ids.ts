@@ -40,6 +40,16 @@ export function createEstimateId(value: string): EstimateId {
   return createBrandedString('EstimateId', value);
 }
 
+export type EstimateLineItemId = Branded<string, 'EstimateLineItemId'>;
+export function createEstimateLineItemId(value: string): EstimateLineItemId {
+  return createBrandedString('EstimateLineItemId', value);
+}
+
+export type ServicePackageId = Branded<string, 'ServicePackageId'>;
+export function createServicePackageId(value: string): ServicePackageId {
+  return createBrandedString('ServicePackageId', value);
+}
+
 export type BookingId = Branded<string, 'BookingId'>;
 export function createBookingId(value: string): BookingId {
   return createBrandedString('BookingId', value);

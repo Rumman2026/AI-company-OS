@@ -1,0 +1,118 @@
+---
+import AdminLayout from '../../layouts/AdminLayout.astro';
+import { getCurrentMembership } from '../../lib/auth/membership';
+import { createSupabaseServicePackageRepository } from '@ai-company-os/db';
+import { formatMinorUnitsAsDollars } from '../../lib/estimates/parse-amount';
+
+const user = Astro.locals.user!;
+const membership = await getCurrentMembership(Astro.locals.supabase, user.id);
+const includeInactive = Astro.url.searchParams.get('includeInactive') === '1';
+const createError = Astro.url.searchParams.get('error');
+
+let servicePackages: Array<{
+  id: string;
+  name: string;
+  description?: string;
+  defaultUnitPrice: { amountMinorUnits: number; currency: string };
+  active: boolean;
+}> = [];
+let loadError: string | null = null;
+
+if (membership) {
+  const repo = createSupabaseServicePackageRepository(Astro.locals.supabase);
+  const result = await repo.listServicePackages(membership.businessId, { includeInactive });
+  if (result.ok) {
+    servicePackages = result.servicePackages;
+  } else {
+    loadError = result.error;
+  }
+}
+---
+
+<AdminLayout title="Service Packages" membership={membership}>
+  <h1>Service Packages</h1>
+  <p style="color: var(--color-text-muted); font-size: 0.875rem;">
+    Reusable services with a default price - pick one when adding a line item to an estimate to
+    fill in the description and price automatically.
+  </p>
+
+  <form method="GET" style="margin-bottom: 1rem;">
+    <label style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 1rem;">
+      <input type="checkbox" name="includeInactive" value="1" checked={includeInactive} />
+      Show inactive
+    </label>
+    <button type="submit" class="uikit-button uikit-button--secondary">Filter</button>
+  </form>
+
+  {createError ? <div class="uikit-error-banner" role="alert">Could not add package: {createError}</div> : null}
+
+  <form method="POST" action="/api/service-packages" style="max-width: 400px; margin-bottom: 2rem;">
+    <div class="uikit-form-field">
+      <label for="name">Service name</label>
+      <input id="name" name="name" type="text" required />
+    </div>
+    <div class="uikit-form-field">
+      <label for="description">Description</label>
+      <input id="description" name="description" type="text" />
+    </div>
+    <div class="uikit-form-field">
+      <label for="defaultUnitPrice">Default price (USD)</label>
+      <input id="defaultUnitPrice" name="defaultUnitPrice" type="text" placeholder="450.00" required />
+    </div>
+    <button type="submit" class="uikit-button uikit-button--primary">Add package</button>
+  </form>
+
+  {
+    loadError ? (
+      <div class="uikit-error-banner" role="alert">
+        Could not load service packages: {loadError}
+      </div>
+    ) : servicePackages.length === 0 ? (
+      <div class="uikit-empty-state">
+        <p class="uikit-empty-state__title">No service packages yet</p>
+      </div>
+    ) : (
+      <div class="uikit-table-scroll">
+        <table class="uikit-table">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Description</th>
+              <th>Default price</th>
+              <th>Status</th>
+              <th />
+            </tr>
+          </thead>
+          <tbody>
+            {servicePackages.map((pkg) => (
+              <tr>
+                <td>{pkg.name}</td>
+                <td>{pkg.description ?? '—'}</td>
+                <td>
+                  {formatMinorUnitsAsDollars(
+                    pkg.defaultUnitPrice.amountMinorUnits,
+                    pkg.defaultUnitPrice.currency,
+                  )}
+                </td>
+                <td>
+                  <span class={`uikit-badge uikit-badge--${pkg.active ? 'success' : 'neutral'}`}>
+                    {pkg.active ? 'Active' : 'Inactive'}
+                  </span>
+                </td>
+                <td>
+                  {pkg.active ? (
+                    <form method="POST" action={`/api/service-packages/${pkg.id}/deactivate`}>
+                      <button type="submit" class="uikit-button uikit-button--secondary">
+                        Deactivate
+                      </button>
+                    </form>
+                  ) : null}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    )
+  }
+</AdminLayout>

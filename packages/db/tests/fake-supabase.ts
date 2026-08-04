@@ -112,6 +112,23 @@ export function createFakeSupabaseClient(tables: Record<string, FakeTable>) {
     return chain;
   }
 
+  function makeDeleteChain(table: FakeTable) {
+    const matchers: Array<{ col: string; value: unknown }> = [];
+    const chain = {
+      eq(col: string, value: unknown) {
+        matchers.push({ col, value });
+        return chain;
+      },
+      then(resolve: (result: { error: null }) => void) {
+        table.rows = table.rows.filter(
+          (r) => !matchers.every((m) => String(r[m.col]) === String(m.value)),
+        );
+        resolve({ error: null });
+      },
+    };
+    return chain;
+  }
+
   const storageObjects = new Map<string, Set<string>>();
 
   const client = {
@@ -171,6 +188,9 @@ export function createFakeSupabaseClient(tables: Record<string, FakeTable>) {
         },
         update(values: Record<string, unknown>) {
           return makeUpdateChain(table, values);
+        },
+        delete() {
+          return makeDeleteChain(table);
         },
       };
     },

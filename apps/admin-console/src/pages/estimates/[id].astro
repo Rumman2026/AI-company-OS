@@ -1,0 +1,191 @@
+---
+import AdminLayout from '../../layouts/AdminLayout.astro';
+import { getCurrentMembership } from '../../lib/auth/membership';
+import {
+  createSupabaseEstimateRepository,
+  createSupabaseEstimateLineItemRepository,
+  createSupabaseServicePackageRepository,
+} from '@ai-company-os/db';
+import { formatMinorUnitsAsDollars } from '../../lib/estimates/parse-amount';
+import type { Estimate, EstimateLineItem, ServicePackage } from '@ai-company-os/core-models';
+
+const user = Astro.locals.user!;
+const membership = await getCurrentMembership(Astro.locals.supabase, user.id);
+const { id } = Astro.params;
+const errorMessage = Astro.url.searchParams.get('error');
+
+let estimate: Estimate | null = null;
+let lineItems: EstimateLineItem[] = [];
+let servicePackages: ServicePackage[] = [];
+let notFound = false;
+
+if (membership && id) {
+  const estimateRepository = createSupabaseEstimateRepository(Astro.locals.supabase);
+  const result = await estimateRepository.getEstimate(membership.businessId, id);
+
+  if (result.ok) {
+    estimate = result.estimate;
+
+    const lineItemRepo = createSupabaseEstimateLineItemRepository(
+      Astro.locals.supabase,
+      estimateRepository,
+    );
+    const lineItemsResult = await lineItemRepo.listLineItems(membership.businessId, id);
+    if (lineItemsResult.ok) lineItems = lineItemsResult.lineItems;
+
+    const servicePackageRepo = createSupabaseServicePackageRepository(Astro.locals.supabase);
+    const packagesResult = await servicePackageRepo.listServicePackages(membership.businessId);
+    if (packagesResult.ok) servicePackages = packagesResult.servicePackages;
+  } else {
+    notFound = true;
+  }
+}
+
+const subtotalMinorUnits = lineItems.reduce((sum, item) => sum + item.lineTotal.amountMinorUnits, 0);
+const isDraft = estimate?.status === 'draft';
+---
+
+<AdminLayout title="Estimate detail" membership={membership}>
+  <p><a href="/leads">&larr; Back to leads</a></p>
+  {
+    notFound ? (
+      <div class="uikit-error-banner" role="alert">
+        Estimate not found.
+      </div>
+    ) : estimate ? (
+      <>
+        <h1>
+          Estimate{' '}
+          <span class={`uikit-badge uikit-badge--${estimate.status === 'approved' ? 'success' : 'neutral'}`}>
+            {estimate.status}
+          </span>
+        </h1>
+        <dl>
+          <dt>Lead</dt>
+          <dd>
+            <a href={`/leads/${estimate.leadId}`}>{estimate.leadId}</a>
+          </dd>
+          <dt>Summary</dt>
+          <dd>{estimate.summary}</dd>
+          <dt>Created</dt>
+          <dd>{new Date(estimate.createdAt).toLocaleString()}</dd>
+        </dl>
+
+        {errorMessage ? (
+          <div class="uikit-error-banner" role="alert">
+            {errorMessage}
+          </div>
+        ) : null}
+
+        {isDraft ? (
+          <form method="POST" action={`/api/estimates/${estimate.id}/approve`} style="margin-bottom: 1.5rem;">
+            <button type="submit" class="uikit-button uikit-button--primary">
+              Approve estimate
+            </button>
+          </form>
+        ) : (
+          <p style="color: var(--color-text-muted); font-size: 0.875rem; margin-bottom: 1.5rem;">
+            Approved on {estimate.approvedAt ? new Date(estimate.approvedAt).toLocaleString() : '—'} - line
+            items are now immutable.
+          </p>
+        )}
+
+        <h2>Line items</h2>
+        {lineItems.length === 0 ? (
+          <div class="uikit-empty-state">
+            <p class="uikit-empty-state__title">No line items yet</p>
+            <p class="uikit-empty-state__description">
+              {estimate.summary} - {formatMinorUnitsAsDollars(estimate.proposedAmount.amountMinorUnits, estimate.proposedAmount.currency)}{' '}
+              is the original proposed amount from before this estimate had itemized detail.
+            </p>
+          </div>
+        ) : (
+          <div class="uikit-table-scroll">
+            <table class="uikit-table">
+              <thead>
+                <tr>
+                  <th>Description</th>
+                  <th>Qty</th>
+                  <th>Unit price</th>
+                  <th>Line total</th>
+                  {isDraft ? <th /> : null}
+                </tr>
+              </thead>
+              <tbody>
+                {lineItems.map((item) => (
+                  <tr>
+                    <td>{item.description}</td>
+                    <td>{item.quantity}</td>
+                    <td>{formatMinorUnitsAsDollars(item.unitPrice.amountMinorUnits, item.unitPrice.currency)}</td>
+                    <td>{formatMinorUnitsAsDollars(item.lineTotal.amountMinorUnits, item.lineTotal.currency)}</td>
+                    {isDraft ? (
+                      <td>
+                        <form method="POST" action={`/api/estimates/${estimate.id}/line-items/${item.id}/delete`}>
+                          <button type="submit" class="uikit-button uikit-button--secondary">
+                            Remove
+                          </button>
+                        </form>
+                      </td>
+                    ) : null}
+                  </tr>
+                ))}
+              </tbody>
+              <tfoot>
+                <tr>
+                  <td colspan={isDraft ? 4 : 3} style="text-align: right; font-weight: 600;">
+                    Subtotal
+                  </td>
+                  <td style="font-weight: 600;">
+                    {formatMinorUnitsAsDollars(subtotalMinorUnits, 'USD')}
+                  </td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        )}
+
+        {isDraft ? (
+          <form method="POST" action={`/api/estimates/${estimate.id}/line-items`} style="max-width: 480px;">
+            {servicePackages.length > 0 ? (
+              <div class="uikit-form-field">
+                <label for="servicePackageId">From service package (optional)</label>
+                <select id="servicePackageId" name="servicePackageId">
+                  <option value="">Custom line item</option>
+                  {servicePackages.map((pkg) => (
+                    <option value={pkg.id}>
+                      {pkg.name} ({formatMinorUnitsAsDollars(pkg.defaultUnitPrice.amountMinorUnits, pkg.defaultUnitPrice.currency)})
+                    </option>
+                  ))}
+                </select>
+              </div>
+            ) : (
+              <p style="color: var(--color-text-muted); font-size: 0.875rem;">
+                No service packages yet - <a href="/service-packages">add one</a> to speed up future line
+                items, or add a custom line below.
+              </p>
+            )}
+            <div class="uikit-form-field">
+              <label for="description">Description</label>
+              <input id="description" name="description" type="text" required />
+            </div>
+            <div class="uikit-form-field">
+              <label for="quantity">Quantity</label>
+              <input id="quantity" name="quantity" type="number" min="1" step="1" value="1" required />
+            </div>
+            <div class="uikit-form-field">
+              <label for="unitPrice">Unit price (USD)</label>
+              <input id="unitPrice" name="unitPrice" type="text" placeholder="150.00" required />
+            </div>
+            <button type="submit" class="uikit-button uikit-button--secondary">
+              Add line item
+            </button>
+          </form>
+        ) : null}
+      </>
+    ) : (
+      <div class="uikit-error-banner" role="alert">
+        Your account has no business membership yet.
+      </div>
+    )
+  }
+</AdminLayout>

@@ -45,6 +45,8 @@ export {
   createPublishedProjectSlug,
   createNoteId,
   createTaskId,
+  createEstimateLineItemId,
+  createServicePackageId,
 } from './ids';
 export type {
   LeadId,
@@ -81,6 +83,8 @@ export type {
   PublishedProjectSlug,
   NoteId,
   TaskId,
+  EstimateLineItemId,
+  ServicePackageId,
 } from './ids';
 
 export { createCurrencyCode, createMoney } from './money';
@@ -133,6 +137,8 @@ export type { CallRecord, FormSubmission } from './types/call-form';
 export type { AuditLog } from './types/audit';
 export type { Note, NotableEntityType } from './types/note';
 export type { Task } from './types/task';
+export type { EstimateLineItem } from './types/estimate-line-item';
+export type { ServicePackage } from './types/service-package';
 
 export { transitionLead } from './state-machines/lead';
 export { transitionJob } from './state-machines/job';

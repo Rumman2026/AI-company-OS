@@ -1752,6 +1752,64 @@ status, not the full cross-entity history.
 
 ---
 
+## ADR-0026: Estimate line items and a reusable service-package catalog
+
+**Status**: Confirmed (implemented)
+
+**Context**: The owner's directive asks for a "Professional estimate
+builder" with a "Service packages" catalog and a "Line item editor."
+`Estimate` (`packages/core-models`) had only a single flat
+`proposedAmount`/`summary` pair - no way to itemize a quote into
+multiple priced lines.
+
+**Decision**: Two new entities, additive to the existing `Estimate`
+(which is untouched - `proposedAmount`/`summary` remain valid for any
+estimate that never gets line items, and are shown as a fallback on the
+new Estimate detail page when no line items exist yet). `ServicePackage`
+is a reusable, tenant-defined catalog entry (`name`, `description?`,
+`defaultUnitPrice`, `active` - no state machine, same treatment as
+`Company`). `EstimateLineItem` is a priced line
+(`description`/`quantity`/`unitPrice`/`lineTotal`, optionally linked to
+a `ServicePackage`) - `lineTotal` is a **stored snapshot**
+(`quantity * unitPrice`, computed once at write time), not a value
+recomputed from the linked package's current price on every read, so a
+later price change to a `ServicePackage` never retroactively alters an
+already-created estimate line (matching how a real invoice/estimate
+line freezes its price at the moment it was written).
+`EstimateLineItemRepository` enforces the same "mutable only while
+`draft`" rule ADR-0021 already established for `Estimate` itself -
+`createLineItem()`/`deleteLineItem()` both reject once the parent
+Estimate is `approved`, so an approved estimate's line items become
+just as immutable as its `proposedAmount` already was. `apps/admin-console`
+gains a dedicated Estimate detail page (`/estimates/[id]`) - the actual
+"estimate builder" - with a line-item table, an add-line-item form
+(optionally pre-filled from a `ServicePackage` picker), a computed
+subtotal, and the existing Approve action moved here from the Lead
+page. A new `/service-packages` page manages the catalog
+(create/deactivate - packages are never deleted, only deactivated, so
+existing line items that reference one always remain resolvable).
+
+**Alternatives considered**: Making `EstimateLineItem.lineTotal` a
+computed/derived value instead of a stored snapshot - rejected per the
+price-drift reasoning above. Replacing `Estimate.proposedAmount`
+outright with a required line-item total - rejected as a breaking
+change to every existing estimate and every existing test/fixture; the
+simple flat-amount path remains fully supported for estimates that
+don't need itemization.
+
+**Consequences**: `docs/crm/CRM_ARCHITECTURE.md` and
+`packages/db/README.md` gain a section. Tax, discount, deposit, photo
+attachment, PDF generation, and a customer-facing approval workflow are
+explicitly out of scope for this specific commit and tracked as
+separate, immediately-following clusters in `ROADMAP.md` - each is a
+large enough concern (a customer-facing public route in particular) to
+warrant its own commit and its own verification pass, per the owner's
+"commit each logical feature separately" direction.
+
+**Related**: [ADR-0021](#adr-0021-estimate-approval-status-no-state-machine).
+
+---
+
 ## Proposed decisions (not yet made)
 
 - Service-to-service communication pattern (REST/gRPC/queue) beyond the

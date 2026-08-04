@@ -180,8 +180,11 @@ if (membership && id) {
           <ul>
             {estimates.map((e) => (
               <li>
-                {formatMinorUnitsAsDollars(e.proposedAmount.amountMinorUnits, e.proposedAmount.currency)} -{' '}
-                {e.summary} ({new Date(e.createdAt).toLocaleDateString()}){' '}
+                <a href={`/estimates/${e.id}`}>
+                  {formatMinorUnitsAsDollars(e.proposedAmount.amountMinorUnits, e.proposedAmount.currency)} -{' '}
+                  {e.summary}
+                </a>{' '}
+                ({new Date(e.createdAt).toLocaleDateString()}){' '}
                 <span class={`uikit-badge uikit-badge--${e.status === 'approved' ? 'success' : 'neutral'}`}>
                   {e.status}
                 </span>

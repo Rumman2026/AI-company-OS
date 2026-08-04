@@ -121,6 +121,25 @@ export type {
   PhotoWithSignedUrl,
 } from './photo-asset-repository';
 
+export { createSupabaseServicePackageRepository } from './service-package-repository';
+export type {
+  ServicePackageRepository,
+  CreateServicePackageInput,
+  CreateServicePackageResult,
+  ListServicePackagesResult,
+  ListServicePackagesOptions,
+  SetServicePackageActiveResult,
+} from './service-package-repository';
+
+export { createSupabaseEstimateLineItemRepository } from './estimate-line-item-repository';
+export type {
+  EstimateLineItemRepository,
+  CreateEstimateLineItemInput,
+  CreateEstimateLineItemResult,
+  ListEstimateLineItemsResult,
+  DeleteEstimateLineItemResult,
+} from './estimate-line-item-repository';
+
 export {
   createActivityTimelineRepository,
   IMPLEMENTED_TIMELINE_ENTRY_TYPES,

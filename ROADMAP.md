@@ -289,6 +289,31 @@ MembershipRole[]`, with a fallback to the legacy `memberships.role`
   generic and `business_id`-scoped; no GreenCal-specific code exists
   anywhere in this cluster.
 
+**Cluster 18 (implemented, tested locally) — Estimate line items and service-package catalog (ADR-0026)**
+
+- Scope: see [DECISIONS.md](DECISIONS.md) ADR-0026. Closes "Estimate
+  Line Items": "Professional estimate builder / Service packages /
+  Line item editor" (the first three of nine sub-requirements in that
+  section - see "Not done" below for the rest).
+- Implemented with repository evidence: `ServicePackage` (reusable
+  catalog, no state machine) and `EstimateLineItem`
+  (`description`/`quantity`/`unitPrice`/`lineTotal` - `lineTotal` is a
+  stored write-time snapshot, never recomputed from a linked package's
+  current price) - new `packages/core-models` types,
+  `packages/db/migrations/013-estimate-line-items.sql`.
+  `EstimateLineItemRepository` enforces the existing "mutable only
+  while draft" rule from ADR-0021 (70/70 `packages/db` tests passing
+  total, 9 new). `apps/admin-console` gains `/estimates/[id]` (the
+  actual estimate builder: line-item table, add form with an optional
+  service-package picker, computed subtotal) and `/service-packages`
+  (catalog management).
+- Lint, typecheck, a local production build, and unit tests all pass.
+- **Not done, tracked as separate immediately-following clusters, per
+  "commit each logical feature separately"**: taxes, discounts,
+  deposits, attaching photos to an Estimate, PDF generation, and a
+  customer-facing approval workflow. Migration 013 has not yet been run
+  against production (owner action).
+
 **Growth-system domain contracts (in progress) — `packages/core-models`**
 
 - Scope: a first, provider-neutral coding slice for the GreenCal

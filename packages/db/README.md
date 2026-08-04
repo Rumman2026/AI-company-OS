@@ -146,6 +146,14 @@ DECISIONS.md ADR-0025 for the full design, including why
 (Invoice/Payment/Call/SMS/Email/Review-request/Review-received) that
 this repository cannot yet produce any entries for.
 
+## Cluster 18: Estimate line items and service-package catalog
+
+`migrations/013-estimate-line-items.sql` adds `service_packages` and
+`estimate_line_items`. `EstimateLineItemRepository` enforces the same
+"mutable only while draft" rule already established for `Estimate`
+(ADR-0021) - `createLineItem()`/`deleteLineItem()` reject once the
+parent Estimate is approved. See DECISIONS.md ADR-0026.
+
 ## What is deliberately excluded
 
 An authenticated owner interface for Bookings (every other listed
