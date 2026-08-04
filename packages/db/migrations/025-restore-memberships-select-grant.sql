@@ -1,0 +1,38 @@
+-- Fixes a real production incident, discovered immediately after
+-- migration 024 resolved the earlier 42P17 recursion: querying
+-- `memberships` as the `authenticated` role now fails with Postgres
+-- error 42501, "permission denied for table memberships".
+--
+-- This is a different, unrelated privilege layer from RLS. Postgres
+-- requires a role to hold the base GRANT (SELECT/INSERT/etc.) on a
+-- table BEFORE row-level security policies are even evaluated - RLS
+-- policies control WHICH ROWS are visible once access is already
+-- permitted; they cannot grant access to a table the role has no
+-- privilege on at all. Migration 024 never touched table-level
+-- GRANT/REVOKE on `memberships` - the only revoke/grant statements in
+-- it are `... ON FUNCTION`, a completely separate object type that
+-- cannot affect a table's own grants. The exact cause of how
+-- `memberships`'s SELECT grant for `authenticated` was lost is not
+-- determinable from this repository (no access to Supabase's
+-- dashboard/query-history audit log) - this migration restores
+-- exactly what Postgres's own error hint specifies, nothing more.
+--
+-- SAFE TO RUN AGAINST THE LIVE PRODUCTION DATABASE - a single
+-- additive GRANT. Does not disable or alter RLS in any way - the RLS
+-- policies fixed in migration 024 still fully govern which rows are
+-- visible once this base table-level access is restored. Grants
+-- SELECT only, matching exactly what the app needs: the authenticated
+-- client never inserts, updates, or deletes `memberships` rows
+-- directly (membership rows are owner-managed via SQL, and role
+-- changes go through `membership_roles`, not `memberships` itself -
+-- see DECISIONS.md ADR-0032).
+--
+-- If the same 42501 error recurs for a different table after this
+-- runs, that table needs the identical, narrowly-scoped fix - grant
+-- only the specific privilege Postgres's error hint names, not a
+-- broader set "just in case."
+--
+-- Run once, in the Supabase SQL Editor, after
+-- packages/db/migrations/024-fix-membership-rls-recursion.sql.
+
+grant select on public.memberships to authenticated;

@@ -3,26 +3,36 @@
 Status: the concise, actionable list — see individual docs for detail.
 Ordered by urgency.
 
-## 0. URGENT — run migration 024 to fix the broken admin-console login
+## 0. URGENT — run migration 025 to fix the broken admin-console login
 
 - **Screen**: Supabase dashboard → the GreenCal project
   (`Greencal-production`) → SQL Editor.
 - **What happened**: after migration 022, admin-console login broke
-  with "Your account has no business membership yet" for every user,
-  caused by a real Postgres RLS bug (`42P17`, infinite recursion) in
-  two of that migration's policies - see DECISIONS.md ADR-0035 for the
-  full diagnosis. This is not a code bug and not fixable by redeploying
-  - it can only be fixed by running the corrective SQL migration.
-- **Action**: run `packages/db/migrations/024-fix-membership-rls-recursion.sql`
-  once, in full. Safe to run against production - it only adds two new
-  helper functions and replaces four policies in place (same names, no
-  duplicates); no table, column, or row is altered.
+  with "Your account has no business membership yet" for every user.
+  Two migrations were needed to fully resolve it:
+  - `packages/db/migrations/024-fix-membership-rls-recursion.sql` -
+    **confirmed run** - fixed a real Postgres RLS bug (`42P17`,
+    infinite recursion) in two of migration 022's policies. See
+    DECISIONS.md ADR-0035.
+  - `packages/db/migrations/025-restore-memberships-select-grant.sql` -
+    fixes a second, unrelated issue surfaced immediately after: `42501`,
+    "permission denied for table memberships" - a missing base
+    table-level `SELECT` grant for the `authenticated` role (a
+    different privilege layer from RLS, evaluated before RLS policies
+    ever run). See DECISIONS.md ADR-0036.
+    Neither is a code bug and neither is fixable by redeploying - both
+    can only be fixed by running the corrective SQL migrations.
+- **Action**: if you haven't already, run 024, then run
+  `packages/db/migrations/025-restore-memberships-select-grant.sql`
+  once, in full. Safe to run against production - a single additive
+  `grant select on public.memberships to authenticated;`. Does not
+  disable or alter RLS.
 - **Expected result**: `getCurrentMembership()` resolves correctly
   again and the admin-console dashboard loads. Verify by opening
   `/api/debug/membership` (while logged in) - it should return your
-  real membership data instead of a `42P17` error. Once confirmed
-  working, tell me and I'll remove that temporary diagnostic route and
-  the verbose logging added while investigating this (both currently
+  real membership data instead of any error. Once confirmed working,
+  tell me and I'll remove that temporary diagnostic route and the
+  verbose logging added while investigating this (both currently
   harmless but not meant to be permanent).
 
 ## 1. Prevent Supabase auto-pause from silently killing lead capture (urgent)

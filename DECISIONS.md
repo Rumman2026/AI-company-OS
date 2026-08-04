@@ -2477,6 +2477,59 @@ but were never meant to be permanent.
 
 ---
 
+## ADR-0036: Restore `memberships` SELECT grant for `authenticated` (post-migration-024 incident)
+
+**Status**: Confirmed (implemented)
+
+**Context**: Immediately after migration 024 resolved the `42P17`
+recursion (ADR-0035), the same live diagnostic endpoint surfaced a
+second, unrelated Postgres error: `42501`, "permission denied for
+table memberships." This is a different privilege layer from RLS -
+Postgres requires a role to hold the base table-level `GRANT`
+(`SELECT`/`INSERT`/etc.) _before_ row-level security policies are even
+evaluated; RLS governs which _rows_ are visible once access is already
+permitted, and cannot itself grant access to a table a role has none
+on. Migration 024 was reviewed line by line and confirmed to never
+touch table-level `GRANT`/`REVOKE` on `memberships` - its only
+`revoke`/`grant` statements are `... ON FUNCTION`, a distinct object
+type unable to affect a table's own grants. Since the earlier failure
+mode was `42P17` (meaning `authenticated` queries against
+`memberships` _were_ reaching RLS evaluation, which requires the base
+grant to already be present), the grant loss happened at some point
+between then and this check. The exact mechanism is not determinable
+from this repository - there is no access to Supabase's dashboard
+query-history/audit log from this environment.
+
+**Decision**: `migrations/025-restore-memberships-select-grant.sql`
+grants exactly `SELECT` on `memberships` to `authenticated` - precisely
+what Postgres's own error hint specified, nothing more. Scoped to this
+one table because it is the only one with observed evidence of the
+issue; `businesses` and `membership_roles` (also touched by the same
+nested query) were not preemptively granted anything, per
+least-privilege - if the identical error recurs for either, the same
+narrowly-scoped fix applies then, on evidence, not in advance on
+suspicion. `SELECT` alone matches what the app actually needs: the
+authenticated client never inserts, updates, or deletes `memberships`
+rows directly (owner-managed via SQL; role changes go through
+`membership_roles`, per ADR-0032).
+
+**Alternatives considered**: Granting a broader privilege set
+(`INSERT`/`UPDATE`/`DELETE`) "to be safe" - rejected; no code path
+needs them, and the owner's explicit instruction was not to grant
+broader than necessary. Preemptively granting `SELECT` on every other
+tenant-scoped table "in case the same thing happened there too" -
+rejected for the same reason; no evidence exists for any table besides
+`memberships`.
+
+**Consequences**: `docs/launch/OWNER_ACTIONS_REQUIRED.md` §0 updated
+to include this as a second required migration alongside 024. No RLS
+change - the policies migration 024 fixed are unaffected and continue
+to govern row visibility once this base access is restored.
+
+**Related**: [ADR-0035](#adr-0035-fix-infinite-rls-recursion-on-membershipsmembership_roles-via-security-definer-helper-functions-corrects-adr-0032).
+
+---
+
 ## Proposed decisions (not yet made)
 
 - Service-to-service communication pattern (REST/gRPC/queue) beyond the
