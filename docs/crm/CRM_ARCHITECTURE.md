@@ -19,6 +19,38 @@ notifications, notification center) for the full rationale, and
 [`apps/admin-console`](../../apps/admin-console/README.md) for
 implementation detail.
 
+## Current production status (authoritative — supersedes per-cluster deployment/migration notes below)
+
+Per-cluster sections below were each written at the time that cluster
+was built, and say things like "migration NNN has not yet been run" or
+"not deployed live." Those were true when written but are now stale
+for migrations 001-026 and for `apps/admin-console`'s deployment
+status specifically - kept unedited below for historical narrative
+accuracy, not as current status. The authoritative, current state
+(see `docs/launch/OWNER_ACTIONS_REQUIRED.md` §0 and §3b) is:
+
+- **`apps/admin-console` is deployed live on Vercel and confirmed
+  working in production.** A real production incident (Postgres
+  `42P17` RLS recursion, then two `42501` missing-grant errors) was
+  diagnosed and fixed live against this deployment - see the
+  "Post-launch fix" entry in `ROADMAP.md` and DECISIONS.md
+  ADR-0035/ADR-0036. Login, the dashboard, and role resolution are
+  owner-verified working against real production data.
+- **Migrations 001 through 026 are all confirmed run** against the
+  real `Greencal-production` Supabase project. Every "migration NNN
+  has not yet been run" note for a migration number in that range
+  (Clusters 4 through 26, both Milestone sections) is superseded.
+- **Migration 027** (Cluster 27 - Invoice/Payment persistence) is the
+  only migration **not yet run** against production as of this
+  writing.
+- Not independently re-verified in a live browser session by this
+  assistant: the specific create-estimate → create-booking →
+  auto-create-job → best-effort-schedule chain (Cluster 5), and every
+  UI screen added after the last owner-reported browser check. Their
+  code-level checks (lint/typecheck/build/unit tests) all pass; that
+  is a different, weaker claim than "verified live," and per-cluster
+  sections are worded accordingly.
+
 ## Cluster 4: Estimate/Booking/Job persistence
 
 `Job` was assumed to be the next-closest entity to ready after Milestone

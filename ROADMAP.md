@@ -30,6 +30,26 @@ complete. See [docs/INDEX.md](docs/INDEX.md) for routing.
 the present state; do not describe later phases as started without new
 repository evidence.
 
+**Current production status (authoritative — supersedes per-cluster deployment/migration notes below)**
+
+The Cluster 9-27 entries below were each written at the time that
+cluster was built and say things like "migration NNN has not yet been
+run against production" or "not deployed live." Those were true when
+written but are now stale for migrations 001-026 and for
+`apps/admin-console`'s deployment status - kept unedited below for
+historical narrative accuracy, not as current status. See
+`docs/launch/OWNER_ACTIONS_REQUIRED.md` §0 and §3b for the
+authoritative record:
+
+- `apps/admin-console` is deployed live on Vercel. A real production
+  incident (RLS recursion, then missing table grants) was diagnosed
+  and fixed live against it - see "Post-launch fix" below and
+  DECISIONS.md ADR-0035/ADR-0036. Login, dashboard, and role
+  resolution are owner-verified working against real production data.
+- Migrations 001 through 026 are all confirmed run against the real
+  `Greencal-production` Supabase project. Migration 027 (Cluster 27)
+  is the only one not yet run.
+
 **Phase 2A (in progress) — GreenCal Pressure Washing website, revenue-launch sprint**
 
 - Scope: `apps/greencal-website`, an Astro site with one on-demand server
