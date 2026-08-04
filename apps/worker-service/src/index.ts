@@ -1,9 +1,8 @@
-import type { CompactContextPackage, TaskType } from '@ai-company-os/agent-sdk';
 import { InMemoryJobQueue } from '@ai-company-os/job-queue';
 import { InMemoryCostController } from '@ai-company-os/cost-controller';
 import { ConsoleAuditLogger } from '@ai-company-os/audit-logger';
 import { providerRegistry } from '@ai-company-os/provider-adapters';
-import { TaskRouter } from '@ai-company-os/task-router';
+import { TaskRouter, type RoutedTaskJob } from '@ai-company-os/task-router';
 import type { PolicyContext } from '@ai-company-os/policy-engine';
 
 // apps/worker-service is the agent-worker execution runtime (reused
@@ -11,13 +10,9 @@ import type { PolicyContext } from '@ai-company-os/policy-engine';
 // ADR-0008). It pulls routed-task jobs from packages/job-queue and
 // executes them through packages/task-router. Phase 1 /
 // repository-preparation fidelity: in-memory queue, no real provider
-// network call.
-
-interface RoutedTaskJob {
-  taskId: string;
-  taskType: TaskType;
-  context: CompactContextPackage;
-}
+// network call. RoutedTaskJob (packages/task-router) is the shared job
+// shape apps/agent-orchestrator enqueues and this app dequeues — see
+// DECISIONS.md ADR-0017.
 
 const neutralPolicyContext: PolicyContext = {
   confidence: 0.95,
@@ -51,6 +46,8 @@ async function demonstrateWorkerLoop(): Promise<void> {
       relevantRecordIds: [],
       maxTokensHint: 500,
     },
+    agentId: 'agent-worker',
+    businessId: 'greencal-pressure-washing',
   });
 
   const job = queue.dequeue('agent-worker');
@@ -68,8 +65,8 @@ async function demonstrateWorkerLoop(): Promise<void> {
       model: 'glm-4.6',
       maxInputTokens: 500,
       maxOutputTokens: 500,
-      businessId: 'greencal-pressure-washing',
-      agentId: 'agent-worker',
+      businessId: job.payload.businessId,
+      agentId: job.payload.agentId,
     });
     queue.ack(job.id);
     console.log('Worker Service placeholder running:', JSON.stringify(result.decision));

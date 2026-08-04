@@ -104,6 +104,19 @@ importers:
         version: 1.7.0(eslint@8.57.1)
 
   apps/agent-orchestrator:
+    dependencies:
+      '@ai-company-os/agent-sdk':
+        specifier: workspace:*
+        version: link:../../packages/agent-sdk
+      '@ai-company-os/audit-logger':
+        specifier: workspace:*
+        version: link:../../packages/audit-logger
+      '@ai-company-os/job-queue':
+        specifier: workspace:*
+        version: link:../../packages/job-queue
+      '@ai-company-os/task-router':
+        specifier: workspace:*
+        version: link:../../packages/task-router
     devDependencies:
       tsx:
         specifier: ^4.10.0

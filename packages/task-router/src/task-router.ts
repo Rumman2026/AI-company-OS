@@ -17,6 +17,23 @@ export interface DeterministicResolution {
   structuredResult: unknown;
 }
 
+/**
+ * The canonical job-queue payload shape for anything that will
+ * eventually flow through `TaskRouter.routeTask()` - shared by
+ * `apps/worker-service` (executes it) and `apps/agent-orchestrator`
+ * (enqueues it) so the two apps never maintain their own divergent
+ * copies of this shape. `agentId`/`businessId` travel with the job so
+ * the eventual `routeTask()` call attributes cost/audit records to the
+ * real originating agent and business, not a generic placeholder.
+ */
+export interface RoutedTaskJob {
+  taskId: string;
+  taskType: TaskType;
+  context: CompactContextPackage;
+  agentId: string;
+  businessId: string;
+}
+
 export interface RouteTaskInput {
   taskId: string;
   taskType: TaskType;

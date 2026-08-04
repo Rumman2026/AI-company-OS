@@ -8,7 +8,14 @@
     "build": "echo 'No build configured for agent-orchestrator yet'",
     "lint": "eslint . --ext .ts,.tsx --no-error-on-unmatched-pattern",
     "format": "prettier --write .",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "tsx --test \"tests/**/*.test.ts\""
+  },
+  "dependencies": {
+    "@ai-company-os/agent-sdk": "workspace:*",
+    "@ai-company-os/audit-logger": "workspace:*",
+    "@ai-company-os/job-queue": "workspace:*",
+    "@ai-company-os/task-router": "workspace:*"
   },
   "devDependencies": {
     "tsx": "^4.10.0"

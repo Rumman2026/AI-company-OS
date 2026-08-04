@@ -1204,6 +1204,95 @@ the other three now have persistence and UI.
 
 ---
 
+## ADR-0017: Agent orchestrator as the named-agent authorization layer between routing and execution
+
+**Status**: Confirmed (implemented)
+
+**Context**: The owner's "FINAL EXECUTION DIRECTIVE" asks for "Hermes
+powering Jervis, which coordinates Emma + Estimate/Scheduling/
+Operations/Review/SEO/Media/Follow-up agents" (owner confirmed building
+this now, in response to an earlier clarifying question). A repository
+audit found substantial existing agent-infrastructure from an earlier
+session (`packages/agent-sdk`, `packages/task-router`,
+`packages/context-builder`, `packages/semantic-cache`,
+`packages/policy-engine`, `packages/cost-controller`,
+`packages/audit-logger`, `packages/provider-adapters`,
+`packages/job-queue`) plus two real, tested placeholder apps:
+`apps/jervis-api` (already named "Jervis" - an owner-facing control
+plane for provider health/budget/kill-switches/audit queries) and
+`apps/worker-service` (dequeues jobs and executes them through
+`TaskRouter.routeTask()`). `apps/agent-orchestrator` was still the
+literal placeholder from Phase 1 scaffolding - `ARCHITECTURE.md`
+documents it as the "Agent orchestration engine," a role genuinely
+distinct from both of the above but never implemented.
+
+**Decision**: `apps/agent-orchestrator` becomes the layer between
+routing and execution: it decides **which named agent is authorized to
+handle which task type**, before anything reaches the job queue or a
+provider. `src/agent-registry.ts` defines 8 named agents (Emma +
+Estimate/Scheduling/Operations/Review/SEO/Media/Follow-up), each mapped
+to a subset of `packages/agent-sdk`'s existing, closed `TaskType` union
+(11 types, already covering the operational scope) - **no new task
+types were added**, since the existing set already fits (e.g. Review
+Agent drafts review-request outreach via `customer-response`, tying back
+to core-models' `ReviewRequest`; Media Agent uses `photo-review`, tying
+back to core-models' `PhotoAsset`). `coding`/`debugging` are deliberately
+left unassigned - internal dev-automation task types, not part of this
+GreenCal-facing roster. `AgentOrchestrator.assignTask()` rejects an
+unauthorized pairing before it is ever enqueued (audit-logged as
+`rejected`, matching the honest-rejection pattern already used
+throughout `packages/core-models`' state machines); an authorized
+assignment is enqueued via a new shared `RoutedTaskJob` type (moved from
+a private interface duplicated inside `apps/worker-service` into
+`packages/task-router`, so both apps consume one definition) onto the
+same `agent-worker` queue `apps/worker-service` already drains -
+`apps/agent-orchestrator` never executes a task itself, matching the
+existing clean separation. `apps/worker-service` was fixed to thread the
+job's real `agentId`/`businessId` into `routeTask()` instead of a
+hardcoded `'agent-worker'` literal, so cost/audit attribution is now
+correct per named agent, not generic.
+
+The `AGENT_REGISTRY` is **runtime data**, not a type contract, so it
+lives in `apps/agent-orchestrator` rather than `packages/agent-sdk`,
+which is explicitly documented as "types only" (see
+`packages/agent-sdk/README.md`) - adding a data structure there would
+break that documented boundary.
+
+**"Jervis" already existed as a name** (`apps/jervis-api`'s own
+`src/index.ts` calls it "Jervis control API"), so this ADR does not
+introduce a second, competing "Jervis" identity - `apps/jervis-api` is
+Jervis's owner-facing control surface and `apps/agent-orchestrator` is
+Jervis's orchestration engine, two facets of the same system, matching
+ADR-0008's original app split (control vs. orchestration vs. execution).
+"Hermes" and "Emma" (the customer-facing conversational agent) remain
+names only at this stage - no voice/chat implementation exists yet, and
+every placeholder provider adapter still returns `not-implemented` (see
+`packages/provider-adapters/src/create-placeholder-adapter.ts`), so
+dispatching any real task today honestly resolves to
+`not-implemented`, not a fabricated success.
+
+**Alternatives considered**: Building the orchestration logic inside
+`apps/jervis-api` instead of a separate app - rejected, since that app
+is documented and already implemented as the owner-facing control
+surface specifically, and conflating "owner can see health/kill
+switches" with "agents get dispatched" would blur an already-clean
+boundary. Inventing new `TaskType` values per named agent (e.g. a
+dedicated `scheduling` type) - rejected per the same "exactly N, closed
+set" reasoning already applied to `packages/core-models`' state
+machines; the existing 11 types cover every named agent's actual need.
+
+**Consequences**: `apps/agent-orchestrator`, `apps/worker-service`, and
+`packages/task-router`'s READMEs are updated. This does not implement
+Emma's voice/chat capability, Hermes, or any real provider network call
+
+- those remain separately gated per `.claude/rules/backend.md` ("Do not
+  add a real provider network call, credential read, or production wiring
+  ... without separate, explicit owner authorization").
+
+**Related**: [ADR-0008](#adr-0008-cost-efficient-multi-model-cloud-infrastructure-direction-hostinger-vps--docker-compose-provider-neutral-ai-gateway).
+
+---
+
 ## Proposed decisions (not yet made)
 
 - Service-to-service communication pattern (REST/gRPC/queue) beyond the

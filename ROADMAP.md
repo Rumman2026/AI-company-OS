@@ -93,6 +93,29 @@ repository evidence.
   been made, no Hostinger VPS is provisioned, and nothing in this track
   is deployed. See ADR-0008's scope note.
 
+**Cluster 9 (implemented, tested locally) — agent orchestrator: named-agent authorization (ADR-0017)**
+
+- Scope: see [DECISIONS.md](DECISIONS.md) ADR-0017.
+- Implemented with repository evidence: `apps/agent-orchestrator`
+  (previously an empty Phase 1 placeholder) now authorizes which named
+  agent (`emma`, `estimate-agent`, `scheduling-agent`,
+  `operations-agent`, `review-agent`, `seo-agent`, `media-agent`,
+  `followup-agent` - `src/agent-registry.ts`) may handle a given task
+  type, before anything reaches the job queue or a provider - an
+  unauthorized pairing is rejected and audit-logged, never enqueued
+  (7/7 `apps/agent-orchestrator` tests passing). A new shared
+  `RoutedTaskJob` type in `packages/task-router` replaces a private,
+  duplicated copy in `apps/worker-service`; `apps/worker-service` now
+  threads the job's real `agentId`/`businessId` into `routeTask()`
+  instead of a hardcoded literal, fixing cost/audit misattribution.
+- Lint and typecheck pass repo-wide; `packages/task-router` and
+  `apps/worker-service`'s existing tests still pass unchanged.
+- **Not done**: no real provider network call, no Emma voice/chat
+  implementation, no Hermes. Every placeholder adapter still returns
+  `not-implemented` (see `packages/provider-adapters`), so dispatching
+  any real task today honestly resolves to `not-implemented`, not a
+  fabricated success - this is expected Phase 1 fidelity, not a bug.
+
 **Growth-system domain contracts (in progress) — `packages/core-models`**
 
 - Scope: a first, provider-neutral coding slice for the GreenCal
