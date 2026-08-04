@@ -147,6 +147,25 @@ export type {
   ListJobsOptions,
 } from './job-repository';
 
+export { createSupabaseInvoiceRepository } from './invoice-repository';
+export type {
+  InvoiceRepository,
+  CreateInvoiceInput,
+  CreateInvoiceResult,
+  GetInvoiceResult,
+  ListInvoicesResult,
+  ListInvoicesOptions,
+  TransitionInvoiceResult,
+} from './invoice-repository';
+
+export { createSupabasePaymentRepository } from './payment-repository';
+export type {
+  PaymentRepository,
+  CreatePaymentInput,
+  CreatePaymentResult,
+  ListPaymentsResult,
+} from './payment-repository';
+
 export { createSupabaseNoteRepository } from './note-repository';
 export type {
   NoteRepository,

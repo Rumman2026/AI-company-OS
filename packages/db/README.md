@@ -276,6 +276,23 @@ before RLS). See DECISIONS.md ADR-0036. All three migrations are
 confirmed run against production; `getCurrentMembership()` and the
 admin-console dashboard work correctly.
 
+## Cluster 27: Invoice + Payment persistence
+
+`migrations/027-invoice-payment-persistence.sql` adds tenant-scoped
+`invoices` (RLS with select/insert/update from creation - unlike
+`estimates`' migration-016 gap, `update` ships from the start) and
+`payments` (append-only - select/insert only, no update/delete, since
+it is an immutable payment-outcome fact log, not a mutable entity).
+`InvoiceRepository` (`createInvoice`, `getInvoice`, `listInvoices`,
+`transitionInvoiceStatusForRoles`) mirrors `JobRepository` exactly,
+including reuse of `resolveTransitionAcrossActorCategories()` for
+role-fallback authorization against `packages/core-models`'
+already-implemented `transitionInvoice()` state machine, and one audit
+record per successful transition via the injected
+`AuditLogRepository`. `PaymentRepository` (`createPayment`,
+`listPaymentsForInvoice`) takes no audit-log dependency - `Payment` has
+no state machine. See DECISIONS.md ADR-0037.
+
 ## What is deliberately excluded
 
 An authenticated owner interface for Bookings (every other listed

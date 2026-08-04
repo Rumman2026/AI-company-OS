@@ -30,6 +30,25 @@ Ordered by urgency.
   `getCurrentMembership()` remains. No action needed - kept for
   reference only.
 
+## 0b. ACTION REQUIRED — Invoice/Payment migration (027, safe, not urgent)
+
+- **Status**: `packages/db/migrations/027-invoice-payment-persistence.sql`
+  has been written and locally tested (124/124 `packages/db` tests
+  passing) but **not yet run** against `Greencal-production` - this
+  environment has no Supabase CLI or credential access, so every
+  migration in this project is applied by you, manually, in the
+  Supabase SQL Editor.
+- **What it adds**: two new tables, `invoices` and `payments`, both
+  tenant-scoped with row-level security enabled. Additive only - no
+  existing table, column, or policy is changed.
+- **Action**: open Supabase → SQL Editor → paste the full contents of
+  `packages/db/migrations/027-invoice-payment-persistence.sql` → run.
+- **Result once run**: `apps/admin-console`'s new `/invoices` list page,
+  invoice detail page (status transitions, payment recording), and the
+  new "Invoices" section on each Job's detail page will read/write real
+  data instead of failing against a missing table. See DECISIONS.md
+  ADR-0037 and `docs/crm/CRM_ARCHITECTURE.md` Cluster 27.
+
 ## 1. Prevent Supabase auto-pause from silently killing lead capture (urgent)
 
 - **Screen**: Supabase dashboard → the GreenCal project (`Greencal-production`)

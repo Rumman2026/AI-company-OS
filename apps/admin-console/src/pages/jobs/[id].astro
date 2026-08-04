@@ -10,10 +10,12 @@ import {
   createSupabaseNoteRepository,
   createSupabaseTaskRepository,
   createSupabasePhotoAssetRepository,
+  createSupabaseInvoiceRepository,
   type PhotoWithSignedUrl,
 } from '@ai-company-os/db';
-import { jobStatusTone } from '@ai-company-os/ui-kit';
-import type { JobStatus, Note, Task } from '@ai-company-os/core-models';
+import { jobStatusTone, invoiceStatusTone } from '@ai-company-os/ui-kit';
+import { formatMinorUnitsAsDollars } from '../../lib/estimates/parse-amount';
+import type { JobStatus, Note, Task, Invoice } from '@ai-company-os/core-models';
 
 const user = Astro.locals.user!;
 const membership = await getCurrentMembership(Astro.locals.supabase, user.id);
@@ -37,6 +39,7 @@ let notFound = false;
 let notes: Note[] = [];
 let tasks: Task[] = [];
 let photos: PhotoWithSignedUrl[] = [];
+let invoices: Invoice[] = [];
 
 const transitionError = Astro.url.searchParams.get('error');
 
@@ -72,6 +75,10 @@ if (membership && id) {
     const photoRepo = createSupabasePhotoAssetRepository(Astro.locals.supabase);
     const photosResult = await photoRepo.listPhotosForJob(membership.businessId, id);
     if (photosResult.ok) photos = photosResult.photos;
+
+    const invoiceRepo = createSupabaseInvoiceRepository(Astro.locals.supabase, auditLog);
+    const invoicesResult = await invoiceRepo.listInvoices(membership.businessId, { jobId: id });
+    if (invoicesResult.ok) invoices = invoicesResult.invoices;
   } else {
     notFound = true;
   }
@@ -128,6 +135,38 @@ if (membership && id) {
           Most transitions require an office-manager, dispatcher, or technician role - an
           owner-admin-only account will see an honest rejection for those, by design.
         </p>
+
+        <h2>Invoices</h2>
+        {invoices.length === 0 ? (
+          <div class="uikit-empty-state">
+            <p class="uikit-empty-state__title">No invoices yet</p>
+          </div>
+        ) : (
+          <ul>
+            {invoices.map((invoice) => (
+              <li>
+                <a href={`/invoices/${invoice.id}`}>
+                  {formatMinorUnitsAsDollars(invoice.totalAmount.amountMinorUnits, invoice.totalAmount.currency)}
+                </a>{' '}
+                ({new Date(invoice.createdAt).toLocaleDateString()}){' '}
+                <span class={`uikit-badge uikit-badge--${invoiceStatusTone(invoice.status)}`}>
+                  {invoice.status}
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+        <form method="POST" action="/api/invoices" style="max-width: 400px;">
+          <input type="hidden" name="jobId" value={job.id} />
+          <input type="hidden" name="leadId" value={job.leadId} />
+          <div class="uikit-form-field">
+            <label for="totalAmount">Invoice total (USD)</label>
+            <input id="totalAmount" name="totalAmount" type="text" placeholder="450.00" required />
+          </div>
+          <button type="submit" class="uikit-button uikit-button--secondary">
+            Create invoice
+          </button>
+        </form>
 
         <TasksSection entityType="job" entityId={job.id} tasks={tasks} redirectTo={`/jobs/${job.id}`} />
 

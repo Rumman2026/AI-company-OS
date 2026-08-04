@@ -1,0 +1,170 @@
+---
+import AdminLayout from '../../layouts/AdminLayout.astro';
+import { getCurrentMembership } from '../../lib/auth/membership';
+import {
+  createSupabaseInvoiceRepository,
+  createSupabaseAuditLogRepository,
+  createSupabasePaymentRepository,
+} from '@ai-company-os/db';
+import { invoiceStatusTone } from '@ai-company-os/ui-kit';
+import { formatMinorUnitsAsDollars } from '../../lib/estimates/parse-amount';
+import type { InvoiceStatus, Payment } from '@ai-company-os/core-models';
+
+const user = Astro.locals.user!;
+const membership = await getCurrentMembership(Astro.locals.supabase, user.id);
+const { id } = Astro.params;
+
+const ALL_STATUSES: InvoiceStatus[] = [
+  'draft',
+  'sent',
+  'partially-paid',
+  'paid',
+  'overdue',
+  'voided',
+  'refunded',
+];
+
+let invoice: {
+  id: string;
+  jobId: string;
+  leadId: string;
+  status: InvoiceStatus;
+  totalAmountMinorUnits: number;
+  totalAmountCurrency: string;
+  dueAt?: string;
+  createdAt: string;
+} | null = null;
+let notFound = false;
+let payments: Payment[] = [];
+
+const transitionError = Astro.url.searchParams.get('error');
+
+if (membership && id) {
+  const auditLog = createSupabaseAuditLogRepository(Astro.locals.supabase);
+  const invoiceRepo = createSupabaseInvoiceRepository(Astro.locals.supabase, auditLog);
+  const result = await invoiceRepo.getInvoice(membership.businessId, id);
+
+  if (result.ok) {
+    invoice = {
+      id: result.invoice.id,
+      jobId: result.invoice.jobId,
+      leadId: result.invoice.leadId,
+      status: result.invoice.status,
+      totalAmountMinorUnits: result.invoice.totalAmount.amountMinorUnits,
+      totalAmountCurrency: result.invoice.totalAmount.currency,
+      dueAt: result.invoice.dueAt,
+      createdAt: result.invoice.createdAt,
+    };
+
+    const paymentRepo = createSupabasePaymentRepository(Astro.locals.supabase);
+    const paymentsResult = await paymentRepo.listPaymentsForInvoice(membership.businessId, id);
+    if (paymentsResult.ok) payments = paymentsResult.payments;
+  } else {
+    notFound = true;
+  }
+}
+---
+
+<AdminLayout title="Invoice detail" membership={membership}>
+  <p><a href="/invoices">&larr; Back to invoices</a></p>
+  {
+    notFound ? (
+      <div class="uikit-error-banner" role="alert">
+        Invoice not found.
+      </div>
+    ) : invoice ? (
+      <>
+        <h1>
+          Invoice{' '}
+          <span class={`uikit-badge uikit-badge--${invoiceStatusTone(invoice.status)}`}>{invoice.status}</span>
+        </h1>
+        <dl>
+          <dt>Job</dt>
+          <dd>
+            <a href={`/jobs/${invoice.jobId}`}>{invoice.jobId}</a>
+          </dd>
+          <dt>Lead</dt>
+          <dd>
+            <a href={`/leads/${invoice.leadId}`}>{invoice.leadId}</a>
+          </dd>
+          <dt>Amount</dt>
+          <dd>{formatMinorUnitsAsDollars(invoice.totalAmountMinorUnits, invoice.totalAmountCurrency)}</dd>
+          <dt>Due</dt>
+          <dd>{invoice.dueAt ? new Date(invoice.dueAt).toLocaleDateString() : '—'}</dd>
+          <dt>Created</dt>
+          <dd>{new Date(invoice.createdAt).toLocaleString()}</dd>
+        </dl>
+
+        {transitionError ? (
+          <div class="uikit-error-banner" role="alert">
+            {transitionError}
+          </div>
+        ) : null}
+
+        <form method="POST" action={`/api/invoices/${invoice.id}/transition`} style="max-width: 360px;">
+          <div class="uikit-form-field">
+            <label for="requestedStatus">Change status to</label>
+            <select id="requestedStatus" name="requestedStatus">
+              {ALL_STATUSES.filter((s) => s !== invoice!.status).map((status) => (
+                <option value={status}>{status}</option>
+              ))}
+            </select>
+          </div>
+          <div class="uikit-form-field">
+            <label for="amountReceived">Amount received (USD)</label>
+            <input id="amountReceived" name="amountReceived" type="text" placeholder="450.00" />
+          </div>
+          <p style="color: var(--color-text-muted); font-size: 0.875rem;">
+            Required only when moving to "Partially paid" or "Paid" - ignored otherwise.
+          </p>
+          <div class="uikit-form-field">
+            <label for="reason">Reason (required for some transitions)</label>
+            <input id="reason" name="reason" type="text" />
+          </div>
+          <button type="submit" class="uikit-button uikit-button--primary">
+            Update status
+          </button>
+        </form>
+        <p style="color: var(--color-text-muted); font-size: 0.875rem;">
+          "Overdue" can only be set by an automated process, not from this form - there is no
+          scheduled job wired into this application yet, so that edge is intentionally
+          unreachable from the UI.
+        </p>
+
+        <h2>Payments</h2>
+        {payments.length === 0 ? (
+          <div class="uikit-empty-state">
+            <p class="uikit-empty-state__title">No payments recorded yet</p>
+          </div>
+        ) : (
+          <ul>
+            {payments.map((p) => (
+              <li>
+                {formatMinorUnitsAsDollars(p.amount.amountMinorUnits, p.amount.currency)} -{' '}
+                {new Date(p.occurredAt).toLocaleString()}
+              </li>
+            ))}
+          </ul>
+        )}
+        <form method="POST" action={`/api/invoices/${invoice.id}/payments`} style="max-width: 320px;">
+          <div class="uikit-form-field">
+            <label for="paymentAmount">Record a payment (USD)</label>
+            <input id="paymentAmount" name="amount" type="text" placeholder="200.00" required />
+          </div>
+          <button type="submit" class="uikit-button uikit-button--secondary">
+            Record payment
+          </button>
+        </form>
+        <p style="color: var(--color-text-muted); font-size: 0.875rem;">
+          Recording a payment here is a fact log only - it does not change the invoice status.
+          Use "Change status to" above with the matching "Amount received" once you know whether
+          the invoice is now partially paid or fully paid.
+        </p>
+      </>
+    ) : (
+      <div class="uikit-error-banner" role="alert">
+        Your account has no business membership yet.
+      </div>
+    )
+  }
+</AdminLayout>

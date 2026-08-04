@@ -2546,6 +2546,104 @@ preemptively swept across the schema.
 
 ---
 
+## ADR-0037: Invoice + Payment persistence layer (packages/db) and admin-console CRUD/transition UI
+
+**Status**: Confirmed (implemented)
+
+**Context**: Following resolution of the production membership/RLS
+incident (ADR-0035, ADR-0036), the owner directed continuation to the
+next unblocked CRM milestone. Inspection of `packages/core-models`
+found `Invoice`, `Payment`, `InvoiceStatus`, `PaymentOutcomeEvidence`,
+and a fully implemented, tested `transitionInvoice()` state machine
+already present (10-rule transition table covering
+Draft→Sent/Voided, Sent→PartiallyPaid/Paid/Overdue/Voided,
+PartiallyPaid→Paid/Overdue/Refunded, Paid→Refunded,
+Overdue→PartiallyPaid/Paid/Voided) with zero persistence, zero API, and
+zero UI - the exact same "domain model exists, repository layer
+doesn't yet" gap previously closed for Lead/Job/Estimate.
+
+**Decision**: Close the gap using the established repository +
+transition pattern with no new architecture:
+
+- `migrations/027-invoice-payment-persistence.sql` adds `invoices` and
+  `payments` tables, tenant-scoped (`business_id`) with RLS enabled on
+  both from creation (unlike estimates' migration-016 gap, `invoices`
+  ships with an `update` policy from the start). `payments` is
+  append-only - `select`/`insert` policies only, no `update`/`delete`,
+  matching its role as an immutable payment-outcome fact log rather
+  than a mutable entity.
+- `InvoiceRepository` (`createInvoice`, `getInvoice`, `listInvoices`,
+  `transitionInvoiceStatusForRoles`) and `PaymentRepository`
+  (`createPayment`, `listPaymentsForInvoice`) in `packages/db`, mirroring
+  `JobRepository` exactly, including reuse of the existing generic
+  `resolveTransitionAcrossActorCategories()` for role-fallback
+  authorization and one audit record per successful transition via the
+  injected `AuditLogRepository`. `PaymentRepository` takes no audit-log
+  dependency - `Payment` has no state machine, so there is nothing to
+  audit beyond the row itself.
+- `apps/admin-console`: `invoices/index.astro` (list, status-filterable),
+  `invoices/[id].astro` (detail: status badge, transition form with an
+  optional "amount received" field that is only consulted for
+  `partially-paid`/`paid` targets, payments list, record-payment form),
+  `api/invoices.ts` (create, posted from a Job's detail page),
+  `api/invoices/[id]/transition.ts`, `api/invoices/[id]/payments.ts`,
+  an "Invoices" section added to `jobs/[id].astro` (mirrors the Lead
+  page's existing "Estimates" section), and an "Invoices" nav link.
+  `invoiceStatusTone()` added to `packages/ui-kit` mirroring
+  `jobStatusTone()`.
+- The transition API route always attaches `{outcome:
+'no-captured-payment'}` evidence when the requested status is
+  `voided`, regardless of current state. This is safe: `evidenceMatches()`
+  short-circuits to `true` for a rule whose `requiredEvidence` is
+  `'none'` without inspecting the supplied evidence, so the only edge
+  where this evidence is actually load-bearing (`Overdue → Voided`,
+  which requires `no-captured-payment`) gets it, and every other
+  `→ Voided` edge (which requires `'none'`) ignores it harmlessly. This
+  avoids needing the API route to pre-fetch the invoice's current state
+  just to decide which evidence shape to construct.
+
+**Alternatives considered**: Adding a "Mark overdue" button/role path
+so office-manager could trigger `Sent/PartiallyPaid → Overdue` from the
+UI - rejected. `transitionInvoice()`'s own transition table restricts
+that edge to `allowedActors: ['automation']` only; no cron or
+background-worker actor is wired into this application yet (per
+`.claude/rules/backend.md`, `worker-service`/`ai-gateway` make no real
+provider or scheduling calls without separate owner authorization).
+Fabricating an office-manager-triggered path to reach that edge would
+silently violate the approved transition graph, so it is left
+genuinely unreachable from the UI rather than faked - the detail page
+says so explicitly. Building a payment-gateway integration - out of
+scope; `Payment`/`PaymentOutcomeEvidence` are explicitly documented in
+`packages/core-models` as staff-entered facts, not a live settlement
+integration.
+
+**Trade-offs**: Recording a payment (`PaymentRepository.createPayment`)
+and transitioning the invoice to reflect it (`partially-paid`/`paid`)
+are two separate user actions/forms rather than one combined flow -
+consistent with `Payment` having no state machine and no automatic
+linkage to `Invoice.status` in the domain model; combining them would
+require inventing behavior core-models doesn't define.
+
+**Consequences**: `docs/launch/OWNER_ACTIONS_REQUIRED.md` gains
+migration 027 as a pending owner action (not yet run against
+production - no Supabase CLI/credential access exists in this
+environment, per the established pattern for every prior migration
+this project). `ROADMAP.md`, `docs/crm/CRM_ARCHITECTURE.md`, and
+`packages/db/README.md` gain a new cluster entry for Invoice/Payment.
+No change to authentication, membership, RLS helper functions, or base
+grants fixed in ADR-0035/ADR-0036.
+
+**Related**: [ADR-0018](#adr-0018-multi-role-memberships-owner-directed)
+(state machine + repository pattern precedent),
+[ADR-0025](#adr-0025-customer-activity-timeline-as-a-read-time-composition-plus-actor-tracking)
+(activity-timeline's
+not-yet-implemented `invoice-created`/`payment-received` entry types,
+still not implemented by this ADR - only persistence and direct UI, no
+timeline wiring), [ADR-0035](#adr-0035-fix-infinite-rls-recursion-on-membershipsmembership_roles-via-security-definer-helper-functions-corrects-adr-0032),
+[ADR-0036](#adr-0036-restore-memberships-select-grant-for-authenticated-post-migration-024-incident).
+
+---
+
 ## Proposed decisions (not yet made)
 
 - Service-to-service communication pattern (REST/gRPC/queue) beyond the

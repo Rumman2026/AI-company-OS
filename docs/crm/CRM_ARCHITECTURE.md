@@ -637,6 +637,45 @@ incident have been removed - `getCurrentMembership()` keeps only the
 permanent improvement (distinguishing a real query error from "no
 membership" in its error-path logging).
 
+## Cluster 27: Invoice + Payment persistence and admin-console UI
+
+Closes the gap between `packages/core-models`' already-implemented
+`Invoice`/`Payment` domain types and `transitionInvoice()` state
+machine (10 transition rules across Draft/Sent/PartiallyPaid/Paid/
+Overdue/Voided/Refunded) and actual persistence/UI - none existed
+before this cluster.
+
+- `migrations/027-invoice-payment-persistence.sql` adds tenant-scoped
+  `invoices` (RLS with select/insert/update from creation) and
+  `payments` (append-only - select/insert only, no update/delete)
+  tables.
+- `InvoiceRepository`/`PaymentRepository` (`packages/db`) mirror
+  `JobRepository`'s pattern exactly, including
+  `resolveTransitionAcrossActorCategories()` reuse and one audit record
+  per successful transition via the injected `AuditLogRepository`.
+  `PaymentRepository` takes no audit-log dependency - `Payment` has no
+  state machine.
+- `apps/admin-console` gains `/invoices` (list, status-filterable),
+  `/invoices/[id]` (status badge, transition form with an optional
+  "amount received" field consulted only for `partially-paid`/`paid`
+  targets, payments list, record-payment form), `POST /api/invoices`,
+  `POST /api/invoices/[id]/transition`, `POST /api/invoices/[id]/payments`,
+  an "Invoices" section on the Job detail page (mirrors the Lead page's
+  "Estimates" section), and an "Invoices" nav link. `invoiceStatusTone()`
+  added to `packages/ui-kit`.
+- `Overdue` transition edges are intentionally unreachable from this
+  UI: `transitionInvoice()` restricts them to
+  `actorCategory: 'automation'` only, and no cron/background-worker
+  actor is wired into this application. The detail page states this
+  explicitly rather than fabricating an office-manager path that would
+  violate the approved transition graph.
+
+**Classification: IMPLEMENTED AND TESTED LOCALLY.** 124/124
+`packages/db` tests passing (11 new). `apps/admin-console`
+typecheck/lint/test/build all pass locally (22/22 tests). Migration
+027 has NOT yet been run against production (owner action). See
+DECISIONS.md ADR-0037.
+
 ## What "CRM" means in this repository today
 
 The owner's "Master Scope Consolidation" directive asks for an internal

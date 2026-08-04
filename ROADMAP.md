@@ -560,6 +560,39 @@ MembershipRole[]`, with a fallback to the legacy `memberships.role`
   been removed - only the permanent error-path logging improvement
   remains.
 
+**Cluster 27 (implemented, tested locally) — Invoice + Payment persistence and admin-console UI (ADR-0037)**
+
+- Scope: see [DECISIONS.md](DECISIONS.md) ADR-0037. Closes the gap
+  between `packages/core-models`' already-implemented `Invoice`/
+  `Payment` domain types and `transitionInvoice()` state machine (10
+  transition rules across Draft/Sent/PartiallyPaid/Paid/Overdue/
+  Voided/Refunded) and actual persistence/UI - none existed before this
+  cluster.
+- Implemented with repository evidence: `migrations/027-invoice-payment-persistence.sql`
+  adds tenant-scoped `invoices` (RLS with select/insert/update from
+  creation) and `payments` (append-only - select/insert only, no
+  update/delete) tables. `InvoiceRepository`/`PaymentRepository`
+  (`packages/db`) mirror `JobRepository`'s pattern exactly, including
+  `resolveTransitionAcrossActorCategories()` reuse and one audit record
+  per successful transition (124/124 `packages/db` tests passing
+  total, 11 new). `apps/admin-console` gains `/invoices` (list,
+  status-filterable), `/invoices/[id]` (status badge, transition form,
+  payments list, record-payment form), `POST /api/invoices`,
+  `POST /api/invoices/[id]/transition`, `POST /api/invoices/[id]/payments`,
+  an "Invoices" section on the Job detail page, and an "Invoices" nav
+  link. `invoiceStatusTone()` added to `packages/ui-kit`.
+- The `Overdue` transition edges are intentionally unreachable from
+  this UI - `transitionInvoice()` restricts them to
+  `actorCategory: 'automation'` only, and no cron/background-worker
+  actor is wired into this application; the detail page states this
+  explicitly rather than fabricating an office-manager path that would
+  violate the approved transition graph.
+- Lint (0 errors), typecheck (0 errors), a local production build, and
+  unit tests (22/22 `apps/admin-console`, 124/124 `packages/db`) all
+  pass, repo-wide.
+- Migration 027 has not yet been run against production (owner
+  action - see `docs/launch/OWNER_ACTIONS_REQUIRED.md`).
+
 **Growth-system domain contracts (in progress) — `packages/core-models`**
 
 - Scope: a first, provider-neutral coding slice for the GreenCal

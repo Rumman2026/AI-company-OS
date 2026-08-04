@@ -1,0 +1,123 @@
+---
+import AdminLayout from '../../layouts/AdminLayout.astro';
+import { getCurrentMembership } from '../../lib/auth/membership';
+import { createSupabaseInvoiceRepository, createSupabaseAuditLogRepository } from '@ai-company-os/db';
+import { invoiceStatusTone } from '@ai-company-os/ui-kit';
+import { formatMinorUnitsAsDollars } from '../../lib/estimates/parse-amount';
+import type { InvoiceStatus } from '@ai-company-os/core-models';
+
+const user = Astro.locals.user!;
+const membership = await getCurrentMembership(Astro.locals.supabase, user.id);
+
+const statusFilter = Astro.url.searchParams.get('status') as InvoiceStatus | null;
+
+let invoices: Array<{
+  id: string;
+  status: InvoiceStatus;
+  totalAmountMinorUnits: number;
+  totalAmountCurrency: string;
+  dueAt?: string;
+  createdAt: string;
+}> = [];
+let loadError: string | null = null;
+
+if (membership) {
+  const auditLog = createSupabaseAuditLogRepository(Astro.locals.supabase);
+  const invoiceRepo = createSupabaseInvoiceRepository(Astro.locals.supabase, auditLog);
+  const result = await invoiceRepo.listInvoices(membership.businessId, {
+    status: statusFilter ?? undefined,
+  });
+  if (result.ok) {
+    invoices = result.invoices.map((i) => ({
+      id: i.id,
+      status: i.status,
+      totalAmountMinorUnits: i.totalAmount.amountMinorUnits,
+      totalAmountCurrency: i.totalAmount.currency,
+      dueAt: i.dueAt,
+      createdAt: i.createdAt,
+    }));
+  } else {
+    loadError = result.error;
+  }
+}
+
+const ALL_STATUSES: InvoiceStatus[] = [
+  'draft',
+  'sent',
+  'partially-paid',
+  'paid',
+  'overdue',
+  'voided',
+  'refunded',
+];
+---
+
+<AdminLayout title="Invoices" membership={membership}>
+  <h1>Invoices</h1>
+
+  <form method="GET" style="margin-bottom: 1rem; max-width: 240px;">
+    <div class="uikit-form-field">
+      <label for="status">Filter by status</label>
+      <select id="status" name="status" onchange="this.form.submit()">
+        <option value="">All statuses</option>
+        {
+          ALL_STATUSES.map((status) => (
+            <option value={status} selected={status === statusFilter}>
+              {status}
+            </option>
+          ))
+        }
+      </select>
+    </div>
+  </form>
+
+  {
+    loadError ? (
+      <div class="uikit-error-banner" role="alert">
+        Could not load invoices: {loadError}
+      </div>
+    ) : invoices.length === 0 ? (
+      <div class="uikit-empty-state">
+        <p class="uikit-empty-state__title">No invoices found</p>
+        <p class="uikit-empty-state__description">
+          {statusFilter
+            ? `No invoices with status "${statusFilter}".`
+            : 'Invoices are created from a completed Job - see a Job\'s detail page.'}
+        </p>
+      </div>
+    ) : (
+      <div class="uikit-table-scroll">
+        <table class="uikit-table">
+          <thead>
+            <tr>
+              <th>Status</th>
+              <th>Amount</th>
+              <th>Due</th>
+              <th>Created</th>
+              <th />
+            </tr>
+          </thead>
+          <tbody>
+            {invoices.map((invoice) => (
+              <tr>
+                <td>
+                  <span class={`uikit-badge uikit-badge--${invoiceStatusTone(invoice.status)}`}>
+                    {invoice.status}
+                  </span>
+                </td>
+                <td>
+                  {formatMinorUnitsAsDollars(invoice.totalAmountMinorUnits, invoice.totalAmountCurrency)}
+                </td>
+                <td>{invoice.dueAt ? new Date(invoice.dueAt).toLocaleDateString() : '—'}</td>
+                <td>{new Date(invoice.createdAt).toLocaleString()}</td>
+                <td>
+                  <a href={`/invoices/${invoice.id}`}>View</a>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    )
+  }
+</AdminLayout>
