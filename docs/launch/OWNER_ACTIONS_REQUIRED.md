@@ -47,7 +47,7 @@ Ordered by urgency.
   additive — the lead pipeline already works without this and will
   keep working identically before and after.
 
-## 3b. Run pending internal-CRM migrations 004-021 (safe, not urgent, run whenever convenient)
+## 3b. Run pending internal-CRM migrations 004-022 (safe, not urgent, run whenever convenient)
 
 - **Screen**: Supabase dashboard → the GreenCal project (`Greencal-production`)
   → SQL Editor. **Different migration chain from item 3 above** - these
@@ -102,7 +102,10 @@ Ordered by urgency.
     list of cities/regions you serve)
   - `packages/db/migrations/021-business-hours.sql` (adds working
     hours, one row per day of week)
-- **Action**: open each file **in order** (004 through 021) and run its
+  - `packages/db/migrations/022-team-roster.sql` (lets your team see
+    each other's roles and, for an owner-admin, grant or revoke a
+    role)
+- **Action**: open each file **in order** (004 through 022) and run its
   full contents once in the SQL Editor. Each is additive-only (new
   tables, one additive column, or - for 007/008 - new rows only) and
   safe to run against the live production database - no existing table
@@ -135,7 +138,8 @@ Ordered by urgency.
   address/phone/email/website under Settings. Running 019 lets you
   upload a logo and set a brand color. Running 020 lets you list the
   cities/regions you serve. Running 021 lets you set weekly working
-  hours. The admin-console itself is not yet deployed
+  hours. Running 022 lets your team see each other's roles and lets an
+  owner-admin change them. The admin-console itself is not yet deployed
   to a live Vercel project (see the "not done" note in
   `docs/crm/CRM_ARCHITECTURE.md`), so this has no live-user-facing
   effect until that deployment also happens.

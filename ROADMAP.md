@@ -449,6 +449,33 @@ MembershipRole[]`, with a fallback to the legacy `memberships.role`
   Migrations 018-021 have not yet been run against production (owner
   action).
 
+**Cluster 24 (implemented, tested locally) — Team roster and role management (ADR-0032)**
+
+- Scope: see [DECISIONS.md](DECISIONS.md) ADR-0032. Closes "Team
+  permissions" from Settings. Broadening `memberships` visibility was
+  explicitly deferred as "a real, separate security-scope decision" in
+  ADR-0025 (Activity Timeline) - this ADR is that decision, made only
+  after the owner explicitly confirmed it.
+- Implemented with repository evidence:
+  `migrations/022-team-roster.sql` adds an _additional_ tenant-scoped
+  SELECT policy to `memberships`/`membership_roles` (the original
+  own-row policies are kept, not dropped - the new policy's subquery
+  depends on them), a denormalized `memberships.user_email`
+  (backfilled once from `auth.users.email` directly in the migration,
+  avoiding any `SECURITY DEFINER` function or `.rpc()` call), and
+  owner-admin-gated INSERT/DELETE policies on `membership_roles`
+  (privilege-escalation prevention). New `TeamRosterRepository`
+  (109/109 `packages/db` tests passing total, 8 new) - `revokeRole()`
+  refuses to remove a business's last remaining `owner-admin`.
+  `apps/admin-console` gains `/settings/team`.
+- Lint, typecheck, a local production build, and unit tests all pass.
+  The RLS/privilege-escalation logic itself is inherently untestable
+  against real Postgres in this environment - correctness rests on the
+  migration's own reasoning and code review (documented in ADR-0032),
+  same limitation already noted for the migration-016 RLS fix.
+- Migration 022 has not yet been run against production (owner
+  action).
+
 **Growth-system domain contracts (in progress) — `packages/core-models`**
 
 - Scope: a first, provider-neutral coding slice for the GreenCal

@@ -91,6 +91,15 @@ export type {
   SetBusinessHoursResult,
 } from './business-hours-repository';
 
+export { createSupabaseTeamRosterRepository } from './team-roster-repository';
+export type {
+  TeamMember,
+  TeamRosterRepository,
+  ListTeamRosterResult,
+  GrantRoleResult,
+  RevokeRoleResult,
+} from './team-roster-repository';
+
 export { createSupabaseEstimateRepository } from './estimate-repository';
 export type {
   EstimateRepository,

@@ -1,7 +1,7 @@
 # CRM Architecture
 
 Status: durable record of CRM Milestones 1-3 and Clusters 4-8 and
-10-23 (this sprint). See [DECISIONS.md](../../DECISIONS.md) ADR-0009
+10-24 (this sprint). See [DECISIONS.md](../../DECISIONS.md) ADR-0009
 (persistence), ADR-0010 (multi-tenant foundation), ADR-0011
 (admin-console), ADR-0012 (Estimate/Booking/Job), ADR-0014 (Company),
 ADR-0015 (Note), ADR-0016 (Task), ADR-0018 (multi-role memberships),
@@ -10,8 +10,9 @@ read access), ADR-0023 (archive/restore), ADR-0024 (appointments
 view), ADR-0025 (activity timeline, actor tracking), ADR-0026
 (estimate line items), ADR-0027 (tax/discount/deposit), ADR-0028
 (estimate attachments), ADR-0029 (estimate PDF generation), ADR-0030
-(customer approval link), and ADR-0031 (Settings: profile/branding/
-service areas/hours) for the full rationale, and
+(customer approval link), ADR-0031 (Settings: profile/branding/
+service areas/hours), and ADR-0032 (team roster/role management) for
+the full rationale, and
 [`packages/core-models`](../../packages/core-models/README.md) /
 [`packages/db`](../../packages/db/README.md) /
 [`apps/admin-console`](../../apps/admin-console/README.md) for
@@ -504,6 +505,36 @@ GreenCal's live workflow to configure).
 `packages/db` tests passing (16 new). `apps/admin-console`
 typecheck/lint/test/build all pass locally. Migrations 018-021 have
 NOT yet been run against production (owner action).
+
+## Cluster 24: Team roster and role management
+
+Closes "Team permissions" from the owner's Settings directive - the
+owner explicitly confirmed broadening `memberships`/`membership_roles`
+visibility before this was built (see DECISIONS.md ADR-0032; this
+mirrors the security-scope question ADR-0025 explicitly deferred).
+
+- `memberships`/`membership_roles` each gain an _additional_
+  tenant-scoped SELECT policy alongside their existing own-row policy
+  (`migrations/022-team-roster.sql`) - the original policies are kept,
+  not dropped, since the new policy's own subquery depends on them.
+- `memberships` gains a denormalized `user_email` column, backfilled
+  once from `auth.users.email` directly in the migration script - no
+  `SECURITY DEFINER` function or `.rpc()` needed.
+- `membership_roles` gains owner-admin-gated INSERT/DELETE policies -
+  only an existing `owner-admin` can grant or revoke a role, preventing
+  privilege escalation. `TeamRosterRepository.revokeRole()` also
+  refuses to remove a business's last remaining `owner-admin`.
+- `apps/admin-console` gains `/settings/team` - roster view for
+  everyone; role add/remove controls shown only to an `owner-admin`
+  viewer.
+
+**Classification: IMPLEMENTED AND TESTED LOCALLY.** 109/109
+`packages/db` tests passing (8 new). `apps/admin-console`
+typecheck/lint/test/build all pass locally. Migration 022 has NOT yet
+been run against production (owner action). The RLS/privilege-
+escalation logic is inherently untestable against real Postgres in
+this environment - correctness rests on the migration's own reasoning
+and code review, documented explicitly in ADR-0032.
 
 ## What "CRM" means in this repository today
 

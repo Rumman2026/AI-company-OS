@@ -2147,6 +2147,91 @@ run against production (owner action).
 
 ---
 
+## ADR-0032: Team roster/role management — broadened `memberships` RLS, owner-admin-gated role writes, denormalized email
+
+**Status**: Confirmed (implemented)
+
+**Context**: "Team permissions" (Settings) requires showing the full
+team roster - every prior design in this project deliberately avoided
+this. ADR-0025 (Activity Timeline) explicitly chose to show raw actor
+IDs rather than resolved names specifically because broadening
+`memberships`/`membership_roles` RLS beyond each user's own row was
+flagged as "a real, separate security-scope decision, not made here."
+This ADR is that decision, made only after the owner explicitly
+confirmed it (see this session's clarifying questions): broaden the
+RLS now, and support role editing (not just viewing).
+
+**Decision**: Three parts.
+
+1. **Visibility**: `memberships` and `membership_roles` each gain an
+   _additional_ tenant-scoped SELECT policy alongside their existing
+   own-row policy (`migrations/022-team-roster.sql`) - the original
+   `_own_select` policies are **not** dropped. This matters mechanically:
+   the new tenant-scoped policy's subquery
+   (`business_id in (select business_id from memberships where user_id = auth.uid())`)
+   itself depends on being able to see at least the caller's own
+   `memberships` row, which only the original non-recursive
+   `user_id = auth.uid()` policy guarantees. Postgres OR-combines
+   multiple permissive policies for the same command, so keeping both
+   is what makes the broadened visibility actually resolve without a
+   circular dependency.
+2. **Email display**: `memberships` gains a denormalized `user_email`
+   column, backfilled once from `auth.users.email` directly in the
+   migration script (only possible because the owner runs migrations
+   with the SQL Editor's full privileges, never through the app's own
+   RLS-constrained connection). This avoids ever needing
+   `apps/admin-console` to query the protected `auth.users` schema at
+   request time - no `SECURITY DEFINER` function, no `.rpc()` call, no
+   new client capability beyond what this package already uses
+   everywhere else (`.eq()`/`.in()`/`.select()`).
+3. **Role editing, scoped to `owner-admin`**: `membership_roles` gains
+   INSERT/DELETE RLS policies that only permit the change if the
+   acting user already holds `owner-admin` for that same business -
+   this is a real, deliberate privilege-escalation guard: without it,
+   any team member could grant themselves (or anyone) `owner-admin`.
+   `packages/db`'s new `TeamRosterRepository.grantRole()`/`revokeRole()`
+   also check `actingUserRoles.includes('owner-admin')` at the
+   application layer before attempting the write, purely for a clean
+   error message - the RLS policy is the real enforcement.
+   `revokeRole()` additionally refuses to remove a business's **last**
+   remaining `owner-admin` - an irreversible lockout (nobody left who
+   can grant or revoke anything) that this repository will not allow
+   regardless of who requests it.
+
+`TeamRosterRepository` (like `BusinessProfileRepository` and the other
+Settings repositories from ADR-0031) is a `packages/db`-only type, not
+`packages/core-models` - team membership is platform/tenant
+infrastructure, not a CRM domain entity.
+
+**Alternatives considered**: A `SECURITY DEFINER` Postgres function
+querying `auth.users` live at request time - rejected in favor of a
+one-time backfilled, denormalized column; simpler, avoids a new
+client capability (`.rpc()`) this package has never needed before, and
+avoids the harder-to-audit "runs with elevated privileges but
+re-checks tenant membership internally" pattern when a simpler design
+achieves the same result. Enforcing the last-owner-admin safeguard at
+the database level (a constraint or trigger) - rejected as
+meaningfully more complex than an application-layer check for a
+guard whose only real cost of failure is a clear rejection, not data
+corruption.
+
+**Consequences**: `docs/crm/CRM_ARCHITECTURE.md` and
+`packages/db/README.md` gain a section. `apps/admin-console` gains
+`/settings/team` (roster view for everyone; role add/remove controls
+shown only to an `owner-admin` viewer). Migration 022 has not yet been
+run against production (owner action). The RLS/privilege-escalation
+logic here is inherently untestable against real Postgres in this
+environment (this package's unit tests run against a hand-rolled fake
+client with no RLS enforcement, same limitation already noted for
+ADR-0030's migration-016 fix) - correctness rests on the migration's
+own reasoning and code review, not an automated test.
+
+**Related**: [ADR-0018](#adr-0018-multi-role-memberships-owner-directed),
+[ADR-0025](#adr-0025-customer-activity-timeline-as-a-read-time-composition-plus-actor-tracking),
+ADR-0031 (Settings: business profile/branding/service areas/hours).
+
+---
+
 ## Proposed decisions (not yet made)
 
 - Service-to-service communication pattern (REST/gRPC/queue) beyond the

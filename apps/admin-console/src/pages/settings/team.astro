@@ -1,0 +1,83 @@
+---
+import AdminLayout from '../../layouts/AdminLayout.astro';
+import { getCurrentMembership } from '../../lib/auth/membership';
+import { createSupabaseTeamRosterRepository, type TeamMember, type MembershipRole } from '@ai-company-os/db';
+
+const ALL_ROLES: MembershipRole[] = ['owner-admin', 'office-manager', 'dispatcher', 'technician'];
+
+const user = Astro.locals.user!;
+const membership = await getCurrentMembership(Astro.locals.supabase, user.id);
+const errorMessage = Astro.url.searchParams.get('error');
+
+let members: TeamMember[] = [];
+const isOwnerAdmin = membership?.roles.includes('owner-admin') ?? false;
+
+if (membership) {
+  const repo = createSupabaseTeamRosterRepository(Astro.locals.supabase);
+  const result = await repo.listTeamRoster(membership.businessId);
+  if (result.ok) members = result.members;
+}
+---
+
+<AdminLayout title="Team & permissions" membership={membership}>
+  <p><a href="/settings">&larr; Back to settings</a></p>
+  <h1>Team &amp; permissions</h1>
+
+  {errorMessage ? <div class="uikit-error-banner" role="alert">{errorMessage}</div> : null}
+
+  {!isOwnerAdmin ? (
+    <p style="color: var(--color-text-muted); font-size: 0.875rem;">
+      Only an owner-admin can change roles - you can view the roster below.
+    </p>
+  ) : null}
+
+  <div class="uikit-table-scroll">
+    <table class="uikit-table">
+      <thead>
+        <tr>
+          <th>Member</th>
+          <th>Roles</th>
+          {isOwnerAdmin ? <th /> : null}
+        </tr>
+      </thead>
+      <tbody>
+        {members.map((member) => (
+          <tr>
+            <td>{member.email ?? member.userId}</td>
+            <td>
+              {member.roles.map((role) => (
+                <span class="uikit-badge uikit-badge--neutral" style="margin-right: 0.25rem;">
+                  {role}
+                  {isOwnerAdmin ? (
+                    <form
+                      method="POST"
+                      action={`/api/settings/team/${member.membershipId}/revoke-role`}
+                      style="display: inline; margin-left: 0.25rem;"
+                    >
+                      <input type="hidden" name="role" value={role} />
+                      <button type="submit" class="uikit-button uikit-button--secondary" style="padding: 0 0.25rem;">
+                        &times;
+                      </button>
+                    </form>
+                  ) : null}
+                </span>
+              ))}
+            </td>
+            {isOwnerAdmin ? (
+              <td>
+                <form method="POST" action={`/api/settings/team/${member.membershipId}/grant-role`}>
+                  <select name="role">
+                    {ALL_ROLES.filter((r) => !member.roles.includes(r)).map((role) => (
+                      <option value={role}>{role}</option>
+                    ))}
+                  </select>
+                  <button type="submit" class="uikit-button uikit-button--secondary">Add role</button>
+                </form>
+              </td>
+            ) : null}
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  </div>
+</AdminLayout>

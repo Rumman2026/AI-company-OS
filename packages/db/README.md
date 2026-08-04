@@ -223,6 +223,20 @@ Four new/extended `packages/db`-only types (not `packages/core-models`
   one row per day of week, saved via a single `upsert()` batch). See
   DECISIONS.md ADR-0031.
 
+## Cluster 24: Team roster and role management
+
+`migrations/022-team-roster.sql` broadens `memberships`/`membership_roles`
+SELECT visibility with an _additional_ tenant-scoped policy (the
+original own-row policies are kept, not dropped - the new policy's
+subquery depends on them), adds a denormalized `memberships.user_email`
+(backfilled from `auth.users.email` once, in the migration itself),
+and adds owner-admin-gated INSERT/DELETE policies on `membership_roles`.
+`TeamRosterRepository.grantRole()`/`revokeRole()` check
+`actingUserRoles.includes('owner-admin')` at the application layer too
+(clean error message; the RLS policy is the real enforcement);
+`revokeRole()` also refuses to remove a business's last remaining
+`owner-admin`. See DECISIONS.md ADR-0032.
+
 ## What is deliberately excluded
 
 An authenticated owner interface for Bookings (every other listed
