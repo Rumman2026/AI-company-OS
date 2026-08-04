@@ -1810,6 +1810,65 @@ warrant its own commit and its own verification pass, per the owner's
 
 ---
 
+## ADR-0027: Estimate tax, discount, and deposit as integer-only pricing fields
+
+**Status**: Confirmed (implemented)
+
+**Context**: Continuing the owner's "Professional estimate builder"
+directive (see [ADR-0026](#adr-0026-estimate-line-items-and-a-reusable-service-package-catalog)),
+the next required sub-features are Taxes, Discounts, and Deposits on an
+`Estimate`. `Money` (`packages/core-models`) is deliberately
+floating-point-free (integer minor units), so any tax/discount math has
+to stay integer-only or it would violate that existing invariant.
+
+**Decision**: `Estimate` gains three optional fields:
+`taxRateBasisPoints?: number` (integer basis points, e.g. `825` =
+8.25% - not a float percentage, to keep the rate itself
+floating-point-free the same way `Money` is), `discountAmount?: Money`
+(a fixed dollar amount, not a percentage - the simpler of the two
+common discount models, and sufficient for the owner's stated
+requirement), and `depositAmount?: Money` (tracked separately and
+**never subtracted from `total`** - it represents an amount due now
+against the total, not a reduction of the estimate's value). A new pure
+function, `calculateEstimateTotals()`, computes
+`{subtotal, discountAmount, afterDiscount, taxAmount, total, depositAmount}`
+using only integer arithmetic: discount is subtracted first and floored
+at zero (`Math.max(0, subtotal - discount)`, so a discount larger than
+the subtotal never produces a negative total), then tax is computed on
+the post-discount amount (`Math.round(afterDiscount * basisPoints / 10000)`),
+matching standard subtotal-then-discount-then-tax invoicing order.
+`EstimateRepository.setEstimatePricing()` enforces the same "mutable
+only while `draft`" rule ADR-0021/ADR-0026 already established -
+rejects once the parent `Estimate` is `approved`, so approved pricing
+is just as immutable as an approved estimate's amount and line items.
+The Estimate detail page (`apps/admin-console`) gains a pricing form
+(tax rate %, discount $, deposit $) and a totals breakdown display,
+both driven by the same `calculateEstimateTotals()` function used
+server-side, so the UI can never compute a total that disagrees with
+what's persisted.
+
+**Alternatives considered**: A percentage-based discount (matching the
+percentage-based tax rate) - rejected in favor of a fixed dollar amount
+as the simpler, more common estimate-discount model for a small
+service business, and because two independent percentage fields
+(tax and discount) invite ambiguous stacking-order questions that a
+fixed-dollar discount avoids. Subtracting `depositAmount` from `total`
+to show a "balance due" figure - rejected for this commit; `total` is
+kept as the full estimate value and `depositAmount` is shown
+separately as "due now," since a "balance due" figure is really a
+payment-tracking concern (out of scope until Invoices/Payments exist).
+
+**Consequences**: `docs/crm/CRM_ARCHITECTURE.md` and
+`packages/db/README.md` gain a section. Migration `014-estimate-pricing.sql`
+adds five nullable columns to `estimates`. Photo attachment, PDF
+generation, and the customer-facing approval workflow remain the
+next, still-separate clusters per ADR-0026's consequences.
+
+**Related**: [ADR-0021](#adr-0021-estimate-approval-status-no-state-machine),
+[ADR-0026](#adr-0026-estimate-line-items-and-a-reusable-service-package-catalog).
+
+---
+
 ## Proposed decisions (not yet made)
 
 - Service-to-service communication pattern (REST/gRPC/queue) beyond the

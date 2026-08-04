@@ -70,6 +70,8 @@ export type {
   ListEstimatesResult,
   ListEstimatesOptions,
   ApproveEstimateResult,
+  SetEstimatePricingInput,
+  SetEstimatePricingResult,
 } from './estimate-repository';
 
 export { createSupabaseBookingRepository } from './booking-repository';

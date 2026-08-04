@@ -154,6 +154,18 @@ this repository cannot yet produce any entries for.
 (ADR-0021) - `createLineItem()`/`deleteLineItem()` reject once the
 parent Estimate is approved. See DECISIONS.md ADR-0026.
 
+## Cluster 19: Estimate tax, discount, and deposit
+
+`migrations/014-estimate-pricing.sql` adds five nullable columns to
+`estimates`: `tax_rate_basis_points`, `discount_amount_minor_units` +
+`discount_amount_currency`, `deposit_amount_minor_units` +
+`deposit_amount_currency`. `EstimateRepository.setEstimatePricing()`
+enforces the same "mutable only while draft" rule already established
+for `Estimate` (ADR-0021/ADR-0026) - rejects once the estimate is
+approved. Totals math (`calculateEstimateTotals()`) lives in
+`packages/core-models`, not here - this package only persists the raw
+rate/discount/deposit fields. See DECISIONS.md ADR-0027.
+
 ## What is deliberately excluded
 
 An authenticated owner interface for Bookings (every other listed

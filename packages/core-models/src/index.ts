@@ -159,3 +159,6 @@ export { evaluatePhotoPublicationEligibility } from './photo-eligibility';
 export type { PhotoPublicationEligibility } from './photo-eligibility';
 
 export { resolveTransitionAcrossActorCategories } from './transition-resolution';
+
+export { calculateEstimateTotals } from './estimate-totals';
+export type { CalculateEstimateTotalsInput, EstimateTotals } from './estimate-totals';

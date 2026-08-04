@@ -188,3 +188,79 @@ test('approveEstimate rejects a cross-tenant estimate', async () => {
     "the other business's estimate must remain unchanged",
   );
 });
+
+test('setEstimatePricing sets tax/discount/deposit on a draft estimate', async () => {
+  const { repo, estimates } = setup([
+    {
+      id: 'estimate-1',
+      business_id: BUSINESS_A,
+      lead_id: 'lead-1',
+      proposed_amount_minor_units: 50000,
+      proposed_amount_currency: 'USD',
+      summary: 'Roof soft wash',
+      status: 'draft',
+      approved_at: null,
+      created_at: '2026-01-01T00:00:00.000Z',
+    },
+  ]);
+
+  const result = await repo.setEstimatePricing(BUSINESS_A, 'estimate-1', {
+    taxRateBasisPoints: 825,
+    discountAmount: createMoney(5000, createCurrencyCode('USD')),
+    depositAmount: createMoney(10000, createCurrencyCode('USD')),
+  });
+
+  assert.equal(result.ok, true);
+  if (result.ok) {
+    assert.equal(result.estimate.taxRateBasisPoints, 825);
+    assert.equal(result.estimate.discountAmount?.amountMinorUnits, 5000);
+    assert.equal(result.estimate.depositAmount?.amountMinorUnits, 10000);
+  }
+  assert.equal(estimates.rows[0].tax_rate_basis_points, 825);
+  assert.equal(estimates.rows[0].discount_amount_minor_units, 5000);
+  assert.equal(estimates.rows[0].deposit_amount_minor_units, 10000);
+});
+
+test('setEstimatePricing rejects once the estimate is approved', async () => {
+  const { repo } = setup([
+    {
+      id: 'estimate-1',
+      business_id: BUSINESS_A,
+      lead_id: 'lead-1',
+      proposed_amount_minor_units: 50000,
+      proposed_amount_currency: 'USD',
+      summary: 'Roof soft wash',
+      status: 'approved',
+      approved_at: '2026-01-02T00:00:00.000Z',
+      created_at: '2026-01-01T00:00:00.000Z',
+    },
+  ]);
+
+  const result = await repo.setEstimatePricing(BUSINESS_A, 'estimate-1', {
+    taxRateBasisPoints: 825,
+  });
+
+  assert.equal(result.ok, false);
+});
+
+test('setEstimatePricing rejects a cross-tenant estimate', async () => {
+  const { repo } = setup([
+    {
+      id: 'estimate-1',
+      business_id: BUSINESS_B,
+      lead_id: 'lead-1',
+      proposed_amount_minor_units: 50000,
+      proposed_amount_currency: 'USD',
+      summary: 'Roof soft wash',
+      status: 'draft',
+      approved_at: null,
+      created_at: '2026-01-01T00:00:00.000Z',
+    },
+  ]);
+
+  const result = await repo.setEstimatePricing(BUSINESS_A, 'estimate-1', {
+    taxRateBasisPoints: 825,
+  });
+
+  assert.equal(result.ok, false);
+});

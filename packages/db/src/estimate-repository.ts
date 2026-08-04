@@ -16,11 +16,19 @@ export interface CreateEstimateInput {
   readonly createdBy?: string;
 }
 
+export interface SetEstimatePricingInput {
+  readonly taxRateBasisPoints?: number;
+  readonly discountAmount?: Money;
+  readonly depositAmount?: Money;
+}
+
 export type CreateEstimateResult = { ok: true; estimate: Estimate } | { ok: false; error: string };
 export type GetEstimateResult = { ok: true; estimate: Estimate } | { ok: false; error: string };
 export type ListEstimatesResult =
   { ok: true; estimates: Estimate[] } | { ok: false; error: string };
 export type ApproveEstimateResult = { ok: true; estimate: Estimate } | { ok: false; error: string };
+export type SetEstimatePricingResult =
+  { ok: true; estimate: Estimate } | { ok: false; error: string };
 
 export interface ListEstimatesOptions {
   readonly leadId?: string;
@@ -40,6 +48,17 @@ export interface EstimateRepository {
     estimateId: string,
     approvedBy?: string,
   ): Promise<ApproveEstimateResult>;
+  /**
+   * Sets tax rate / discount / deposit - rejects (does not throw) if
+   * the Estimate is already `approved`, mirroring the same "mutable
+   * only while draft" rule ADR-0021/ADR-0026 already established for
+   * an Estimate's other fields and its line items (see ADR-0027).
+   */
+  setEstimatePricing(
+    businessId: string,
+    estimateId: string,
+    input: SetEstimatePricingInput,
+  ): Promise<SetEstimatePricingResult>;
 }
 
 interface EstimateRow {
@@ -52,6 +71,11 @@ interface EstimateRow {
   created_by: string | null;
   approved_at: string | null;
   approved_by: string | null;
+  tax_rate_basis_points: number | null;
+  discount_amount_minor_units: number | null;
+  discount_amount_currency: string | null;
+  deposit_amount_minor_units: number | null;
+  deposit_amount_currency: string | null;
   created_at: string;
 }
 
@@ -68,12 +92,27 @@ function toEstimate(row: EstimateRow): Estimate {
     createdBy: row.created_by ?? undefined,
     approvedAt: row.approved_at ?? undefined,
     approvedBy: row.approved_by ?? undefined,
+    taxRateBasisPoints: row.tax_rate_basis_points ?? undefined,
+    discountAmount:
+      row.discount_amount_minor_units !== null && row.discount_amount_currency
+        ? createMoney(
+            row.discount_amount_minor_units,
+            createCurrencyCode(row.discount_amount_currency),
+          )
+        : undefined,
+    depositAmount:
+      row.deposit_amount_minor_units !== null && row.deposit_amount_currency
+        ? createMoney(
+            row.deposit_amount_minor_units,
+            createCurrencyCode(row.deposit_amount_currency),
+          )
+        : undefined,
     createdAt: row.created_at,
   };
 }
 
 const SELECT_COLUMNS =
-  'id, lead_id, proposed_amount_minor_units, proposed_amount_currency, summary, status, created_by, approved_at, approved_by, created_at';
+  'id, lead_id, proposed_amount_minor_units, proposed_amount_currency, summary, status, created_by, approved_at, approved_by, tax_rate_basis_points, discount_amount_minor_units, discount_amount_currency, deposit_amount_minor_units, deposit_amount_currency, created_at';
 
 export function createSupabaseEstimateRepository(
   client: MinimalSupabaseClient,
@@ -92,6 +131,11 @@ export function createSupabaseEstimateRepository(
           created_by: input.createdBy ?? null,
           approved_at: null,
           approved_by: null,
+          tax_rate_basis_points: null,
+          discount_amount_minor_units: null,
+          discount_amount_currency: null,
+          deposit_amount_minor_units: null,
+          deposit_amount_currency: null,
         })
         .select(SELECT_COLUMNS)
         .single();
@@ -137,6 +181,50 @@ export function createSupabaseEstimateRepository(
           status: 'approved',
           approvedAt,
           approvedBy: approvedBy ?? undefined,
+        },
+      };
+    },
+
+    async setEstimatePricing(businessId, estimateId, input) {
+      const { data, error } = await client
+        .from('estimates')
+        .select(SELECT_COLUMNS)
+        .eq('id', estimateId)
+        .eq('business_id', businessId)
+        .single();
+
+      if (error || !data) {
+        return { ok: false, error: error?.message ?? 'estimate_not_found' };
+      }
+
+      const current = toEstimate(data as EstimateRow);
+      if (current.status === 'approved') {
+        return { ok: false, error: 'estimate_already_approved_pricing_immutable' };
+      }
+
+      const { error: updateError } = await client
+        .from('estimates')
+        .update({
+          tax_rate_basis_points: input.taxRateBasisPoints ?? null,
+          discount_amount_minor_units: input.discountAmount?.amountMinorUnits ?? null,
+          discount_amount_currency: input.discountAmount?.currency ?? null,
+          deposit_amount_minor_units: input.depositAmount?.amountMinorUnits ?? null,
+          deposit_amount_currency: input.depositAmount?.currency ?? null,
+        })
+        .eq('id', estimateId)
+        .eq('business_id', businessId);
+
+      if (updateError) {
+        return { ok: false, error: updateError.message ?? 'estimate_pricing_update_failed' };
+      }
+
+      return {
+        ok: true,
+        estimate: {
+          ...current,
+          taxRateBasisPoints: input.taxRateBasisPoints,
+          discountAmount: input.discountAmount,
+          depositAmount: input.depositAmount,
         },
       };
     },

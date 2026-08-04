@@ -1,14 +1,15 @@
 # CRM Architecture
 
 Status: durable record of CRM Milestones 1-3 and Clusters 4-8 and
-10-18 (this sprint). See [DECISIONS.md](../../DECISIONS.md) ADR-0009
+10-19 (this sprint). See [DECISIONS.md](../../DECISIONS.md) ADR-0009
 (persistence), ADR-0010 (multi-tenant foundation), ADR-0011
 (admin-console), ADR-0012 (Estimate/Booking/Job), ADR-0014 (Company),
 ADR-0015 (Note), ADR-0016 (Task), ADR-0018 (multi-role memberships),
 ADR-0020 (photos), ADR-0021 (estimate approval), ADR-0022 (audit log
 read access), ADR-0023 (archive/restore), ADR-0024 (appointments
-view), ADR-0025 (activity timeline, actor tracking), and ADR-0026
-(estimate line items) for the full rationale, and
+view), ADR-0025 (activity timeline, actor tracking), ADR-0026
+(estimate line items), and ADR-0027 (tax/discount/deposit) for the
+full rationale, and
 [`packages/core-models`](../../packages/core-models/README.md) /
 [`packages/db`](../../packages/db/README.md) /
 [`apps/admin-console`](../../apps/admin-console/README.md) for
@@ -349,6 +350,36 @@ against production (owner action). Tax, discount, deposit, photo
 attachment, PDF generation, and customer-facing approval are explicitly
 out of scope for this commit - each is a separate, immediately-following
 cluster (see ROADMAP.md).
+
+## Cluster 19: Estimate tax, discount, and deposit
+
+Closes "Taxes / Discounts / Deposits" from the estimate builder
+directive. See DECISIONS.md ADR-0027.
+
+- `Estimate` gains `taxRateBasisPoints?` (integer basis points, e.g.
+  `825` = 8.25%), `discountAmount?` (fixed `Money`, not a percentage),
+  and `depositAmount?` (tracked separately, never subtracted from
+  `total`) - `packages/db/migrations/014-estimate-pricing.sql` adds the
+  five backing columns.
+- `calculateEstimateTotals()` (`packages/core-models`) is a pure,
+  integer-only function computing
+  `{subtotal, discountAmount, afterDiscount, taxAmount, total, depositAmount}`
+  - discount subtracted first (floored at zero), tax computed on the
+    post-discount amount. Used both server-side and in the
+    `apps/admin-console` totals display, so the UI can never disagree
+    with what's persisted.
+- `EstimateRepository.setEstimatePricing()` enforces the same "mutable
+  only while draft" rule ADR-0021/ADR-0026 already established -
+  rejects once the parent `Estimate` is `approved`.
+- `apps/admin-console`: the `/estimates/[id]` page gains a pricing form
+  (tax rate %, discount $, deposit $) and a totals breakdown display.
+
+**Classification: IMPLEMENTED AND TESTED LOCALLY.** 73/73
+`packages/db` tests passing (3 new), 106/106 `packages/core-models`
+tests passing (6 new). `apps/admin-console` typecheck/lint/test/build
+all pass locally. Migration 014 has NOT yet been run against
+production (owner action). Photo attachment, PDF generation, and
+customer-facing approval remain the next, still-separate clusters.
 
 ## What "CRM" means in this repository today
 

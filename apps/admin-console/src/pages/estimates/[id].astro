@@ -7,7 +7,14 @@ import {
   createSupabaseServicePackageRepository,
 } from '@ai-company-os/db';
 import { formatMinorUnitsAsDollars } from '../../lib/estimates/parse-amount';
-import type { Estimate, EstimateLineItem, ServicePackage } from '@ai-company-os/core-models';
+import {
+  calculateEstimateTotals,
+  createCurrencyCode,
+  createMoney,
+  type Estimate,
+  type EstimateLineItem,
+  type ServicePackage,
+} from '@ai-company-os/core-models';
 
 const user = Astro.locals.user!;
 const membership = await getCurrentMembership(Astro.locals.supabase, user.id);
@@ -41,8 +48,31 @@ if (membership && id) {
   }
 }
 
-const subtotalMinorUnits = lineItems.reduce((sum, item) => sum + item.lineTotal.amountMinorUnits, 0);
+const lineItemsSubtotalMinorUnits = lineItems.reduce(
+  (sum, item) => sum + item.lineTotal.amountMinorUnits,
+  0,
+);
+const effectiveSubtotalMinorUnits =
+  lineItems.length > 0 ? lineItemsSubtotalMinorUnits : (estimate?.proposedAmount.amountMinorUnits ?? 0);
+
+const totals = estimate
+  ? calculateEstimateTotals({
+      subtotal: createMoney(effectiveSubtotalMinorUnits, createCurrencyCode('USD')),
+      taxRateBasisPoints: estimate.taxRateBasisPoints,
+      discountAmount: estimate.discountAmount,
+      depositAmount: estimate.depositAmount,
+    })
+  : null;
+
 const isDraft = estimate?.status === 'draft';
+const taxRatePercentValue =
+  estimate?.taxRateBasisPoints !== undefined ? (estimate.taxRateBasisPoints / 100).toFixed(2) : '';
+const discountValue = estimate?.discountAmount
+  ? (estimate.discountAmount.amountMinorUnits / 100).toFixed(2)
+  : '';
+const depositValue = estimate?.depositAmount
+  ? (estimate.depositAmount.amountMinorUnits / 100).toFixed(2)
+  : '';
 ---
 
 <AdminLayout title="Estimate detail" membership={membership}>
@@ -136,7 +166,7 @@ const isDraft = estimate?.status === 'draft';
                     Subtotal
                   </td>
                   <td style="font-weight: 600;">
-                    {formatMinorUnitsAsDollars(subtotalMinorUnits, 'USD')}
+                    {formatMinorUnitsAsDollars(lineItemsSubtotalMinorUnits, 'USD')}
                   </td>
                 </tr>
               </tfoot>
@@ -178,6 +208,70 @@ const isDraft = estimate?.status === 'draft';
             </div>
             <button type="submit" class="uikit-button uikit-button--secondary">
               Add line item
+            </button>
+          </form>
+        ) : null}
+
+        <h2>Pricing</h2>
+        {totals ? (
+          <dl>
+            <dt>Subtotal</dt>
+            <dd>{formatMinorUnitsAsDollars(totals.subtotal.amountMinorUnits, totals.subtotal.currency)}</dd>
+            <dt>Discount</dt>
+            <dd>
+              -{formatMinorUnitsAsDollars(totals.discountAmount.amountMinorUnits, totals.discountAmount.currency)}
+            </dd>
+            <dt>Tax {estimate.taxRateBasisPoints ? `(${(estimate.taxRateBasisPoints / 100).toFixed(2)}%)` : ''}</dt>
+            <dd>{formatMinorUnitsAsDollars(totals.taxAmount.amountMinorUnits, totals.taxAmount.currency)}</dd>
+            <dt>Total</dt>
+            <dd style="font-weight: 600;">
+              {formatMinorUnitsAsDollars(totals.total.amountMinorUnits, totals.total.currency)}
+            </dd>
+            {totals.depositAmount ? (
+              <>
+                <dt>Deposit due now</dt>
+                <dd>
+                  {formatMinorUnitsAsDollars(totals.depositAmount.amountMinorUnits, totals.depositAmount.currency)}
+                </dd>
+              </>
+            ) : null}
+          </dl>
+        ) : null}
+
+        {isDraft ? (
+          <form method="POST" action={`/api/estimates/${estimate.id}/pricing`} style="max-width: 320px;">
+            <div class="uikit-form-field">
+              <label for="taxRatePercent">Tax rate (%)</label>
+              <input
+                id="taxRatePercent"
+                name="taxRatePercent"
+                type="text"
+                placeholder="8.25"
+                value={taxRatePercentValue}
+              />
+            </div>
+            <div class="uikit-form-field">
+              <label for="discountAmount">Discount (USD)</label>
+              <input
+                id="discountAmount"
+                name="discountAmount"
+                type="text"
+                placeholder="0.00"
+                value={discountValue}
+              />
+            </div>
+            <div class="uikit-form-field">
+              <label for="depositAmount">Deposit required (USD)</label>
+              <input
+                id="depositAmount"
+                name="depositAmount"
+                type="text"
+                placeholder="0.00"
+                value={depositValue}
+              />
+            </div>
+            <button type="submit" class="uikit-button uikit-button--secondary">
+              Update pricing
             </button>
           </form>
         ) : null}

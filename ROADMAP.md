@@ -314,6 +314,30 @@ MembershipRole[]`, with a fallback to the legacy `memberships.role`
   customer-facing approval workflow. Migration 013 has not yet been run
   against production (owner action).
 
+**Cluster 19 (implemented, tested locally) — Estimate tax, discount, and deposit (ADR-0027)**
+
+- Scope: see [DECISIONS.md](DECISIONS.md) ADR-0027. Closes "Taxes /
+  Discounts / Deposits" from the "Estimate Line Items" directive.
+- Implemented with repository evidence: `Estimate` gains
+  `taxRateBasisPoints?` (integer basis points), `discountAmount?`
+  (fixed `Money`, not a percentage), and `depositAmount?` (tracked
+  separately, never subtracted from `total`) -
+  `packages/db/migrations/014-estimate-pricing.sql` adds the five
+  backing columns. `calculateEstimateTotals()` (new,
+  `packages/core-models`) is a pure integer-only function; discount is
+  applied before tax and floored at zero. `EstimateRepository.setEstimatePricing()`
+  enforces the existing "mutable only while draft" rule from
+  ADR-0021/ADR-0026 (73/73 `packages/db` tests passing total, 3 new;
+  106/106 `packages/core-models` tests passing total, 6 new).
+  `apps/admin-console`'s `/estimates/[id]` page gains a pricing form
+  and a totals breakdown display driven by the same function used
+  server-side.
+- Lint, typecheck, a local production build, and unit tests all pass.
+- **Not done, tracked as separate immediately-following clusters**:
+  attaching photos to an Estimate, PDF generation, and a
+  customer-facing approval workflow. Migration 014 has not yet been run
+  against production (owner action).
+
 **Growth-system domain contracts (in progress) — `packages/core-models`**
 
 - Scope: a first, provider-neutral coding slice for the GreenCal

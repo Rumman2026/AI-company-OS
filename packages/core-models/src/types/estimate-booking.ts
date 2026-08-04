@@ -24,6 +24,16 @@ export interface Estimate {
   readonly approvedAt?: string;
   /** The actor who approved this Estimate. */
   readonly approvedBy?: string;
+  /**
+   * Sales tax rate in basis points (1/100 of a percent - e.g. 825 =
+   * 8.25%), integer to stay floating-point-free per money.ts's own
+   * philosophy. See DECISIONS.md ADR-0027 and `calculateEstimateTotals()`.
+   */
+  readonly taxRateBasisPoints?: number;
+  /** A fixed-amount discount off the subtotal - see DECISIONS.md ADR-0027 for why this is a flat amount, not a percentage. */
+  readonly discountAmount?: Money;
+  /** Amount due upfront if the customer accepts - never subtracted from `total`, tracked separately. */
+  readonly depositAmount?: Money;
   readonly createdAt: string;
 }
 
