@@ -45,10 +45,40 @@ export async function getCurrentMembership(
     .limit(1)
     .maybeSingle();
 
-  if (error || !data) return null;
+  if (error) {
+    // Distinguish a real query/RLS failure from "this user genuinely has
+    // no membership row" - both used to collapse into an identical null
+    // return and an identical "no business membership yet" message,
+    // which made a real production incident undiagnosable from the
+    // outside. This is the only place that failure reason is ever
+    // visible - check Vercel runtime logs for this line.
+    console.error('getCurrentMembership: memberships query failed', {
+      userId,
+      code: error.code,
+      message: error.message,
+      details: error.details,
+      hint: error.hint,
+    });
+    return null;
+  }
+  if (!data) {
+    console.error('getCurrentMembership: no memberships row for this user_id', { userId });
+    return null;
+  }
 
   const business = Array.isArray(data.businesses) ? data.businesses[0] : data.businesses;
-  if (!business) return null;
+  if (!business) {
+    // A memberships row was found but its embedded businesses(name)
+    // join came back empty - almost always an RLS gap on `businesses`
+    // (businesses_member_select), not a missing row, since business_id
+    // on `memberships` is a non-null foreign key.
+    console.error('getCurrentMembership: memberships row found but businesses join was empty', {
+      userId,
+      membershipId: data.id,
+      businessId: data.business_id,
+    });
+    return null;
+  }
 
   const rolesFromChildTable = Array.isArray(data.membership_roles)
     ? (data.membership_roles as Array<{ role: MembershipRole }>).map((r) => r.role)
