@@ -340,7 +340,10 @@ test('getEstimateByPublicToken finds an estimate by token alone, with no busines
 
   const result = await repo.getEstimateByPublicToken('a-real-token');
   assert.equal(result.ok, true);
-  if (result.ok) assert.equal(result.estimate.id, 'estimate-1');
+  if (result.ok) {
+    assert.equal(result.estimate.id, 'estimate-1');
+    assert.equal(result.businessId, BUSINESS_A);
+  }
 });
 
 test('getEstimateByPublicToken rejects an expired token', async () => {
@@ -396,6 +399,7 @@ test('approveEstimateByCustomerToken approves a draft estimate and records the t
     assert.equal(result.estimate.status, 'approved');
     assert.equal(result.estimate.customerApproved, true);
     assert.equal(result.estimate.customerSignatureName, 'Jane Smith', 'must be trimmed');
+    assert.equal(result.businessId, BUSINESS_A);
   }
   assert.equal(estimates.rows[0].status, 'approved');
   assert.equal(estimates.rows[0].customer_approved, true);

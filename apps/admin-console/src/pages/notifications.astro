@@ -1,0 +1,72 @@
+---
+import AdminLayout from '../layouts/AdminLayout.astro';
+import { getCurrentMembership } from '../lib/auth/membership';
+import { createSupabaseNotificationRepository } from '@ai-company-os/db';
+import type { Notification } from '@ai-company-os/core-models';
+
+const user = Astro.locals.user!;
+const membership = await getCurrentMembership(Astro.locals.supabase, user.id);
+const unreadOnly = Astro.url.searchParams.get('unreadOnly') === '1';
+
+let notifications: Notification[] = [];
+
+if (membership) {
+  const repo = createSupabaseNotificationRepository(Astro.locals.supabase);
+  const result = await repo.listNotifications(user.id, { unreadOnly });
+  if (result.ok) notifications = result.notifications;
+}
+
+const ENTITY_LINK: Record<string, (id: string) => string> = {
+  lead: (id) => `/leads/${id}`,
+  contact: (id) => `/contacts/${id}`,
+  company: (id) => `/companies/${id}`,
+  job: (id) => `/jobs/${id}`,
+};
+---
+
+<AdminLayout title="Notifications" membership={membership}>
+  <h1>Notifications</h1>
+
+  <form method="GET" style="margin-bottom: 1rem;">
+    <label style="display: flex; align-items: center; gap: 0.5rem;">
+      <input type="checkbox" name="unreadOnly" value="1" checked={unreadOnly} />
+      Unread only
+    </label>
+    <button type="submit" class="uikit-button uikit-button--secondary">Filter</button>
+  </form>
+
+  {notifications.length === 0 ? (
+    <div class="uikit-empty-state">
+      <p class="uikit-empty-state__title">No notifications</p>
+    </div>
+  ) : (
+    <ul>
+      {notifications.map((notification) => (
+        <li style="margin-bottom: 0.75rem;">
+          <span class={`uikit-badge uikit-badge--${notification.read ? 'neutral' : 'success'}`}>
+            {notification.read ? 'Read' : 'New'}
+          </span>{' '}
+          <strong>{notification.title}</strong>
+          {notification.body ? <p style="margin: 0.25rem 0;">{notification.body}</p> : null}
+          {notification.entityType && notification.entityId && ENTITY_LINK[notification.entityType] ? (
+            <a href={ENTITY_LINK[notification.entityType](notification.entityId)}>View</a>
+          ) : null}{' '}
+          <span style="color: var(--color-text-muted); font-size: 0.875rem;">
+            {new Date(notification.createdAt).toLocaleString()}
+          </span>
+          {!notification.read ? (
+            <form
+              method="POST"
+              action={`/api/notifications/${notification.id}/mark-read`}
+              style="display: inline; margin-left: 0.5rem;"
+            >
+              <button type="submit" class="uikit-button uikit-button--secondary">
+                Mark read
+              </button>
+            </form>
+          ) : null}
+        </li>
+      ))}
+    </ul>
+  )}
+</AdminLayout>

@@ -45,6 +45,7 @@ export {
   createPublishedProjectSlug,
   createNoteId,
   createTaskId,
+  createNotificationId,
   createEstimateLineItemId,
   createServicePackageId,
   createEstimateAttachmentId,
@@ -84,6 +85,7 @@ export type {
   PublishedProjectSlug,
   NoteId,
   TaskId,
+  NotificationId,
   EstimateLineItemId,
   ServicePackageId,
   EstimateAttachmentId,
@@ -139,6 +141,11 @@ export type { CallRecord, FormSubmission } from './types/call-form';
 export type { AuditLog } from './types/audit';
 export type { Note, NotableEntityType } from './types/note';
 export type { Task } from './types/task';
+export type {
+  Notification,
+  NotificationChannel,
+  NotificationEventType,
+} from './types/notification';
 export type { EstimateLineItem } from './types/estimate-line-item';
 export type { ServicePackage } from './types/service-package';
 export type { EstimateAttachment } from './types/estimate-attachment';

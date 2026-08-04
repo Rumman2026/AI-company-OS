@@ -494,6 +494,36 @@ MembershipRole[]`, with a fallback to the legacy `memberships.role`
   infrastructure, no `packages/db`/`packages/core-models` change.
 - Lint, typecheck, a local production build, and unit tests all pass.
 
+**Cluster 26 (implemented, tested locally) — Internal notifications and a notification center (ADR-0034)**
+
+- Scope: see [DECISIONS.md](DECISIONS.md) ADR-0034. Closes "Internal
+  notifications" and "Notification center" - real, in-app only. **ACTION
+  REQUIRED (external credential)**: Email events, SMS events, Customer
+  notifications, and Emma integration hooks remain blocked - no
+  Resend/SMS-provider credential is configured for `apps/admin-console`,
+  no customer-facing portal exists, and no real Emma implementation
+  exists to hook into (ADR-0008's scope note). Per the owner's own
+  standing instruction to build what's real and flag what needs a
+  credential, rather than fabricate the rest.
+- Implemented with repository evidence: new `Notification`
+  (`packages/core-models`, no state machine) - `NotificationChannel`/
+  `NotificationEventType` are deliberately supersets of what any code
+  path produces (mirrors `TimelineEntryType`, ADR-0025); only
+  `'in-app'`/`'estimate-customer-approved'` are ever actually written.
+  `notifications` (`migrations/023-notifications.sql`) is
+  per-recipient, not a shared business inbox. The one real trigger:
+  when a customer approves an Estimate via the public link (ADR-0030),
+  the approve route notifies every team member of that business
+  (113/113 `packages/db` tests passing total, 4 new).
+  `EstimateRepository.getEstimateByPublicToken()`/
+  `approveEstimateByCustomerToken()` now also return `businessId`
+  (repository-internal, not added to the `Estimate` domain type) so
+  the public route can resolve the team roster. `apps/admin-console`
+  gains `/notifications` (list, unread filter, mark-read).
+- Lint, typecheck, a local production build, and unit tests all pass.
+- Migration 023 has not yet been run against production (owner
+  action).
+
 **Growth-system domain contracts (in progress) — `packages/core-models`**
 
 - Scope: a first, provider-neutral coding slice for the GreenCal

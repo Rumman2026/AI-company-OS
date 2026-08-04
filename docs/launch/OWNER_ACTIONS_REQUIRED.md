@@ -47,7 +47,7 @@ Ordered by urgency.
   additive — the lead pipeline already works without this and will
   keep working identically before and after.
 
-## 3b. Run pending internal-CRM migrations 004-022 (safe, not urgent, run whenever convenient)
+## 3b. Run pending internal-CRM migrations 004-023 (safe, not urgent, run whenever convenient)
 
 - **Screen**: Supabase dashboard → the GreenCal project (`Greencal-production`)
   → SQL Editor. **Different migration chain from item 3 above** - these
@@ -105,7 +105,10 @@ Ordered by urgency.
   - `packages/db/migrations/022-team-roster.sql` (lets your team see
     each other's roles and, for an owner-admin, grant or revoke a
     role)
-- **Action**: open each file **in order** (004 through 022) and run its
+  - `packages/db/migrations/023-notifications.sql` (adds an in-app
+    notification center - staff are notified when a customer approves
+    an Estimate)
+- **Action**: open each file **in order** (004 through 023) and run its
   full contents once in the SQL Editor. Each is additive-only (new
   tables, one additive column, or - for 007/008 - new rows only) and
   safe to run against the live production database - no existing table
@@ -139,7 +142,9 @@ Ordered by urgency.
   upload a logo and set a brand color. Running 020 lets you list the
   cities/regions you serve. Running 021 lets you set weekly working
   hours. Running 022 lets your team see each other's roles and lets an
-  owner-admin change them. The admin-console itself is not yet deployed
+  owner-admin change them. Running 023 turns on the notification
+  center - staff get notified in-app when a customer approves an
+  Estimate. The admin-console itself is not yet deployed
   to a live Vercel project (see the "not done" note in
   `docs/crm/CRM_ARCHITECTURE.md`), so this has no live-user-facing
   effect until that deployment also happens.
@@ -164,6 +169,36 @@ Ordered by urgency.
   honest "this approval link isn't available right now" message rather
   than erroring - not required for anything else in `apps/admin-console`
   to work.
+
+## 3d. Decide on real email/SMS notification sending (only if wanted - not required for anything built so far)
+
+- **Screen**: none yet - this is a decision, not a configuration step.
+- **Why**: "Notifications" (Settings/Phase 1) asked for Email events,
+  SMS events, and Customer notifications alongside the internal
+  notification center that's already built (see DECISIONS.md
+  ADR-0034). None of those three can be built for real without a
+  credential that doesn't exist in this repository today:
+  - **Email events** need a Resend (or equivalent) API key configured
+    specifically for `apps/admin-console` - the existing
+    `RESEND_API_KEY` only exists for `apps/greencal-website`'s
+    separate public quote-intake pipeline.
+  - **SMS events** need an SMS provider account (e.g. Twilio) - no
+    such credential or account exists anywhere in this project.
+  - **Customer notifications** need one of the above (email/SMS) or a
+    real customer-facing portal (`apps/web-console` remains an unbuilt
+    Phase 1 placeholder) - neither exists yet.
+  - **Emma integration hooks**: Emma (see DECISIONS.md ADR-0008) has
+    no real voice/chat implementation anywhere in this repository -
+    there is nothing real to hook into yet.
+- **Action**: when you're ready, supply the relevant credential (a
+  Resend API key for `apps/admin-console`, and/or an SMS provider
+  account) and confirm which specific events should actually send a
+  real email/SMS (e.g. "notify the customer by email when their
+  Estimate is approved"). Until then, nothing here is blocking any
+  other feature - internal, in-app notifications already work today.
+- **Expected result**: staff-facing internal notifications work right
+  now, with no action needed. Customer-facing email/SMS notifications
+  remain unbuilt until a credential is supplied.
 
 ## 4. Z.ai account balance (only if real GLM classification is wanted)
 

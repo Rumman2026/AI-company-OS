@@ -237,6 +237,22 @@ and adds owner-admin-gated INSERT/DELETE policies on `membership_roles`.
 `revokeRole()` also refuses to remove a business's last remaining
 `owner-admin`. See DECISIONS.md ADR-0032.
 
+## Cluster 26: Internal notifications and a notification center
+
+`migrations/023-notifications.sql` adds `notifications` -
+**per-recipient, not a shared business inbox**: RLS scopes
+select/update to `recipient_user_id = auth.uid()`. `NotificationRepository`
+is create/list/mark-read only (no state machine, same as Task).
+`channel`/`event_type` are stored as free strings validated by a
+database `check` constraint against `packages/core-models`'
+`NotificationChannel`/`NotificationEventType` closed unions - only
+`'in-app'`/`'estimate-customer-approved'` are ever actually written
+today. `EstimateRepository.getEstimateByPublicToken()`/
+`approveEstimateByCustomerToken()` now also return a `businessId`
+alongside the `Estimate` (repository-internal detail, not added to the
+domain type) so the public approval route can resolve the team roster
+to notify. See DECISIONS.md ADR-0034.
+
 ## What is deliberately excluded
 
 An authenticated owner interface for Bookings (every other listed

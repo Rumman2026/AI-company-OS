@@ -35,9 +35,9 @@ export type SetEstimatePricingResult =
 export type GenerateCustomerApprovalLinkResult =
   { ok: true; estimate: Estimate } | { ok: false; error: string };
 export type GetEstimateByPublicTokenResult =
-  { ok: true; estimate: Estimate } | { ok: false; error: string };
+  { ok: true; estimate: Estimate; businessId: string } | { ok: false; error: string };
 export type ApproveEstimateByCustomerTokenResult =
-  { ok: true; estimate: Estimate } | { ok: false; error: string };
+  { ok: true; estimate: Estimate; businessId: string } | { ok: false; error: string };
 
 export interface ListEstimatesOptions {
   readonly leadId?: string;
@@ -98,6 +98,7 @@ export interface EstimateRepository {
 
 interface EstimateRow {
   id: string;
+  business_id: string;
   lead_id: string;
   proposed_amount_minor_units: number;
   proposed_amount_currency: string;
@@ -155,7 +156,7 @@ function toEstimate(row: EstimateRow): Estimate {
 }
 
 const SELECT_COLUMNS =
-  'id, lead_id, proposed_amount_minor_units, proposed_amount_currency, summary, status, created_by, approved_at, approved_by, tax_rate_basis_points, discount_amount_minor_units, discount_amount_currency, deposit_amount_minor_units, deposit_amount_currency, customer_approval_token, customer_approval_token_expires_at, customer_approved, customer_signature_name, created_at';
+  'id, business_id, lead_id, proposed_amount_minor_units, proposed_amount_currency, summary, status, created_by, approved_at, approved_by, tax_rate_basis_points, discount_amount_minor_units, discount_amount_currency, deposit_amount_minor_units, deposit_amount_currency, customer_approval_token, customer_approval_token_expires_at, customer_approved, customer_signature_name, created_at';
 
 function isTokenExpired(expiresAt: string | undefined): boolean {
   if (!expiresAt) return true;
@@ -335,11 +336,12 @@ export function createSupabaseEstimateRepository(
         return { ok: false, error: error?.message ?? 'estimate_not_found' };
       }
 
-      const estimate = toEstimate(data as EstimateRow);
+      const row = data as EstimateRow;
+      const estimate = toEstimate(row);
       if (isTokenExpired(estimate.customerApprovalTokenExpiresAt)) {
         return { ok: false, error: 'approval_link_expired' };
       }
-      return { ok: true, estimate };
+      return { ok: true, estimate, businessId: row.business_id };
     },
 
     async approveEstimateByCustomerToken(token, customerSignatureName) {
@@ -358,7 +360,8 @@ export function createSupabaseEstimateRepository(
         return { ok: false, error: error?.message ?? 'estimate_not_found' };
       }
 
-      const current = toEstimate(data as EstimateRow);
+      const row = data as EstimateRow;
+      const current = toEstimate(row);
       if (isTokenExpired(current.customerApprovalTokenExpiresAt)) {
         return { ok: false, error: 'approval_link_expired' };
       }
@@ -390,6 +393,7 @@ export function createSupabaseEstimateRepository(
           customerApproved: true,
           customerSignatureName: trimmedName,
         },
+        businessId: row.business_id,
       };
     },
 

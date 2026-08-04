@@ -1,7 +1,7 @@
 # CRM Architecture
 
 Status: durable record of CRM Milestones 1-3 and Clusters 4-8 and
-10-25 (this sprint). See [DECISIONS.md](../../DECISIONS.md) ADR-0009
+10-26 (this sprint). See [DECISIONS.md](../../DECISIONS.md) ADR-0009
 (persistence), ADR-0010 (multi-tenant foundation), ADR-0011
 (admin-console), ADR-0012 (Estimate/Booking/Job), ADR-0014 (Company),
 ADR-0015 (Note), ADR-0016 (Task), ADR-0018 (multi-role memberships),
@@ -11,9 +11,9 @@ view), ADR-0025 (activity timeline, actor tracking), ADR-0026
 (estimate line items), ADR-0027 (tax/discount/deposit), ADR-0028
 (estimate attachments), ADR-0029 (estimate PDF generation), ADR-0030
 (customer approval link), ADR-0031 (Settings: profile/branding/
-service areas/hours), ADR-0032 (team roster/role management), and
-ADR-0033 (security settings: change password) for the full rationale,
-and
+service areas/hours), ADR-0032 (team roster/role management), ADR-0033
+(security settings: change password), and ADR-0034 (internal
+notifications, notification center) for the full rationale, and
 [`packages/core-models`](../../packages/core-models/README.md) /
 [`packages/db`](../../packages/db/README.md) /
 [`apps/admin-console`](../../apps/admin-console/README.md) for
@@ -557,6 +557,42 @@ GreenCal's live workflow for a settings toggle to control).
 
 **Classification: IMPLEMENTED AND TESTED LOCALLY.** `apps/admin-console`
 typecheck/lint/test/build all pass locally.
+
+## Cluster 26: Internal notifications and a notification center
+
+Closes "Internal notifications" and "Notification center" from the
+owner's Notifications directive - real, in-app only. See DECISIONS.md
+ADR-0034 for why Email events, SMS events, Customer notifications, and
+Emma integration hooks are explicitly deferred (external credentials
+this session has no access to; Emma has no real implementation to hook
+into).
+
+- `Notification` (new `packages/core-models` type) - no state machine,
+  same treatment as Task/Note/Company. `NotificationChannel`/
+  `NotificationEventType` are both deliberately supersets of what any
+  code path produces today (mirrors `TimelineEntryType`, ADR-0025) -
+  only `channel: 'in-app'` and `eventType: 'estimate-customer-approved'`
+  are ever actually created.
+- `notifications` table (`migrations/023-notifications.sql`) -
+  **per-recipient, not a shared business inbox**: RLS scopes
+  select/update to `recipient_user_id = auth.uid()`.
+- The one real trigger: when a customer approves an Estimate via the
+  public link (ADR-0030), the approve route notifies every team member
+  of that business.
+- `apps/admin-console` gains `/notifications` (list, unread filter,
+  mark-read) and a nav link. `EstimateRepository.getEstimateByPublicToken()`/
+  `approveEstimateByCustomerToken()` now also return `businessId`
+  (repository-internal detail, not added to the `Estimate` domain
+  type) so the public approve route can look up the team roster.
+
+**Classification: IMPLEMENTED AND TESTED LOCALLY.** 113/113
+`packages/db` tests passing (4 new). `apps/admin-console`
+typecheck/lint/test/build all pass locally. Migration 023 has NOT yet
+been run against production (owner action). **ACTION REQUIRED
+(external credential)**: real email sending, real SMS sending,
+Customer notifications, and Emma integration hooks all remain blocked
+pending a real provider credential or feature - see DECISIONS.md
+ADR-0034's consequences.
 
 ## What "CRM" means in this repository today
 

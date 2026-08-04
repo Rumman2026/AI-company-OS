@@ -2286,6 +2286,88 @@ areas/hours), [ADR-0032](#adr-0032-team-rosterrole-management--broadened-members
 
 ---
 
+## ADR-0034: Internal notifications and a notification center - real, in-app only; email/SMS/customer-facing sending explicitly deferred
+
+**Status**: Confirmed (implemented)
+
+**Context**: The owner's third Phase 1 directive is "Notifications":
+Internal notifications, Customer notifications, Email events, SMS
+events, Future Emma integration hooks, Notification center. Real email
+sending needs a real provider credential (`apps/greencal-website`
+already uses Resend for its own, separate quote-intake pipeline, but
+`apps/admin-console` has none configured); real SMS sending needs a
+real SMS provider credential (none exists anywhere in this repository);
+"Customer notifications" in a small-business context with no
+customer-facing account/portal system (`apps/web-console` remains an
+unbuilt Phase 1 placeholder) is itself gated on that same email/SMS
+sending capability; and Emma (referenced in ADR-0008) has no real
+voice/chat implementation anywhere in this repository yet - "hooks"
+for it can only honestly mean a forward-compatible extension point,
+never a working integration. Per the owner's own standing instruction
+("do not stop until every Phase 1 admin-console feature is complete
+unless an external credential is required"), this ADR builds what is
+real and buildable now - Internal notifications and a Notification
+center - and explicitly defers the credential-gated pieces rather than
+fabricating them.
+
+**Decision**: A new `Notification` type
+(`packages/core-models/src/types/notification.ts`) - no state machine
+(same treatment as Task/Note/Company): a Notification moves between
+exactly two states (unread, read). `NotificationChannel` (`'in-app' |
+'email' | 'sms'`) and `NotificationEventType` (a closed union) are
+both deliberately supersets of what any code path produces today -
+only `channel: 'in-app'` and `eventType: 'estimate-customer-approved'`
+are ever actually created; the rest exist for forward-compatible
+filtering once a real provider exists, the same honest
+not-yet-implemented pattern already established for `TimelineEntryType`
+(ADR-0025). `notifications` (`migrations/023-notifications.sql`) is
+**per-recipient, not a shared business inbox** - RLS scopes
+select/update to `recipient_user_id = auth.uid()`, so a team member
+never sees another member's notifications.
+
+The one real trigger wired in this cluster: when a customer approves
+an Estimate via the public link (ADR-0030), the approve route notifies
+every team member of that business (`TeamRosterRepository.listTeamRoster()`
+
+- one `Notification` per member) - a genuinely valuable, already-real
+  event with no external credential required. `apps/admin-console` gains
+  `/notifications` (list, unread filter, mark-read) and a nav link.
+
+**Alternatives considered**: Wiring "new Lead created" as a second
+trigger - considered but not built this cluster; that event originates
+in `apps/greencal-website`'s separate, already-live-in-production
+lead-intake pipeline (its own Supabase client, not
+`@ai-company-os/db`), and modifying a proven, customer-facing
+production path to also write `notifications` rows is a larger,
+riskier change than this cluster's scope, better done deliberately
+later. Building a real Resend/Twilio integration now - rejected; no
+credential is configured for `apps/admin-console`, and CLAUDE.md
+prohibits fabricating a working integration. Modeling "Customer
+notifications" as an in-app notification shown on a future customer
+portal - rejected as premature; no such portal exists (`apps/web-console`
+is an unbuilt placeholder), and designing its notification model before
+the portal itself exists would be speculative.
+
+**Consequences**: `docs/crm/CRM_ARCHITECTURE.md` and
+`packages/db/README.md` gain a section. Migration 023 has not yet been
+run against production (owner action). **ACTION REQUIRED (external
+credential), not resolved by this ADR**: real email sending (Email
+events) needs a Resend - or equivalent - API key configured for
+`apps/admin-console`; real SMS sending (SMS events) needs an SMS
+provider (e.g. Twilio) account and API key, which does not exist
+anywhere in this repository today; Customer notifications need one of
+those two, or a real customer portal, neither of which exists; Emma
+integration hooks need a real Emma implementation, which does not
+exist (see ADR-0008's scope note). These four remain open, tracked in
+`ROADMAP.md`, pending the owner supplying the relevant credential or
+confirming the customer-portal scope.
+
+**Related**: ADR-0008 (cost-efficient multi-model cloud infrastructure direction),
+[ADR-0025](#adr-0025-customer-activity-timeline-as-a-read-time-composition-plus-actor-tracking),
+[ADR-0030](#adr-0030-public-customer-estimate-approval-link-via-a-service-role-key-and-a-high-entropy-token).
+
+---
+
 ## Proposed decisions (not yet made)
 
 - Service-to-service communication pattern (REST/gRPC/queue) beyond the

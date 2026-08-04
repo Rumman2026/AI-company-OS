@@ -100,6 +100,16 @@ export type {
   RevokeRoleResult,
 } from './team-roster-repository';
 
+export { createSupabaseNotificationRepository } from './notification-repository';
+export type {
+  NotificationRepository,
+  CreateNotificationInput,
+  ListNotificationsOptions,
+  CreateNotificationResult,
+  ListNotificationsResult,
+  MarkNotificationReadResult,
+} from './notification-repository';
+
 export { createSupabaseEstimateRepository } from './estimate-repository';
 export type {
   EstimateRepository,
