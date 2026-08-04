@@ -292,31 +292,38 @@ DECISIONS.md ADR-0024.
 
 **Classification: IMPLEMENTED AND TESTED LOCALLY.**
 
-## Cluster 17: Activity Timeline and actor tracking (in progress)
+## Cluster 17: Activity Timeline and actor tracking
 
-See DECISIONS.md ADR-0025 for the full rationale. Two parts:
+See DECISIONS.md ADR-0025 for the full rationale. Two parts, both done.
 
-**Part 1 (this commit) - actor tracking**: `Task`/`PhotoAsset`/
-`Estimate`/`Booking` gained `createdBy`/`completedBy`/`uploadedBy`/
-`approvedBy` fields (`migrations/012-actor-tracking.sql`) - a real
-prerequisite gap for "filterable by... employee," since none of these
-four entities previously recorded which staff member performed the
-action. Every `apps/admin-console` API route that creates/completes/
-approves/uploads one of these now passes the calling user's id through.
+**Part 1 - actor tracking**: `Task`/`PhotoAsset`/`Estimate`/`Booking`
+gained `createdBy`/`completedBy`/`uploadedBy`/`approvedBy` fields
+(`migrations/012-actor-tracking.sql`) - a real prerequisite gap for
+"filterable by... employee," since none of these four entities
+previously recorded which staff member performed the action. Every
+`apps/admin-console` API route that creates/completes/approves/uploads
+one of these now passes the calling user's id through.
 
-**Part 2 (follow-up commit) - the timeline itself**: a new
-`ActivityTimelineRepository` will compose the Contact's full history at
-read time from every existing repository (Leads, Estimates, Bookings,
-Jobs, Notes, Tasks, Photos, `audit_log`) rather than a separate
-write-time event table - see the ADR for why. `TimelineEntryType`
-includes Invoice/Payment/Call/SMS/Email/Review-request/Review-received
-as named values for forward compatibility, but no code path produces
-them yet - **no persistence exists anywhere in this repository for
-those four entity categories**, and nothing here fabricates data for
-them.
+**Part 2 - the timeline itself**: `ActivityTimelineRepository.listTimelineForContact()`
+composes a Contact's full history at read time from every existing
+repository (Leads, Estimates, Bookings, Jobs, Notes, Tasks, Photos,
+`audit_log`) rather than a separate write-time event table - see the
+ADR for why. `TimelineEntryType` includes Invoice/Payment/Call/SMS/
+Email/Review-request/Review-received as named values for forward
+compatibility, but no code path produces them yet - **no persistence
+exists anywhere in this repository for those four entity categories**,
+and nothing here fabricates data for them; the admin-console UI states
+this directly. `apps/admin-console`'s Contact detail page gains an
+"Activity Timeline" section with type/employee/date filters - the
+employee filter is populated from actor ids actually present in that
+Contact's own timeline (not a resolved staff-roster dropdown, since
+`memberships` RLS only exposes a user's own row today - broadening that
+is a real, separate security-scope decision, not made here).
 
-**Classification: PART 1 IMPLEMENTED AND TESTED LOCALLY.** Migration
-012 has NOT yet been run against production (owner action).
+**Classification: IMPLEMENTED AND TESTED LOCALLY.** 61/61
+`packages/db` tests passing (6 new timeline-composition tests). A local
+production build, lint, and typecheck all pass. Migration 012 has NOT
+yet been run against production (owner action).
 
 ## What "CRM" means in this repository today
 

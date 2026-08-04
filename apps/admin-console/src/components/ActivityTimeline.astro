@@ -1,0 +1,123 @@
+---
+import type { TimelineEntry, TimelineEntryType } from '@ai-company-os/db';
+
+interface Props {
+  entries: TimelineEntry[];
+  /** Every type filterable today, in display order. */
+  implementedTypes: readonly TimelineEntryType[];
+  selectedType: string;
+  selectedActorId: string;
+  dateFrom: string;
+  dateTo: string;
+  /** Distinct actor ids already present in the unfiltered timeline - see DECISIONS.md ADR-0025 for why this isn't a resolved employee-name dropdown. */
+  knownActorIds: string[];
+}
+
+const {
+  entries,
+  implementedTypes,
+  selectedType,
+  selectedActorId,
+  dateFrom,
+  dateTo,
+  knownActorIds,
+} = Astro.props;
+
+const TYPE_LABEL: Record<string, string> = {
+  'lead-created': 'Lead created',
+  'lead-status-change': 'Lead status change',
+  'estimate-created': 'Estimate created',
+  'estimate-approved': 'Estimate approved',
+  'appointment-scheduled': 'Appointment scheduled',
+  'job-created': 'Job created',
+  'job-status-change': 'Job status change',
+  'note-added': 'Note added',
+  'task-created': 'Task created',
+  'task-completed': 'Task completed',
+  'media-uploaded': 'Media uploaded',
+};
+---
+
+<h2>Activity Timeline</h2>
+<p style="color: var(--color-text-muted); font-size: 0.875rem;">
+  Every estimate, appointment, job, status change, note, task, and media upload for this
+  customer, most recent first. Invoices, payments, calls, SMS, emails, and reviews will appear
+  here once those features are built - none are fabricated.
+</p>
+
+<form method="GET" style="max-width: 480px; margin-bottom: 1rem;">
+  <div class="uikit-form-field">
+    <label for="activityType">Type</label>
+    <select id="activityType" name="activityType">
+      <option value="" selected={selectedType === ''}>
+        All types
+      </option>
+      {
+        implementedTypes.map((t) => (
+          <option value={t} selected={t === selectedType}>
+            {TYPE_LABEL[t] ?? t}
+          </option>
+        ))
+      }
+    </select>
+  </div>
+  {
+    knownActorIds.length > 0 ? (
+      <div class="uikit-form-field">
+        <label for="activityActor">Employee</label>
+        <select id="activityActor" name="activityActor">
+          <option value="" selected={selectedActorId === ''}>
+            Everyone
+          </option>
+          {knownActorIds.map((actorId) => (
+            <option value={actorId} selected={actorId === selectedActorId}>
+              {actorId}
+            </option>
+          ))}
+        </select>
+      </div>
+    ) : null
+  }
+  <div class="uikit-form-field">
+    <label for="activityFrom">From</label>
+    <input id="activityFrom" name="activityFrom" type="date" value={dateFrom} />
+  </div>
+  <div class="uikit-form-field">
+    <label for="activityTo">To</label>
+    <input id="activityTo" name="activityTo" type="date" value={dateTo} />
+  </div>
+  <button type="submit" class="uikit-button uikit-button--secondary">
+    Filter
+  </button>
+</form>
+
+{
+  entries.length === 0 ? (
+    <div class="uikit-empty-state">
+      <p class="uikit-empty-state__title">No activity matches these filters</p>
+    </div>
+  ) : (
+    <div class="uikit-table-scroll">
+      <table class="uikit-table">
+        <thead>
+          <tr>
+            <th>When</th>
+            <th>Type</th>
+            <th>Details</th>
+            <th>Employee</th>
+          </tr>
+        </thead>
+        <tbody>
+          {entries.map((entry) => (
+            <tr>
+              <td>{new Date(entry.occurredAt).toLocaleString()}</td>
+              <td>{TYPE_LABEL[entry.type] ?? entry.type}</td>
+              <td>{entry.summary}</td>
+              <td>{entry.actorId ?? '—'}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  )
+}

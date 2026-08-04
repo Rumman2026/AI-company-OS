@@ -133,13 +133,18 @@ types, not core-models changes) and `archiveX()`/`restoreX()` methods;
 every `listX()` gains `includeArchived` (default `false`). See
 DECISIONS.md ADR-0023.
 
-## Cluster 17 (part 1): actor tracking for Task/PhotoAsset/Estimate/Booking
+## Cluster 17: Activity Timeline and actor tracking
 
 `migrations/012-actor-tracking.sql` adds `created_by`/`completed_by`
 (Task), `uploaded_by` (PhotoAsset), `created_by`/`approved_by`
 (Estimate), and `created_by` (Booking) - closes a real gap blocking
-"filterable by... employee" in the Activity Timeline. See DECISIONS.md
-ADR-0025. Part 2 (`ActivityTimelineRepository`) is a follow-up commit.
+"filterable by... employee." `ActivityTimelineRepository.listTimelineForContact()`
+composes a Contact's complete chronological history at read time from
+every existing repository - no separate event-sourcing table. See
+DECISIONS.md ADR-0025 for the full design, including why
+`TimelineEntryType` includes several event types
+(Invoice/Payment/Call/SMS/Email/Review-request/Review-received) that
+this repository cannot yet produce any entries for.
 
 ## What is deliberately excluded
 

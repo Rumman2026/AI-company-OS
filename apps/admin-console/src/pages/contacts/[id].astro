@@ -2,6 +2,7 @@
 import AdminLayout from '../../layouts/AdminLayout.astro';
 import NotesSection from '../../components/NotesSection.astro';
 import TasksSection from '../../components/TasksSection.astro';
+import ActivityTimeline from '../../components/ActivityTimeline.astro';
 import { getCurrentMembership } from '../../lib/auth/membership';
 import {
   createSupabaseContactRepository,
@@ -10,6 +11,14 @@ import {
   createSupabaseCompanyRepository,
   createSupabaseNoteRepository,
   createSupabaseTaskRepository,
+  createSupabaseEstimateRepository,
+  createSupabaseBookingRepository,
+  createSupabaseJobRepository,
+  createSupabasePhotoAssetRepository,
+  createActivityTimelineRepository,
+  IMPLEMENTED_TIMELINE_ENTRY_TYPES,
+  type TimelineEntry,
+  type TimelineEntryType,
 } from '@ai-company-os/db';
 import { leadStatusTone } from '@ai-company-os/ui-kit';
 import type { LeadStatus, CompanyId, Note, Task } from '@ai-company-os/core-models';
@@ -32,7 +41,14 @@ let companyName: string | null = null;
 let allCompanies: Array<{ id: string; name: string }> = [];
 let notes: Note[] = [];
 let tasks: Task[] = [];
+let timelineEntries: TimelineEntry[] = [];
+let knownActorIds: string[] = [];
 let notFound = false;
+
+const activityType = Astro.url.searchParams.get('activityType') ?? '';
+const activityActor = Astro.url.searchParams.get('activityActor') ?? '';
+const activityFrom = Astro.url.searchParams.get('activityFrom') ?? '';
+const activityTo = Astro.url.searchParams.get('activityTo') ?? '';
 
 if (membership && id) {
   const contactRepo = createSupabaseContactRepository(Astro.locals.supabase);
@@ -70,6 +86,37 @@ if (membership && id) {
       completed: false,
     });
     if (tasksResult.ok) tasks = tasksResult.tasks;
+
+    const auditLogForTimeline = createSupabaseAuditLogRepository(Astro.locals.supabase);
+    const timelineRepo = createActivityTimelineRepository({
+      leadRepository: createSupabaseLeadRepository(Astro.locals.supabase, auditLogForTimeline),
+      estimateRepository: createSupabaseEstimateRepository(Astro.locals.supabase),
+      bookingRepository: createSupabaseBookingRepository(Astro.locals.supabase),
+      jobRepository: createSupabaseJobRepository(Astro.locals.supabase, auditLogForTimeline),
+      noteRepository: createSupabaseNoteRepository(Astro.locals.supabase),
+      taskRepository: createSupabaseTaskRepository(Astro.locals.supabase),
+      photoAssetRepository: createSupabasePhotoAssetRepository(Astro.locals.supabase),
+      auditLogRepository: auditLogForTimeline,
+    });
+
+    const unfilteredResult = await timelineRepo.listTimelineForContact(membership.businessId, id);
+    if (unfilteredResult.ok) {
+      knownActorIds = [
+        ...new Set(
+          unfilteredResult.entries
+            .map((e) => e.actorId)
+            .filter((actorId): actorId is string => Boolean(actorId)),
+        ),
+      ].sort();
+    }
+
+    const timelineResult = await timelineRepo.listTimelineForContact(membership.businessId, id, {
+      types: activityType ? [activityType as TimelineEntryType] : undefined,
+      actorId: activityActor || undefined,
+      dateFrom: activityFrom ? new Date(activityFrom).toISOString() : undefined,
+      dateTo: activityTo ? new Date(`${activityTo}T23:59:59.999Z`).toISOString() : undefined,
+    });
+    if (timelineResult.ok) timelineEntries = timelineResult.entries;
   } else {
     notFound = true;
   }
@@ -184,6 +231,16 @@ if (membership && id) {
           entityId={contact.id}
           notes={notes}
           redirectTo={`/contacts/${contact.id}`}
+        />
+
+        <ActivityTimeline
+          entries={timelineEntries}
+          implementedTypes={IMPLEMENTED_TIMELINE_ENTRY_TYPES}
+          selectedType={activityType}
+          selectedActorId={activityActor}
+          dateFrom={activityFrom}
+          dateTo={activityTo}
+          knownActorIds={knownActorIds}
         />
       </>
     ) : (

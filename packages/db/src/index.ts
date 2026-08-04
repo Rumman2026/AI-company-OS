@@ -120,3 +120,17 @@ export type {
   ListPhotosResult,
   PhotoWithSignedUrl,
 } from './photo-asset-repository';
+
+export {
+  createActivityTimelineRepository,
+  IMPLEMENTED_TIMELINE_ENTRY_TYPES,
+  NOT_YET_IMPLEMENTED_TIMELINE_ENTRY_TYPES,
+} from './activity-timeline-repository';
+export type {
+  ActivityTimelineRepository,
+  ActivityTimelineRepositoryDeps,
+  TimelineEntry,
+  TimelineEntryType,
+  ListTimelineOptions,
+  ListTimelineResult,
+} from './activity-timeline-repository';

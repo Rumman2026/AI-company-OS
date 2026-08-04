@@ -260,8 +260,34 @@ MembershipRole[]`, with a fallback to the legacy `memberships.role`
   still passing.
 - Lint, typecheck, a local production build, and unit tests all pass.
 - **Not done**: migration 012 has not yet been run against production
-  (owner action). Part 2 (`ActivityTimelineRepository` + admin-console
-  UI) is a follow-up commit in this same cluster.
+  (owner action).
+
+**Cluster 17, part 2 (implemented, tested locally) — Activity Timeline (ADR-0025)**
+
+- Scope: see [DECISIONS.md](DECISIONS.md) ADR-0025. Closes "Every
+  customer has a complete chronological activity timeline... filterable
+  by type, employee, and date."
+- Implemented with repository evidence: `ActivityTimelineRepository.listTimelineForContact()`
+  (`packages/db`) composes a Contact's complete history at read time
+  from Leads, Estimates, Bookings, Jobs, Notes, Tasks, Photos, and
+  `audit_log` - no separate event-sourcing table, no schema change
+  beyond part 1's actor-tracking columns (61/61 `packages/db` tests
+  passing total, 6 new). `apps/admin-console`'s Contact detail page
+  gains an "Activity Timeline" section with type/employee/date filters.
+- Lint, typecheck, a local production build, and unit tests all pass.
+- **Honest scope limits, not silently worked around**: `TimelineEntryType`
+  includes Invoice/Payment/Call/SMS/Email/Review-request/Review-received
+  as named values, but no code path produces any of them - no
+  persistence exists anywhere in this repository for those four entity
+  categories, and the UI states this directly rather than fabricating
+  entries. The employee filter is populated from actor ids already
+  present in that Contact's own timeline, not a resolved staff-roster
+  dropdown - broadening `memberships` RLS to show the full team roster
+  is a real, separate security-scope decision, not made here.
+- Reusable across GreenCal Auto Detailing and Navarro Builders by
+  construction - every repository the timeline composes is already
+  generic and `business_id`-scoped; no GreenCal-specific code exists
+  anywhere in this cluster.
 
 **Growth-system domain contracts (in progress) — `packages/core-models`**
 
