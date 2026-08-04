@@ -1624,6 +1624,45 @@ rejected per the terminal-status reasoning above.
 
 ---
 
+## ADR-0024: Appointments view as a chronological Booking list (not a calendar-grid widget)
+
+**Status**: Confirmed (implemented)
+
+**Context**: The owner's directive names "Appointments" and "Calendar"
+as separate admin-console modules. `Booking` (`packages/core-models`,
+persisted since Cluster 4) already carries `scheduledAt`, and
+`BookingRepository.listBookings()` already supported listing every
+Booking for a business (the `leadId` filter is optional) - no schema or
+repository change was needed, only a new page.
+
+**Decision**: A new `apps/admin-console` `/appointments` page lists
+every Booking for the business, grouped by calendar date, each row
+showing time, customer name (resolved through the Booking's Lead →
+Contact), and the linked Job's status if one exists. This is a
+chronological list, **not a calendar-grid/month-view widget** - per the
+directive's own "Use the simplest reliable implementation... Do not
+over-engineer," a full interactive calendar (drag-to-reschedule,
+month/week views, availability conflicts) is a materially larger UI
+investment than the underlying data currently supports (there is no
+appointment duration, no technician-assignment conflict check, no
+availability-blocking rule anywhere in this repository yet) and was not
+requested with enough specificity to justify building ahead of a real
+need.
+
+**Alternatives considered**: A full calendar-grid component (e.g. a
+month view with draggable events) - rejected for now per the
+over-engineering guidance above; the chronological list surfaces the
+same underlying data and can be upgraded to a richer view later without
+any data-model change, since it consumes `Booking` exactly as already
+modeled.
+
+**Consequences**: None beyond the new page - no migration, no
+repository change.
+
+**Related**: [ADR-0012](#adr-0012-estimatebookingjob-persistence-crm-cluster-4).
+
+---
+
 ## Proposed decisions (not yet made)
 
 - Service-to-service communication pattern (REST/gRPC/queue) beyond the

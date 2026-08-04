@@ -228,6 +228,22 @@ MembershipRole[]`, with a fallback to the legacy `memberships.role`
   (already have terminal statuses serving the same purpose - see the
   ADR).
 
+**Cluster 16 (implemented, tested locally) — Appointments view (ADR-0024)**
+
+- Scope: see [DECISIONS.md](DECISIONS.md) ADR-0024. Closes the
+  "Appointments"/"Calendar" admin-console module gap.
+- Implemented with repository evidence: new `apps/admin-console`
+  `/appointments` page listing every Booking for the business, grouped
+  by date - no schema or repository change, `BookingRepository.listBookings()`
+  already supported this.
+- Lint, typecheck, a local production build, and unit tests all pass.
+- **Deliberately not built**: a full interactive calendar-grid widget
+  (month/week views, drag-to-reschedule, availability-conflict
+  checking) - a chronological list is the simplest reliable
+  implementation the current data model supports; see the ADR for why
+  building the richer widget now would be over-engineering ahead of a
+  real need.
+
 **Growth-system domain contracts (in progress) — `packages/core-models`**
 
 - Scope: a first, provider-neutral coding slice for the GreenCal

@@ -1,12 +1,13 @@
 # CRM Architecture
 
 Status: durable record of CRM Milestones 1-3 and Clusters 4-8 and
-10-15 (this sprint). See [DECISIONS.md](../../DECISIONS.md) ADR-0009
+10-16 (this sprint). See [DECISIONS.md](../../DECISIONS.md) ADR-0009
 (persistence), ADR-0010 (multi-tenant foundation), ADR-0011
 (admin-console), ADR-0012 (Estimate/Booking/Job), ADR-0014 (Company),
 ADR-0015 (Note), ADR-0016 (Task), ADR-0018 (multi-role memberships),
 ADR-0020 (photos), ADR-0021 (estimate approval), ADR-0022 (audit log
-read access), and ADR-0023 (archive/restore) for the full rationale, and
+read access), ADR-0023 (archive/restore), and ADR-0024 (appointments
+view) for the full rationale, and
 [`packages/core-models`](../../packages/core-models/README.md) /
 [`packages/db`](../../packages/db/README.md) /
 [`apps/admin-console`](../../apps/admin-console/README.md) for
@@ -272,6 +273,23 @@ ADR-0023.
 **Classification: IMPLEMENTED AND TESTED LOCALLY.** 55/55
 `packages/db` tests passing. Migration 011 has NOT yet been run against
 production (owner action).
+
+## Cluster 16: Appointments view
+
+Closes the "Appointments"/"Calendar" admin-console module gap. See
+DECISIONS.md ADR-0024.
+
+- `apps/admin-console`'s new `/appointments` page - every Booking for
+  the business, grouped by date, with time/customer/linked-Job-status.
+  No schema or repository change - `BookingRepository.listBookings()`
+  already supported this.
+- **Deliberately a chronological list, not a calendar-grid widget** -
+  see the ADR for why building a full interactive calendar now would be
+  over-engineering ahead of a real need (no appointment duration,
+  technician-conflict checking, or availability rules exist anywhere in
+  this repository yet).
+
+**Classification: IMPLEMENTED AND TESTED LOCALLY.**
 
 ## What "CRM" means in this repository today
 

@@ -1,0 +1,158 @@
+---
+import AdminLayout from '../../layouts/AdminLayout.astro';
+import { getCurrentMembership } from '../../lib/auth/membership';
+import {
+  createSupabaseBookingRepository,
+  createSupabaseLeadRepository,
+  createSupabaseContactRepository,
+  createSupabaseAuditLogRepository,
+  createSupabaseJobRepository,
+} from '@ai-company-os/db';
+import { jobStatusTone } from '@ai-company-os/ui-kit';
+import type { JobStatus } from '@ai-company-os/core-models';
+
+const user = Astro.locals.user!;
+const membership = await getCurrentMembership(Astro.locals.supabase, user.id);
+
+let appointments: Array<{
+  id: string;
+  scheduledAt: string;
+  leadId: string;
+  contactName: string;
+  jobId?: string;
+  jobStatus?: JobStatus;
+}> = [];
+let loadError: string | null = null;
+
+if (membership) {
+  const bookingRepo = createSupabaseBookingRepository(Astro.locals.supabase);
+  const bookingsResult = await bookingRepo.listBookings(membership.businessId);
+
+  if (bookingsResult.ok) {
+    const auditLog = createSupabaseAuditLogRepository(Astro.locals.supabase);
+    const leadRepo = createSupabaseLeadRepository(Astro.locals.supabase, auditLog);
+    const contactRepo = createSupabaseContactRepository(Astro.locals.supabase);
+    const jobRepo = createSupabaseJobRepository(Astro.locals.supabase, auditLog);
+
+    appointments = await Promise.all(
+      bookingsResult.bookings.map(async (booking) => {
+        let contactName: string = booking.leadId;
+        const leadResult = await leadRepo.getLead(membership.businessId, booking.leadId);
+        if (leadResult.ok) {
+          const contactResult = await contactRepo.getContact(
+            membership.businessId,
+            leadResult.lead.contactId,
+          );
+          if (contactResult.ok) contactName = contactResult.contact.displayName;
+        }
+
+        let jobStatus: JobStatus | undefined;
+        if (booking.jobId) {
+          const jobResult = await jobRepo.getJob(membership.businessId, booking.jobId);
+          if (jobResult.ok) jobStatus = jobResult.job.status;
+        }
+
+        return {
+          id: booking.id,
+          scheduledAt: booking.scheduledAt,
+          leadId: booking.leadId,
+          contactName,
+          jobId: booking.jobId,
+          jobStatus,
+        };
+      }),
+    );
+  } else {
+    loadError = bookingsResult.error;
+  }
+}
+
+function groupByDate(items: typeof appointments) {
+  const groups = new Map<string, typeof appointments>();
+  for (const item of items) {
+    const dateKey = new Date(item.scheduledAt).toLocaleDateString(undefined, {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+    });
+    if (!groups.has(dateKey)) groups.set(dateKey, []);
+    groups.get(dateKey)!.push(item);
+  }
+  return groups;
+}
+
+const grouped = groupByDate(appointments);
+---
+
+<AdminLayout title="Appointments" membership={membership}>
+  <h1>Appointments</h1>
+  <p style="color: var(--color-text-muted); font-size: 0.875rem;">
+    Every scheduled Booking, most recent first, grouped by date. Create an appointment from a
+    Lead's approved estimate.
+  </p>
+
+  {
+    loadError ? (
+      <div class="uikit-error-banner" role="alert">
+        Could not load appointments: {loadError}
+      </div>
+    ) : appointments.length === 0 ? (
+      <div class="uikit-empty-state">
+        <p class="uikit-empty-state__title">No appointments scheduled</p>
+        <p class="uikit-empty-state__description">
+          Approve an estimate on a Lead's detail page, then book it to create an appointment.
+        </p>
+      </div>
+    ) : (
+      Array.from(grouped.entries()).map(([date, items]) => (
+        <>
+          <h2>{date}</h2>
+          <div class="uikit-table-scroll">
+            <table class="uikit-table">
+              <thead>
+                <tr>
+                  <th>Time</th>
+                  <th>Customer</th>
+                  <th>Job</th>
+                  <th />
+                </tr>
+              </thead>
+              <tbody>
+                {items.map((appointment) => (
+                  <tr>
+                    <td>
+                      {new Date(appointment.scheduledAt).toLocaleTimeString(undefined, {
+                        hour: 'numeric',
+                        minute: '2-digit',
+                      })}
+                    </td>
+                    <td>{appointment.contactName}</td>
+                    <td>
+                      {appointment.jobId && appointment.jobStatus ? (
+                        <span class={`uikit-badge uikit-badge--${jobStatusTone(appointment.jobStatus)}`}>
+                          {appointment.jobStatus}
+                        </span>
+                      ) : (
+                        '—'
+                      )}
+                    </td>
+                    <td>
+                      <a href={`/leads/${appointment.leadId}`}>View lead</a>
+                      {appointment.jobId ? (
+                        <>
+                          {' '}
+                          &middot; <a href={`/jobs/${appointment.jobId}`}>View job</a>
+                        </>
+                      ) : null}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </>
+      ))
+    )
+  }
+</AdminLayout>
