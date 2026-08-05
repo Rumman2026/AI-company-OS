@@ -79,6 +79,22 @@ export const POST: APIRoute = async ({ request, locals, params, redirect }) => {
     businessId: membership.businessId,
   });
 
+  // Pre-insert instrumentation - authenticatedRole/authUid aren't known
+  // inside BookingRepository itself (repositories are role-agnostic;
+  // authorization already happened via RLS), so this is logged here at
+  // the call site rather than inside createBooking(). The matching
+  // post-insert full-error log (code/message/details/hint) already
+  // exists inside booking-repository.ts (commit 40ad4b1) - both appear
+  // in the same request's log stream, in order.
+  console.error('createBooking: before insert', {
+    table: 'bookings',
+    operation: 'insert',
+    authenticatedRole: membership.roles,
+    authUid: user.id,
+    businessId: membership.businessId,
+    estimateId,
+  });
+
   const bookings = createSupabaseBookingRepository(locals.supabase);
   const bookingResult = await bookings.createBooking({
     businessId: membership.businessId,
@@ -87,6 +103,17 @@ export const POST: APIRoute = async ({ request, locals, params, redirect }) => {
     scheduledAt: scheduledAtDate.toISOString(),
     createdBy: user.id,
   });
+
+  if (bookingResult.ok) {
+    console.error('createBooking: insert succeeded', { bookingId: bookingResult.booking.id });
+  } else {
+    // The full PostgreSQL error object (code/message/details/hint) for
+    // this exact failure is already logged inside
+    // BookingRepository.createBooking() itself - this line just marks
+    // that the route observed the failure and is about to redirect.
+    console.error('createBooking: insert failed - see the entry above for the full error object');
+  }
+
   if (!bookingResult.ok) {
     return redirect(`/leads/${leadId}?error=${encodeURIComponent(bookingResult.error)}`);
   }
