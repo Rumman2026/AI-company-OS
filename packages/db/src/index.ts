@@ -166,6 +166,24 @@ export type {
   ListPaymentsResult,
 } from './payment-repository';
 
+export { createSupabaseReviewRequestRepository } from './review-request-repository';
+export type {
+  ReviewRequestRepository,
+  CreateReviewRequestInput,
+  CreateReviewRequestResult,
+  GetReviewRequestResult,
+  ListReviewRequestsResult,
+  TransitionReviewRequestResult,
+} from './review-request-repository';
+
+export { createSupabaseReviewRecordRepository } from './review-record-repository';
+export type {
+  ReviewRecordRepository,
+  CreateReviewRecordInput,
+  CreateReviewRecordResult,
+  ListReviewRecordsResult,
+} from './review-record-repository';
+
 export { createSupabaseNoteRepository } from './note-repository';
 export type {
   NoteRepository,

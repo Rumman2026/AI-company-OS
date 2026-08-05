@@ -293,6 +293,26 @@ record per successful transition via the injected
 `listPaymentsForInvoice`) takes no audit-log dependency - `Payment` has
 no state machine. See DECISIONS.md ADR-0037.
 
+## Cluster 28: Review-Request + Review-Record persistence
+
+`migrations/028-review-request-persistence.sql` adds tenant-scoped
+`review_requests` (RLS select/insert/update, plus a
+`unique (business_id, deduplication_key)` constraint enforcing
+`ReviewRequest.deduplicationKey`'s documented no-duplicates purpose at
+the database layer) and `review_records` (append-only, mirrors
+`payments` - an immutable, staff-entered fact log, never a live
+review-platform integration). `ReviewRequestRepository`/
+`ReviewRecordRepository` mirror `InvoiceRepository`/
+`PaymentRepository` exactly. Nearly every `ReviewRequest` transition
+requires `actorCategory: 'automation'`, which no real membership role
+resolves to - only `opted-out` (customer/office-manager) is reachable
+from a real caller today, same intentional-unreachability pattern as
+Invoice's `Overdue` edge (Cluster 27). Content (the AI-drafting/
+publishing pipeline) was evaluated and explicitly deferred to Phase 2
+
+- its state machine requires actor roles that don't exist in this
+  application. See DECISIONS.md ADR-0038.
+
 ## What is deliberately excluded
 
 An authenticated owner interface for Bookings (every other listed

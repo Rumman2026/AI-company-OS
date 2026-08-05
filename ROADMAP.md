@@ -47,8 +47,8 @@ authoritative record:
   DECISIONS.md ADR-0035/ADR-0036. Login, dashboard, and role
   resolution are owner-verified working against real production data.
 - Migrations 001 through 026 are all confirmed run against the real
-  `Greencal-production` Supabase project. Migration 027 (Cluster 27)
-  is the only one not yet run.
+  `Greencal-production` Supabase project. Migrations 027 (Cluster 27)
+  and 028 (Cluster 28) are not yet run.
 
 **Phase 2A (in progress) — GreenCal Pressure Washing website, revenue-launch sprint**
 
@@ -611,6 +611,40 @@ MembershipRole[]`, with a fallback to the legacy `memberships.role`
   unit tests (22/22 `apps/admin-console`, 124/124 `packages/db`) all
   pass, repo-wide.
 - Migration 027 has not yet been run against production (owner
+  action - see `docs/launch/OWNER_ACTIONS_REQUIRED.md`).
+
+**Cluster 28 (implemented, tested locally) — Review-Request + Review-Record persistence and admin-console UI; Content deferred (ADR-0038)**
+
+- Scope: see [DECISIONS.md](DECISIONS.md) ADR-0038. Closes "Review
+  request," the last named step in the GreenCal end-to-end MVP
+  workflow. Content (blog/SEO draft-review-publish pipeline) was
+  evaluated and **explicitly deferred to Phase 2**, confirmed with the
+  owner: its state machine requires actor roles
+  (`content-reviewer`/`marketing-editor`/`ai-drafting-service`/
+  `scheduled-publishing-service`) that don't exist in this
+  application's 4-role model, and persisting it now would create
+  scaffolding no one can operate.
+- Implemented with repository evidence: `migrations/028-review-request-persistence.sql`
+  adds tenant-scoped `review_requests` (RLS select/insert/update, plus
+  a `unique (business_id, deduplication_key)` constraint enforcing
+  no-duplicate-requests at the database layer) and `review_records`
+  (append-only, mirrors `payments`). `ReviewRequestRepository`/
+  `ReviewRecordRepository` (`packages/db`) mirror
+  `InvoiceRepository`/`PaymentRepository` exactly (133/133
+  `packages/db` tests passing total, 9 new). `apps/admin-console`'s
+  Job detail page gains a "Reviews" section: request/opt-out for
+  review requests, and a manual "log a received review" form for
+  review records. `reviewRequestStatusTone()` added to
+  `packages/ui-kit`.
+- Every `ReviewRequest` transition except `opted-out` requires an
+  `automation` actor category this application has no scheduler for -
+  intentionally unreachable from the UI, same honesty pattern as
+  Invoice's `Overdue` edge (Cluster 27). The Job detail page states
+  this directly.
+- Lint (0 errors repo-wide), typecheck (0 errors repo-wide), a local
+  production build, and unit tests (22/22 `apps/admin-console`,
+  133/133 `packages/db`) all pass.
+- Migration 028 has not yet been run against production (owner
   action - see `docs/launch/OWNER_ACTIONS_REQUIRED.md`).
 
 **Growth-system domain contracts (in progress) — `packages/core-models`**

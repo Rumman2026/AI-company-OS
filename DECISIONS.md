@@ -2644,6 +2644,111 @@ timeline wiring), [ADR-0035](#adr-0035-fix-infinite-rls-recursion-on-memberships
 
 ---
 
+## ADR-0038: Review-Request/Review-Record persistence and admin-console UI; Content deferred to Phase 2
+
+**Status**: Confirmed (implemented)
+
+**Context**: Following Cluster 27 (Invoice/Payment), the owner directed
+completion of Cluster 28: Content persistence and Review-Request
+persistence, as the last remaining named step ("Review request") in
+the GreenCal end-to-end MVP workflow. Inspection of
+`packages/core-models` found both `ReviewRequest`/`ReviewRecord`
+(`types/review.ts`, `state-machines/review-request.ts`) and
+`ContentDraft`/`ContentApproval`/`PublishedProject`
+(`types/content.ts`, `state-machines/content.ts`) already fully
+implemented and tested, with zero persistence and zero UI - the same
+gap Invoice had before Cluster 27.
+
+However, the two entities are not symmetric. `ReviewRequest`'s
+transition table gates every edge except `-> opted-out` behind
+`actorCategory: 'automation'` - no human role drives it, but exactly
+one edge (`opted-out`, reachable by `customer`/`office-manager`) is
+real and useful today, mirroring Invoice's `Overdue` precedent
+(ADR-0037) exactly. `Content`'s transition table is materially
+different: only the terminal `published -> unpublished`/`archived`
+edges map to a real `MembershipRole` (`owner-admin`); every other edge
+
+- including the very first one leaving `not-eligible` - requires
+  `automation`, `ai-drafting-service`, `scheduled-publishing-service`,
+  `content-reviewer`, or `marketing-editor`. The last two are real,
+  distinct `ActorCategory` values with no corresponding `MembershipRole`
+  in this application's 4-role model (`owner-admin`, `office-manager`,
+  `dispatcher`, `technician`). Persisting `ContentDraft` today would
+  create an entity that can be created and immediately dead-ends -
+  scaffolding no one can operate, not a working feature.
+
+**Decision**: Build only Review-Request + Review-Record persistence
+for Cluster 28. Defer Content entirely to Phase 2, alongside the AI
+content-generation engine and the `content-reviewer`/`marketing-editor`
+role question - explicitly confirmed with the owner rather than
+guessed, since it is a genuine product-scope decision (add new RBAC
+roles vs. ship an inert feature vs. defer), not something inferable
+from existing patterns alone.
+
+- `migrations/028-review-request-persistence.sql` adds tenant-scoped
+  `review_requests` (RLS with select/insert/update; a
+  `unique (business_id, deduplication_key)` constraint enforces
+  `ReviewRequest.deduplicationKey`'s documented purpose - preventing
+  duplicate requests for the same job/purpose - at the database layer,
+  not just by convention) and `review_records` (append-only -
+  select/insert only, matching `payments`' pattern; a real received
+  review is an immutable fact, never edited or deleted).
+- `ReviewRequestRepository` (`createReviewRequest`, `getReviewRequest`,
+  `listReviewRequestsForJob`, `transitionReviewRequestStatusForRoles`)
+  mirrors `InvoiceRepository` exactly, including
+  `resolveTransitionAcrossActorCategories()` reuse and one audit
+  record per successful transition. `ReviewRecordRepository`
+  (`createReviewRecord`, `listReviewRecordsForJob`) mirrors
+  `PaymentRepository` exactly - no audit-log dependency, since
+  `ReviewRecord` has no state machine.
+- `apps/admin-console`'s Job detail page gains a "Reviews" section:
+  existing review requests with status badges and an "Opt customer
+  out" button (the one functional transition), a "Request a review"
+  button (creates a row at `not-eligible`), a list of manually logged
+  received reviews, and a "Log a received review" form
+  (`ReviewRecordRepository.createReviewRecord`). No new top-level nav
+  page or list page - reviews are job-scoped, same information
+  architecture as Invoices' "create from a Job" pattern.
+  `reviewRequestStatusTone()` added to `packages/ui-kit`.
+- The page states directly, in visible text, that every transition
+  except opt-out requires an automated process this application
+  doesn't have wired in yet - the same honesty pattern as Invoice's
+  Overdue edge, not a silently broken button.
+
+**Alternatives considered**: Building Content with most edges honestly
+unreachable (same pattern as Review-Request) - rejected; unlike
+Review-Request, where creation plus one real transition (opt-out) is
+independently useful, a `ContentDraft` stuck at `not-eligible` forever
+has no operational use on its own, so this would be scaffolding for
+scaffolding's sake, closer to "inventing a large CMS" than to
+Invoice's Overdue precedent. Adding `content-reviewer`/
+`marketing-editor` as real `MembershipRole` values now so a human
+could drive the review pipeline manually - rejected as a real RBAC
+expansion, explicitly out of the agreed GreenCal V1.0 scope
+("complex enterprise RBAC").
+
+**Trade-offs**: `review_requests`/`review_records` are honest about
+serving mostly as future automation targets today - the "Request a
+review" button records intent, and "Log a received review" records
+fact, but nothing in this cluster sends anything or detects a real
+review autonomously. This is a deliberately thin slice, not the full
+review-management feature a later automation cluster will complete.
+
+**Consequences**: `docs/launch/OWNER_ACTIONS_REQUIRED.md` gains
+migration 028 as a pending owner action (not yet run against
+production). `ROADMAP.md`, `docs/crm/CRM_ARCHITECTURE.md`, and
+`packages/db/README.md` gain a new cluster entry. Content remains
+unbuilt in this repository - `ContentDraft`/`ContentApproval`/
+`PublishedProject` still have zero persistence, unchanged from before
+this ADR.
+
+**Related**: [ADR-0037](#adr-0037-invoice--payment-persistence-layer-packagesdb-and-admin-console-crudtransition-ui)
+(the Overdue-edge precedent this ADR extends to Review-Request's
+automation-only edges), [ADR-0025](#adr-0025-customer-activity-timeline-as-a-read-time-composition-plus-actor-tracking)
+(same "no fabricated capability" discipline).
+
+---
+
 ## Proposed decisions (not yet made)
 
 - Service-to-service communication pattern (REST/gRPC/queue) beyond the

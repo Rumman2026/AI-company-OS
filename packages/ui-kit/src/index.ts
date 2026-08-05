@@ -25,3 +25,4 @@ export type { FormFieldProps } from './components/FormField';
 export { leadStatusTone } from './lead-status-tone';
 export { jobStatusTone } from './job-status-tone';
 export { invoiceStatusTone } from './invoice-status-tone';
+export { reviewRequestStatusTone } from './review-request-status-tone';

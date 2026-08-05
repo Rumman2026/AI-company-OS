@@ -11,11 +11,13 @@ import {
   createSupabaseTaskRepository,
   createSupabasePhotoAssetRepository,
   createSupabaseInvoiceRepository,
+  createSupabaseReviewRequestRepository,
+  createSupabaseReviewRecordRepository,
   type PhotoWithSignedUrl,
 } from '@ai-company-os/db';
-import { jobStatusTone, invoiceStatusTone } from '@ai-company-os/ui-kit';
+import { jobStatusTone, invoiceStatusTone, reviewRequestStatusTone } from '@ai-company-os/ui-kit';
 import { formatMinorUnitsAsDollars } from '../../lib/estimates/parse-amount';
-import type { JobStatus, Note, Task, Invoice } from '@ai-company-os/core-models';
+import type { JobStatus, Note, Task, Invoice, ReviewRequest, ReviewRecord } from '@ai-company-os/core-models';
 
 const user = Astro.locals.user!;
 const membership = await getCurrentMembership(Astro.locals.supabase, user.id);
@@ -40,6 +42,8 @@ let notes: Note[] = [];
 let tasks: Task[] = [];
 let photos: PhotoWithSignedUrl[] = [];
 let invoices: Invoice[] = [];
+let reviewRequests: ReviewRequest[] = [];
+let reviewRecords: ReviewRecord[] = [];
 
 const transitionError = Astro.url.searchParams.get('error');
 
@@ -79,6 +83,14 @@ if (membership && id) {
     const invoiceRepo = createSupabaseInvoiceRepository(Astro.locals.supabase, auditLog);
     const invoicesResult = await invoiceRepo.listInvoices(membership.businessId, { jobId: id });
     if (invoicesResult.ok) invoices = invoicesResult.invoices;
+
+    const reviewRequestRepo = createSupabaseReviewRequestRepository(Astro.locals.supabase, auditLog);
+    const reviewRequestsResult = await reviewRequestRepo.listReviewRequestsForJob(membership.businessId, id);
+    if (reviewRequestsResult.ok) reviewRequests = reviewRequestsResult.reviewRequests;
+
+    const reviewRecordRepo = createSupabaseReviewRecordRepository(Astro.locals.supabase);
+    const reviewRecordsResult = await reviewRecordRepo.listReviewRecordsForJob(membership.businessId, id);
+    if (reviewRecordsResult.ok) reviewRecords = reviewRecordsResult.reviewRecords;
   } else {
     notFound = true;
   }
@@ -165,6 +177,70 @@ if (membership && id) {
           </div>
           <button type="submit" class="uikit-button uikit-button--secondary">
             Create invoice
+          </button>
+        </form>
+
+        <h2>Reviews</h2>
+        {reviewRequests.length === 0 ? (
+          <div class="uikit-empty-state">
+            <p class="uikit-empty-state__title">No review request yet</p>
+          </div>
+        ) : (
+          <ul>
+            {reviewRequests.map((rr) => (
+              <li>
+                <span class={`uikit-badge uikit-badge--${reviewRequestStatusTone(rr.status)}`}>
+                  {rr.status}
+                </span>{' '}
+                ({new Date(rr.createdAt).toLocaleDateString()})
+                {rr.status !== 'opted-out' ? (
+                  <form method="POST" action={`/api/review-requests/${rr.id}/opt-out`} style="display: inline;">
+                    <input type="hidden" name="jobId" value={job.id} />
+                    <button type="submit" class="uikit-button uikit-button--secondary">
+                      Opt customer out
+                    </button>
+                  </form>
+                ) : null}
+              </li>
+            ))}
+          </ul>
+        )}
+        {reviewRequests.length === 0 ? (
+          <form method="POST" action="/api/review-requests" style="max-width: 320px;">
+            <input type="hidden" name="jobId" value={job.id} />
+            <button type="submit" class="uikit-button uikit-button--secondary">
+              Request a review
+            </button>
+          </form>
+        ) : null}
+        <p style="color: var(--color-text-muted); font-size: 0.875rem;">
+          Sending the actual request (queued/sent/delivered) and detecting when a customer leaves
+          a review both require an automated process this application doesn't have wired in yet -
+          "Opt customer out" is the only status change available here today, by design.
+        </p>
+
+        <h3>Received reviews</h3>
+        {reviewRecords.length === 0 ? (
+          <div class="uikit-empty-state">
+            <p class="uikit-empty-state__title">No reviews logged yet</p>
+          </div>
+        ) : (
+          <ul>
+            {reviewRecords.map((record) => (
+              <li>
+                {record.sourcePlatform} - {new Date(record.receivedAt).toLocaleDateString()}
+              </li>
+            ))}
+          </ul>
+        )}
+        <form method="POST" action="/api/review-records" style="max-width: 320px;">
+          <input type="hidden" name="jobId" value={job.id} />
+          <div class="uikit-form-field">
+            <label for="sourcePlatform">Log a received review (platform)</label>
+            <input id="sourcePlatform" name="sourcePlatform" type="text" placeholder="Google" required />
+          </div>
+          <button type="submit" class="uikit-button uikit-button--secondary">
+            Log review
           </button>
         </form>
 

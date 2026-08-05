@@ -49,6 +49,24 @@ Ordered by urgency.
   data instead of failing against a missing table. See DECISIONS.md
   ADR-0037 and `docs/crm/CRM_ARCHITECTURE.md` Cluster 27.
 
+## 0c. ACTION REQUIRED — Review-Request migration (028, safe, not urgent)
+
+- **Status**: `packages/db/migrations/028-review-request-persistence.sql`
+  has been written and locally tested (133/133 `packages/db` tests
+  passing) but **not yet run** against `Greencal-production` - same
+  manual-application requirement as every migration in this project.
+- **What it adds**: two new tables, `review_requests` and
+  `review_records`, both tenant-scoped with row-level security
+  enabled. Additive only - no existing table, column, or policy is
+  changed.
+- **Action**: open Supabase → SQL Editor → paste the full contents of
+  `packages/db/migrations/028-review-request-persistence.sql` → run.
+- **Result once run**: the new "Reviews" section on each Job's detail
+  page (request a review, opt a customer out, log a received review)
+  will read/write real data instead of failing against a missing
+  table. See DECISIONS.md ADR-0038 and `docs/crm/CRM_ARCHITECTURE.md`
+  Cluster 28.
+
 ## 1. Prevent Supabase auto-pause from silently killing lead capture (urgent)
 
 - **Screen**: Supabase dashboard → the GreenCal project (`Greencal-production`)

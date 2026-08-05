@@ -40,9 +40,9 @@ accuracy, not as current status. The authoritative, current state
   real `Greencal-production` Supabase project. Every "migration NNN
   has not yet been run" note for a migration number in that range
   (Clusters 4 through 26, both Milestone sections) is superseded.
-- **Migration 027** (Cluster 27 - Invoice/Payment persistence) is the
-  only migration **not yet run** against production as of this
-  writing.
+- **Migrations 027** (Cluster 27 - Invoice/Payment persistence) and
+  **028** (Cluster 28 - Review-Request/Review-Record persistence) are
+  **not yet run** against production as of this writing.
 - Not independently re-verified in a live browser session by this
   assistant: the specific create-estimate → create-booking →
   auto-create-job → best-effort-schedule chain (Cluster 5), and every
@@ -707,6 +707,48 @@ before this cluster.
 typecheck/lint/test/build all pass locally (22/22 tests). Migration
 027 has NOT yet been run against production (owner action). See
 DECISIONS.md ADR-0037.
+
+## Cluster 28: Review-Request + Review-Record persistence and admin-console UI; Content deferred
+
+Closes "Review request," the last named step in the GreenCal
+end-to-end MVP workflow. Content (the AI-drafting/publishing pipeline)
+was evaluated and **explicitly deferred to Phase 2**: its state
+machine requires actor roles (`content-reviewer`, `marketing-editor`,
+`ai-drafting-service`, `scheduled-publishing-service`) that don't
+exist as real `MembershipRole` values in this application, and
+persisting it now would create scaffolding no one can operate. See
+DECISIONS.md ADR-0038 for the full reasoning and alternatives
+considered.
+
+- `migrations/028-review-request-persistence.sql` adds tenant-scoped
+  `review_requests` (RLS select/insert/update, plus a
+  `unique (business_id, deduplication_key)` constraint enforcing
+  `ReviewRequest.deduplicationKey`'s documented no-duplicates purpose
+  at the database layer) and `review_records` (append-only, mirrors
+  `payments`).
+- `ReviewRequestRepository`/`ReviewRecordRepository` (`packages/db`)
+  mirror `InvoiceRepository`/`PaymentRepository` exactly, including
+  `resolveTransitionAcrossActorCategories()` reuse for
+  `transitionReviewRequestStatusForRoles()`.
+- `apps/admin-console`'s Job detail page gains a "Reviews" section:
+  a "Request a review" button (creates a row at `not-eligible`), an
+  "Opt customer out" button (the one functional transition -
+  `transitionReviewRequest()` gates every other edge behind an
+  `automation` actor category this application has no scheduler for,
+  the same intentional-unreachability pattern as Invoice's `Overdue`
+  edge in Cluster 27), and a manual "log a received review" form
+  (`ReviewRecordRepository.createReviewRecord`) - a staff-entered fact
+  log, never a live review-platform integration. `reviewRequestStatusTone()`
+  added to `packages/ui-kit`. No new top-level nav page - reviews are
+  job-scoped, same information architecture as Invoices' "create from
+  a Job" pattern.
+
+**Classification: IMPLEMENTED AND TESTED LOCALLY.** 133/133
+`packages/db` tests passing (9 new). `apps/admin-console`
+typecheck/lint/test/build all pass locally (22/22 tests). Migration
+028 has NOT yet been run against production (owner action). Content
+persistence remains entirely unbuilt in this repository. See
+DECISIONS.md ADR-0038.
 
 ## What "CRM" means in this repository today
 
