@@ -247,25 +247,50 @@ if (membership && id) {
         )}
         {(() => {
           const approvedEstimate = estimates.find((e) => e.status === 'approved');
-          return approvedEstimate ? (
-            <form
-              method="POST"
-              action={`/api/estimates/${approvedEstimate.id}/bookings`}
-              style="max-width: 400px;"
-            >
-              <div class="uikit-form-field">
-                <label for="scheduledAt">Schedule the approved estimate for</label>
-                <input id="scheduledAt" name="scheduledAt" type="datetime-local" required />
-              </div>
-              <button type="submit" class="uikit-button uikit-button--secondary">
-                Create booking + job
-              </button>
-            </form>
-          ) : estimates.length > 0 ? (
-            <p style="color: var(--color-text-muted); font-size: 0.875rem;">
-              Approve an estimate above before booking it into a Job.
-            </p>
-          ) : null;
+          const approvedEstimateBooking = approvedEstimate
+            ? bookings.find((b) => b.estimateId === approvedEstimate.id)
+            : undefined;
+
+          if (approvedEstimate && approvedEstimateBooking) {
+            // One booking per estimate - enforced at the database layer
+            // too (bookings.estimate_id unique constraint). This
+            // estimate is already booked; show the existing
+            // booking/job above rather than a form that would only
+            // ever fail.
+            return (
+              <p style="color: var(--color-text-muted); font-size: 0.875rem;">
+                This estimate already has a booking - see "Bookings &amp; Jobs" above.
+              </p>
+            );
+          }
+
+          if (approvedEstimate) {
+            return (
+              <form
+                method="POST"
+                action={`/api/estimates/${approvedEstimate.id}/bookings`}
+                style="max-width: 400px;"
+              >
+                <div class="uikit-form-field">
+                  <label for="scheduledAt">Schedule the approved estimate for</label>
+                  <input id="scheduledAt" name="scheduledAt" type="datetime-local" required />
+                </div>
+                <button type="submit" class="uikit-button uikit-button--secondary">
+                  Create booking + job
+                </button>
+              </form>
+            );
+          }
+
+          if (estimates.length > 0) {
+            return (
+              <p style="color: var(--color-text-muted); font-size: 0.875rem;">
+                Approve an estimate above before booking it into a Job.
+              </p>
+            );
+          }
+
+          return null;
         })()}
 
         <TasksSection entityType="lead" entityId={lead.id} tasks={tasks} redirectTo={`/leads/${lead.id}`} />
