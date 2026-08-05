@@ -6,6 +6,7 @@ import {
   createSupabaseAuditLogRepository,
 } from '@ai-company-os/db';
 import { getCurrentMembership } from '../../../../lib/auth/membership';
+import { getSupabaseEnv } from '../../../../lib/supabase/env';
 
 export const prerender = false;
 
@@ -50,6 +51,25 @@ export const POST: APIRoute = async ({ request, locals, params, redirect }) => {
   if (Number.isNaN(scheduledAtDate.getTime())) {
     return redirect(`/leads/${leadId}?error=invalid-scheduled-at`);
   }
+
+  // Temporary runtime-identity diagnostic - proves which Supabase
+  // project and which auth context this specific request is actually
+  // using, before the createBooking() call that has been failing with
+  // "permission denied for table bookings" despite confirmed-correct
+  // grants/policies. Logs no secret - only the project's hostname
+  // (already public, since it's the frontend's own API endpoint) and
+  // the caller's own uid/roles, never the anon key. Remove once the
+  // runtime-identity question is settled.
+  const diagEnv = getSupabaseEnv();
+  console.error('createBooking runtime-identity diagnostic', {
+    supabaseHost: diagEnv ? new URL(diagEnv.url).hostname : 'getSupabaseEnv() returned null',
+    projectRef: diagEnv ? new URL(diagEnv.url).hostname.split('.')[0] : 'unknown',
+    clientType:
+      'authenticated (anon key + session, via locals.supabase) - never service-role on this route',
+    authUid: user.id,
+    membershipRoles: membership.roles,
+    businessId: membership.businessId,
+  });
 
   const bookings = createSupabaseBookingRepository(locals.supabase);
   const bookingResult = await bookings.createBooking({
