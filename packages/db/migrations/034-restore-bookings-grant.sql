@@ -1,0 +1,38 @@
+-- Fixes a real production incident found during the GreenCal V1.0
+-- smoke test: "Create booking + job" still failed with Postgres
+-- 42501, "permission denied for table bookings," even after
+-- migration 033 (which already contained the identical grant
+-- statement below).
+--
+-- Root cause, confirmed by direct query against production
+-- (information_schema.role_table_grants): `authenticated` held
+-- exactly REFERENCES, TRIGGER, and TRUNCATE on public.bookings - and
+-- none of SELECT, INSERT, UPDATE, DELETE. This is not the signature
+-- of "a grant was never issued" (that would show zero rows) - it is
+-- the signature of a partial REVOKE: `GRANT ALL` on a table confers
+-- all seven table-level privileges (SELECT, INSERT, UPDATE, DELETE,
+-- TRUNCATE, REFERENCES, TRIGGER); having exactly the three
+-- least-commonly-touched ones remain, with the four DML privileges
+-- specifically missing, matches a REVOKE of SELECT/INSERT/UPDATE/
+-- DELETE having run at some point, not an omission. The exact
+-- mechanism is not determinable from this repository (no access to
+-- Supabase's dashboard/audit log) - same honest limitation already
+-- noted in DECISIONS.md ADR-0036 for memberships/businesses/
+-- membership_roles, which showed the identical symptom. This is now
+-- the sixth table with this exact fingerprint.
+--
+-- This migration re-issues exactly the same grant migration 033
+-- already specified for bookings - GRANT is always safe to re-run
+-- regardless of why the previous attempt didn't take effect.
+--
+-- SAFE TO RUN AGAINST THE LIVE PRODUCTION DATABASE - one additive
+-- GRANT, scoped to exactly what apps/admin-console's authenticated
+-- session needs on bookings (SELECT, INSERT, UPDATE - no DELETE, no
+-- code path deletes a Booking). Does not disable or alter RLS -
+-- bookings_tenant_select/_insert/_update (confirmed present and
+-- correct) continue to govern row visibility unchanged.
+--
+-- Run once, in the Supabase SQL Editor, after
+-- packages/db/migrations/033-bookings-jobs-policy-and-grants-recovery.sql.
+
+grant select, insert, update on public.bookings to authenticated;
