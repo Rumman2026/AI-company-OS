@@ -38,12 +38,13 @@ BLOCKER-001 (production "Create booking + job" failing with Postgres
 033-035), the same class of issue as ADR-0035/ADR-0036. All temporary
 diagnostic code has been removed.
 
-- **BLOCKER-002 remains open**: one orphan `Booking` row (no linked
-  `Job`) from a failed attempt during the incident needs
-  investigation/cleanup, and a database-level `unique (estimate_id)`
-  constraint (migration 036) is drafted but not yet run - do not
-  consider booking creation fully hardened until that constraint is in
-  place.
+- **BLOCKER-002 downgraded to a deferred, low-priority data-cleanup
+  task, not release-blocking** (owner decision): one orphan `Booking`
+  row from the incident, plus a database-level `unique (estimate_id)`
+  constraint (migration 036, drafted, not yet run) - see
+  `docs/launch/CRM_V1_RELEASE_READINESS.md` for the full record. The
+  admin-console UI already prevents new duplicates at the application
+  layer.
 
 **Current production status (authoritative — supersedes per-cluster deployment/migration notes below)**
 

@@ -187,8 +187,43 @@ is closed):
 
 ### BLOCKER-002: Orphan Booking with no linked Job, and no DB-level duplicate prevention
 
-**Status**: Open (low severity, non-blocking for continued smoke
-testing, but must be resolved before CRM V1).
+**Status**: **Deferred - low-priority data-cleanup task, NOT release-blocking.**
+Downgraded by explicit owner decision after multiple SQL-diagnostic
+round-trips produced no new information beyond what was already
+confirmed. No further engineering time is being spent on this until
+it is explicitly picked back up.
+
+- **Description**: one orphan `Booking` row
+  (`1e825d58-1182-46ca-81dd-cf4d07ad6a5c`, `job_id IS NULL`) exists in
+  production for Estimate `cb1a14bf-11d0-4d6f-bb69-e113572e29bf`,
+  alongside the real, successfully job-linked Booking
+  (`0b537df0-4906-4dc8-a668-516e90968493`,
+  `job_id = 71d8129f-f497-41be-a2a3-5f23bac7ab2b`) for the same
+  Estimate.
+- **Current evidence**: confirmed via direct query -
+  `select estimate_id, count(*) from bookings group by estimate_id having count(*) > 1;`
+  returns exactly one row (this Estimate, count 2). No other
+  duplicate exists anywhere else in the table.
+- **Possible root cause**: an earlier "Create booking + job" attempt
+  during the BLOCKER-001 incident reached the `bookings` INSERT
+  successfully (in a brief window where that table's grant happened
+  to be present) but failed at the `jobs` INSERT (which still lacked
+  its own grant at that point), leaving a Booking with no Job.
+- **Proposed future fix**: run the single-row `DELETE` already drafted
+  in this document's git history (scoped by exact `id` +
+  `estimate_id` + `job_id is null`, three-way guarded against ever
+  touching the real booking), confirm no duplicate `estimate_id`
+  values remain, then run `migrations/036-bookings-one-per-estimate.sql`
+  to add the `unique(estimate_id)` constraint.
+- **Why it is not release-blocking**: it is one inert, orphaned row
+  with no Job attached - nothing in the application reads or displays
+  it in a way that could confuse a user or corrupt a workflow (the
+  Lead page only shows "Job: {status}" when a `job_id` is present,
+  and the admin-console UI already hides the "Create booking + job"
+  form for this Estimate specifically because a Booking already
+  exists for it - both the real one and this orphan). It is
+  historical noise, not a functional defect. The CRM workflow itself
+  (Lead → Estimate → Booking → Job → ...) is fully operational.
 
 **How it happened**: during the BLOCKER-001 investigation, at least
 one earlier "Create booking + job" attempt against the same approved
@@ -280,7 +315,9 @@ is real production data, however incomplete):
 | Review request                                                 | Code-complete (Cluster 28); production verification pending                 |
 | Activity Timeline (incl. Invoice/Payment/Review entries)       | Code-complete (ADR-0039); production verification pending                   |
 | Notes, Tasks, Media, Notifications, Settings, Service Packages | Previously verified live in production (pre-dates this session's incidents) |
-| **Booking duplicate-prevention**                               | **BLOCKED - see BLOCKER-002** (orphan-booking cleanup + unique constraint)  |
+| Booking duplicate-prevention (app-layer)                       | Live - UI hides the form once a Booking exists for an Estimate              |
+| Booking duplicate-prevention (DB-layer constraint)             | Deferred, low-priority - see BLOCKER-002. Not release-blocking.             |
 
-CRM V1 cannot be marked released while any row above is not
-`Live, verified`, and while BLOCKER-002 remains open.
+CRM V1 cannot be marked released while any row above marked
+`Live, verified` is not - BLOCKER-002 is explicitly non-blocking per
+owner decision and does not gate release.
