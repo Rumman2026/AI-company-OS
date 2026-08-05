@@ -692,6 +692,25 @@ MembershipRole[]`, with a fallback to the legacy `memberships.role`
 - Migration 029 has not yet been run against production (owner
   action).
 
+**Independent-work audit (implemented) — audit-log entity coverage, while BLOCKER-001 is deferred**
+
+- Scope: with BLOCKER-001 (see [docs/launch/CRM_V1_RELEASE_READINESS.md](docs/launch/CRM_V1_RELEASE_READINESS.md))
+  deferred by explicit owner decision, audited every remaining
+  admin-console module (Invoice/Payment, Review-request, Activity
+  Timeline/audit-log, Contacts/Companies, Tasks/Notifications,
+  Settings, Service Packages, Media, and a repo-wide nav/route sweep)
+  for TODO/FIXME markers, dead nav links, and missing UI coverage.
+- One real gap found and fixed: `/audit-log`'s entity-type filter and
+  entity-link mapping only knew about `Lead`/`Job`, but
+  `transitionInvoiceStatusForRoles()`/`transitionReviewRequestStatusForRoles()`
+  have written audit records with `entityType: 'Invoice'`/
+  `'ReviewRequest'` since Clusters 27-28 - those entries rendered but
+  couldn't be filtered, and Invoice entries didn't link to
+  `/invoices/[id]` despite that page existing.
+- Every other audited module: zero TODO/FIXME/placeholder markers, no
+  dead nav links, all 12 top-level nav items resolve to real pages.
+- Lint, typecheck, unit tests, and a local production build all pass.
+
 **Growth-system domain contracts (in progress) — `packages/core-models`**
 
 - Scope: a first, provider-neutral coding slice for the GreenCal
