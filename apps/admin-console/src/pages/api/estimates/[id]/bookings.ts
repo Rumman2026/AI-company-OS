@@ -21,6 +21,14 @@ export const prerender = false;
  * a silent failure or a fabricated success.
  */
 export const POST: APIRoute = async ({ request, locals, params, redirect }) => {
+  // Temporary, unconditional entry log - before any other statement,
+  // any early return, or any await - to prove the request reaches this
+  // route handler at all. If this never appears in Vercel Runtime
+  // Logs, the problem is upstream of this file entirely (routing,
+  // caching, or the form not actually submitting here), not the
+  // database. Remove once confirmed.
+  console.error('entered createBooking route', { estimateId: params.id, method: request.method });
+
   const { id: estimateId } = params;
   const user = locals.user!;
   const membership = await getCurrentMembership(locals.supabase, user.id);
