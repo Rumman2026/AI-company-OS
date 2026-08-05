@@ -1,0 +1,28 @@
+-- Fixes a real production incident found during the GreenCal V1.0
+-- smoke test: after migration 034 resolved the identical symptom on
+-- `bookings`, "Create booking + job" progressed further and failed
+-- with Postgres 42501, "permission denied for table jobs."
+--
+-- Confirmed by direct query (information_schema.role_table_grants):
+-- `authenticated` held exactly REFERENCES, TRIGGER, TRUNCATE on
+-- public.jobs - none of SELECT, INSERT, UPDATE, DELETE. Identical
+-- fingerprint to `bookings` before migration 034: not a grant that
+-- was never issued (migration 033 already granted
+-- SELECT/INSERT/UPDATE on jobs), but one that was subsequently
+-- stripped by the same still-undetermined mechanism affecting
+-- multiple tables this session (memberships, businesses,
+-- membership_roles, leads, estimates, bookings, now jobs).
+--
+-- This migration re-issues exactly the same grant migration 033
+-- already specified for jobs. Scoped to only public.jobs - no other
+-- table is touched.
+--
+-- SAFE TO RUN AGAINST THE LIVE PRODUCTION DATABASE - one additive
+-- GRANT. Does not disable or alter RLS - jobs_tenant_select/_insert/
+-- _update (confirmed present and correct via migration 033) continue
+-- to govern row visibility unchanged.
+--
+-- Run once, in the Supabase SQL Editor, after
+-- packages/db/migrations/034-restore-bookings-grant.sql.
+
+grant select, insert, update on public.jobs to authenticated;
