@@ -2749,6 +2749,109 @@ automation-only edges), [ADR-0025](#adr-0025-customer-activity-timeline-as-a-rea
 
 ---
 
+## ADR-0039: Estimate rejection, and wiring Invoice/Payment/ReviewRecord into the Activity Timeline
+
+**Status**: Confirmed (implemented)
+
+**Context**: A Phase 2 re-audit of the full GreenCal MVP workflow
+(Lead → qualification → Estimate → approval/rejection → Job →
+scheduling → status progression → notes → media → Invoice → payment →
+review → dashboard/record history) found two real, concrete gaps that
+Cluster 27/28 did not close:
+
+1. `EstimateStatus` (`packages/core-models`) was `'draft' | 'approved'`
+   only - no `rejected` state existed anywhere, despite "estimate
+   approval or rejection" being an explicitly named MVP requirement.
+   Neither `EstimateRepository` nor any admin-console UI (staff-side
+   Lead/Estimate pages, or the public customer-approval link) offered
+   a way to decline an estimate; a customer who didn't want a job just
+   left it in `draft` forever with no record of the decision.
+2. `ActivityTimelineRepository`'s `TimelineEntryType` union has
+   named `invoice-created`/`payment-received`/`review-received`
+   values that were still listed as not-yet-implemented (ADR-0025)
+   even though Cluster 27 (Invoice/Payment) and Cluster 28
+   (ReviewRecord) gave this repository real data to produce them from
+   - the "record history" part of the MVP requirement was stale.
+
+**Decision**:
+
+- Widen `EstimateStatus` to `'draft' | 'approved' | 'rejected'`, add
+  `rejectedAt?`/`rejectedBy?` to `Estimate`, and add
+  `EstimateRepository.rejectEstimate()` mirroring
+  `approveEstimate()` exactly (same signature shape, same "only from
+  draft" guard, same terminal-once-set semantics). No new state
+  machine - `Estimate` already has none, by ADR-0021's explicit
+  design, and `rejectEstimate()` follows the same ad hoc-method
+  pattern rather than introducing one now for a single additional
+  status.
+- `migrations/029-estimate-rejection.sql` widens the existing
+  `estimates_status_check` constraint and adds `rejected_at`/
+  `rejected_by` columns - additive only.
+- While making this change, tightened both `approveEstimate()`'s and
+  `approveEstimateByCustomerToken()`'s guards from
+  `status === 'approved'` to `status !== 'draft'`. The original guard
+  only checked for re-approval; with `rejected` now a real reachable
+  status, an unchanged guard would have let a stale public
+  customer-approval link silently override a staff rejection - a real
+  correctness bug this ADR closes, not a hypothetical one, since it
+  would reach production the moment migration 029 runs and a customer
+  opens an old approval link for a since-rejected estimate.
+- Staff-only reject buttons added to the Lead page's estimate list and
+  the Estimate detail page (mirroring the existing Approve buttons
+  exactly). The public customer-approval link (`/approve/[token]`)
+  gets no new reject/decline action - only an honest "no longer
+  available" message if a customer opens a link for an
+  already-rejected estimate. Customer-initiated decline was
+  deliberately not added: no product requirement asked for it, and
+  adding a second public, unauthenticated, state-mutating action
+  beyond the one already carefully scoped in ADR-0030 is more surface
+  than "estimate approval or rejection" requires.
+- `ActivityTimelineRepository` gains `invoiceRepository`/
+  `paymentRepository`/`reviewRecordRepository` dependencies and now
+  produces `invoice-created`, `payment-received`, and
+  `review-received` entries per Job, moving all three from
+  `NOT_YET_IMPLEMENTED_TIMELINE_ENTRY_TYPES` to
+  `IMPLEMENTED_TIMELINE_ENTRY_TYPES`. `review-request-sent` stays
+  unimplemented on purpose: a `ReviewRequest` created by staff sits at
+  `not-eligible` (see ADR-0038) and has not actually been sent, so
+  reporting it as "sent" would be false, not merely incomplete.
+  `call-logged`/`sms-sent`/`email-sent` remain unimplemented - no
+  persistence for any of the three exists anywhere in this repository.
+
+**Alternatives considered**: Adding a real state machine for Estimate
+now that it has three statuses - rejected; three ad hoc, terminal
+statuses reached by two independent one-way methods is still simple
+enough that a full `transitionEstimate()` graph would be more
+machinery than the entity needs, consistent with ADR-0021's original
+reasoning. Also exposing customer-initiated decline on the public
+link - rejected as scope not requested, see above.
+
+**Trade-offs**: `rejectEstimate()`'s guard change
+(`!== 'draft'` instead of `=== 'approved'`) is a small behavioral
+change to an existing, already-shipped method - reviewed carefully
+since ADR-0037's guardrails warn against disturbing stable,
+already-shipped behavior. This one is judged safe and necessary: the
+old guard's only observable difference is that it would have allowed
+re-approving an estimate that was already rejected, which is a bug
+being fixed, not a feature being removed - no legitimate caller relied
+on that being possible.
+
+**Consequences**: `docs/launch/OWNER_ACTIONS_REQUIRED.md` gains
+migration 029 as a pending owner action. `ROADMAP.md` and
+`docs/crm/CRM_ARCHITECTURE.md` are updated. No change to
+authentication, membership, RLS helper functions, or any table besides
+`estimates` (additive columns/constraint only).
+
+**Related**: [ADR-0021](#adr-0021-estimate-approval-status-no-state-machine)
+(original Estimate approval design), [ADR-0025](#adr-0025-customer-activity-timeline-as-a-read-time-composition-plus-actor-tracking)
+(original Activity Timeline design and the not-yet-implemented entry
+types this ADR partially closes), [ADR-0030](#adr-0030-public-customer-estimate-approval-link-via-a-service-role-key-and-a-high-entropy-token)
+(the public customer-approval link's original, carefully-scoped surface),
+[ADR-0037](#adr-0037-invoice--payment-persistence-layer-packagesdb-and-admin-console-crudtransition-ui),
+[ADR-0038](#adr-0038-review-requestreview-record-persistence-and-admin-console-ui-content-deferred-to-phase-2).
+
+---
+
 ## Proposed decisions (not yet made)
 
 - Service-to-service communication pattern (REST/gRPC/queue) beyond the

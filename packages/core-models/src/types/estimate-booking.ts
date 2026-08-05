@@ -2,16 +2,17 @@ import type { BookingId, EstimateId, JobId, LeadId } from '../ids';
 import type { Money } from '../money';
 
 /**
- * No state machine - see DECISIONS.md ADR-0021. `draft` is the only
- * status a new Estimate is ever created at; `approveEstimate()`
- * (packages/db) is the only path to `approved`, which is then
- * immutable - no update method exists for an Estimate's amount/summary
- * at any status, so "revision controls rather than silent editing" is
- * satisfied by omission today. A future edit feature must create a new
- * Estimate row referencing the original rather than mutate one in
- * place, especially once approved.
+ * No state machine - see DECISIONS.md ADR-0021 (and ADR-0039 for
+ * `rejected`). `draft` is the only status a new Estimate is ever
+ * created at; `approveEstimate()`/`rejectEstimate()` (packages/db) are
+ * the only paths out of `draft`, both terminal - no update method
+ * exists for an Estimate's amount/summary at any status, so "revision
+ * controls rather than silent editing" is satisfied by omission today.
+ * A future edit feature must create a new Estimate row referencing the
+ * original rather than mutate one in place, especially once approved
+ * or rejected.
  */
-export type EstimateStatus = 'draft' | 'approved';
+export type EstimateStatus = 'draft' | 'approved' | 'rejected';
 
 export interface Estimate {
   readonly id: EstimateId;
@@ -24,6 +25,9 @@ export interface Estimate {
   readonly approvedAt?: string;
   /** The actor who approved this Estimate. */
   readonly approvedBy?: string;
+  readonly rejectedAt?: string;
+  /** The actor who rejected this Estimate. */
+  readonly rejectedBy?: string;
   /**
    * Sales tax rate in basis points (1/100 of a percent - e.g. 825 =
    * 8.25%), integer to stay floating-point-free per money.ts's own

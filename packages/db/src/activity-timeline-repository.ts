@@ -6,19 +6,24 @@ import type { JobRepository } from './job-repository';
 import type { NoteRepository } from './note-repository';
 import type { TaskRepository } from './task-repository';
 import type { PhotoAssetRepository } from './photo-asset-repository';
+import type { InvoiceRepository } from './invoice-repository';
+import type { PaymentRepository } from './payment-repository';
+import type { ReviewRecordRepository } from './review-record-repository';
 
 /**
  * Every kind of event the Activity Timeline can show - see
- * DECISIONS.md ADR-0025. This is a deliberate superset of what this
- * repository can produce today: `invoice-created`, `payment-received`,
- * `call-logged`, `sms-sent`, `email-sent`, `review-request-sent`, and
- * `review-received` are real, named values (so filtering/UI code is
- * forward-compatible and reusable across every business this platform
- * powers), but **no code path in this repository ever produces one** -
- * no Invoice, Payment, Call, SMS, Email, or Review-request persistence
- * exists anywhere in this repository yet. `listTimelineForContact()`
- * honestly returns zero entries of those types; nothing here fabricates
- * data to fill the gap.
+ * DECISIONS.md ADR-0025 (original design) and ADR-0039 (wiring
+ * `invoice-created`/`payment-received`/`review-received` once
+ * Invoice/Payment/ReviewRecord persistence existed, Clusters 27-28).
+ * `call-logged`, `sms-sent`, `email-sent`, and `review-request-sent`
+ * remain real, named values with no producing code path - no Call/SMS/
+ * Email persistence exists anywhere in this repository, and
+ * `review-request-sent` specifically requires the automation actor
+ * that sends a queued ReviewRequest, which this application has no
+ * scheduler for (see ADR-0038) - a request sitting at `not-eligible`
+ * has not actually been sent, so it is never reported as one.
+ * `listTimelineForContact()` honestly returns zero entries of those
+ * four types; nothing here fabricates data to fill the gap.
  */
 export type TimelineEntryType =
   | 'lead-created'
@@ -53,17 +58,17 @@ export const IMPLEMENTED_TIMELINE_ENTRY_TYPES: readonly TimelineEntryType[] = [
   'task-created',
   'task-completed',
   'media-uploaded',
+  'invoice-created',
+  'payment-received',
+  'review-received',
 ];
 
 /** Entry types that exist for forward compatibility only - never produced yet. See the module doc comment. */
 export const NOT_YET_IMPLEMENTED_TIMELINE_ENTRY_TYPES: readonly TimelineEntryType[] = [
-  'invoice-created',
-  'payment-received',
   'call-logged',
   'sms-sent',
   'email-sent',
   'review-request-sent',
-  'review-received',
 ];
 
 export interface TimelineEntry {
@@ -115,6 +120,9 @@ export interface ActivityTimelineRepositoryDeps {
   taskRepository: TaskRepository;
   photoAssetRepository: PhotoAssetRepository;
   auditLogRepository: AuditLogRepository;
+  invoiceRepository: InvoiceRepository;
+  paymentRepository: PaymentRepository;
+  reviewRecordRepository: ReviewRecordRepository;
 }
 
 function matchesFilters(entry: TimelineEntry, options: ListTimelineOptions): boolean {
@@ -291,23 +299,32 @@ export function createActivityTimelineRepository(
 
             if (!booking.jobId) continue;
 
-            const [jobResult, jobAuditResult, jobNotesResult, jobTasksResult, jobPhotosResult] =
-              await Promise.all([
-                deps.jobRepository.getJob(businessId, booking.jobId),
-                deps.auditLogRepository.listAuditRecords(businessId, {
-                  entityType: 'Job',
-                  entityId: booking.jobId,
-                }),
-                deps.noteRepository.listNotes(businessId, {
-                  entityType: 'job',
-                  entityId: booking.jobId,
-                }),
-                deps.taskRepository.listTasks(businessId, {
-                  entityType: 'job',
-                  entityId: booking.jobId,
-                }),
-                deps.photoAssetRepository.listPhotosForJob(businessId, booking.jobId),
-              ]);
+            const [
+              jobResult,
+              jobAuditResult,
+              jobNotesResult,
+              jobTasksResult,
+              jobPhotosResult,
+              jobInvoicesResult,
+              jobReviewRecordsResult,
+            ] = await Promise.all([
+              deps.jobRepository.getJob(businessId, booking.jobId),
+              deps.auditLogRepository.listAuditRecords(businessId, {
+                entityType: 'Job',
+                entityId: booking.jobId,
+              }),
+              deps.noteRepository.listNotes(businessId, {
+                entityType: 'job',
+                entityId: booking.jobId,
+              }),
+              deps.taskRepository.listTasks(businessId, {
+                entityType: 'job',
+                entityId: booking.jobId,
+              }),
+              deps.photoAssetRepository.listPhotosForJob(businessId, booking.jobId),
+              deps.invoiceRepository.listInvoices(businessId, { jobId: booking.jobId }),
+              deps.reviewRecordRepository.listReviewRecordsForJob(businessId, booking.jobId),
+            ]);
 
             if (jobResult.ok) {
               entries.push({
@@ -381,6 +398,49 @@ export function createActivityTimelineRepository(
                   occurredAt: photo.uploadedAt,
                   actorId: photo.uploadedBy,
                   summary: `${photo.kind} photo uploaded`,
+                  entityType: 'job',
+                  entityId: booking.jobId,
+                });
+              }
+            }
+
+            if (jobInvoicesResult.ok) {
+              for (const invoice of jobInvoicesResult.invoices) {
+                entries.push({
+                  id: `invoice-created-${invoice.id}`,
+                  type: 'invoice-created',
+                  occurredAt: invoice.createdAt,
+                  summary: `Invoice created (${invoice.totalAmount.amountMinorUnits / 100} ${invoice.totalAmount.currency})`,
+                  entityType: 'invoice',
+                  entityId: invoice.id,
+                });
+
+                const paymentsResult = await deps.paymentRepository.listPaymentsForInvoice(
+                  businessId,
+                  invoice.id,
+                );
+                if (paymentsResult.ok) {
+                  for (const payment of paymentsResult.payments) {
+                    entries.push({
+                      id: `payment-received-${payment.id}`,
+                      type: 'payment-received',
+                      occurredAt: payment.occurredAt,
+                      summary: `Payment received (${payment.amount.amountMinorUnits / 100} ${payment.amount.currency})`,
+                      entityType: 'invoice',
+                      entityId: invoice.id,
+                    });
+                  }
+                }
+              }
+            }
+
+            if (jobReviewRecordsResult.ok) {
+              for (const record of jobReviewRecordsResult.reviewRecords) {
+                entries.push({
+                  id: `review-received-${record.id}`,
+                  type: 'review-received',
+                  occurredAt: record.receivedAt,
+                  summary: `Review received (${record.sourcePlatform})`,
                   entityType: 'job',
                   entityId: booking.jobId,
                 });

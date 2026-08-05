@@ -119,6 +119,7 @@ export type {
   ListEstimatesResult,
   ListEstimatesOptions,
   ApproveEstimateResult,
+  RejectEstimateResult,
   SetEstimatePricingInput,
   SetEstimatePricingResult,
   GenerateCustomerApprovalLinkResult,

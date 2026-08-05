@@ -313,6 +313,21 @@ publishing pipeline) was evaluated and explicitly deferred to Phase 2
 - its state machine requires actor roles that don't exist in this
   application. See DECISIONS.md ADR-0038.
 
+## Phase 2 MVP re-audit fix: Estimate rejection + Activity Timeline entries
+
+`migrations/029-estimate-rejection.sql` widens `estimates`' status
+check constraint to add `rejected` alongside `draft`/`approved`, and
+adds `rejected_at`/`rejected_by` columns. `EstimateRepository.rejectEstimate()`
+mirrors `approveEstimate()`. Both `approveEstimate()` and
+`approveEstimateByCustomerToken()` had their re-approval guard
+tightened from `status === 'approved'` to `status !== 'draft'` - a
+real fix, not just new-feature plumbing, since the looser guard would
+have let a stale public approval link override a staff rejection now
+that `rejected` is reachable. `ActivityTimelineRepository` gained
+`invoiceRepository`/`paymentRepository`/`reviewRecordRepository`
+dependencies and now produces `invoice-created`/`payment-received`/
+`review-received` entries. See DECISIONS.md ADR-0039.
+
 ## What is deliberately excluded
 
 An authenticated owner interface for Bookings (every other listed

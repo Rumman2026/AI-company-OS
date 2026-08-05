@@ -9,6 +9,7 @@ import {
   type EstimateAttachmentWithSignedUrl,
 } from '@ai-company-os/db';
 import { formatMinorUnitsAsDollars } from '../../lib/estimates/parse-amount';
+import { estimateStatusTone } from '@ai-company-os/ui-kit';
 import {
   calculateEstimateTotals,
   createCurrencyCode,
@@ -103,7 +104,7 @@ const approvalLinkUrl =
       <>
         <h1>
           Estimate{' '}
-          <span class={`uikit-badge uikit-badge--${estimate.status === 'approved' ? 'success' : 'neutral'}`}>
+          <span class={`uikit-badge uikit-badge--${estimateStatusTone(estimate.status)}`}>
             {estimate.status}
           </span>
         </h1>
@@ -129,14 +130,26 @@ const approvalLinkUrl =
         </p>
 
         {isDraft ? (
-          <form method="POST" action={`/api/estimates/${estimate.id}/approve`} style="margin-bottom: 1.5rem;">
-            <button type="submit" class="uikit-button uikit-button--primary">
-              Approve estimate
-            </button>
-          </form>
-        ) : (
+          <div style="margin-bottom: 1.5rem;">
+            <form method="POST" action={`/api/estimates/${estimate.id}/approve`} style="display: inline;">
+              <button type="submit" class="uikit-button uikit-button--primary">
+                Approve estimate
+              </button>
+            </form>{' '}
+            <form method="POST" action={`/api/estimates/${estimate.id}/reject`} style="display: inline;">
+              <button type="submit" class="uikit-button uikit-button--secondary">
+                Reject estimate
+              </button>
+            </form>
+          </div>
+        ) : estimate.status === 'approved' ? (
           <p style="color: var(--color-text-muted); font-size: 0.875rem; margin-bottom: 1.5rem;">
             Approved on {estimate.approvedAt ? new Date(estimate.approvedAt).toLocaleString() : '—'} - line
+            items are now immutable.
+          </p>
+        ) : (
+          <p style="color: var(--color-text-muted); font-size: 0.875rem; margin-bottom: 1.5rem;">
+            Rejected on {estimate.rejectedAt ? new Date(estimate.rejectedAt).toLocaleString() : '—'} - line
             items are now immutable.
           </p>
         )}

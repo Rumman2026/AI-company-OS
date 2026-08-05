@@ -35,14 +35,17 @@ const TYPE_LABEL: Record<string, string> = {
   'task-created': 'Task created',
   'task-completed': 'Task completed',
   'media-uploaded': 'Media uploaded',
+  'invoice-created': 'Invoice created',
+  'payment-received': 'Payment received',
+  'review-received': 'Review received',
 };
 ---
 
 <h2>Activity Timeline</h2>
 <p style="color: var(--color-text-muted); font-size: 0.875rem;">
-  Every estimate, appointment, job, status change, note, task, and media upload for this
-  customer, most recent first. Invoices, payments, calls, SMS, emails, and reviews will appear
-  here once those features are built - none are fabricated.
+  Every estimate, appointment, job, status change, note, task, media upload, invoice, payment,
+  and received review for this customer, most recent first. Calls, SMS, emails, and sent review
+  requests will appear here once those features are built - none are fabricated.
 </p>
 
 <form method="GET" style="max-width: 480px; margin-bottom: 1rem;">

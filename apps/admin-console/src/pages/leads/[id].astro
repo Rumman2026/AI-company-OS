@@ -13,7 +13,7 @@ import {
   createSupabaseNoteRepository,
   createSupabaseTaskRepository,
 } from '@ai-company-os/db';
-import { leadStatusTone } from '@ai-company-os/ui-kit';
+import { leadStatusTone, estimateStatusTone } from '@ai-company-os/ui-kit';
 import { formatMinorUnitsAsDollars } from '../../lib/estimates/parse-amount';
 import type { LeadStatus, Note, Task } from '@ai-company-os/core-models';
 
@@ -49,7 +49,7 @@ let estimates: Array<{
   id: string;
   summary: string;
   proposedAmount: { amountMinorUnits: number; currency: string };
-  status: 'draft' | 'approved';
+  status: 'draft' | 'approved' | 'rejected';
   createdAt: string;
 }> = [];
 let bookings: Array<{ id: string; estimateId: string; jobId?: string; scheduledAt: string }> = [];
@@ -185,15 +185,20 @@ if (membership && id) {
                   {e.summary}
                 </a>{' '}
                 ({new Date(e.createdAt).toLocaleDateString()}){' '}
-                <span class={`uikit-badge uikit-badge--${e.status === 'approved' ? 'success' : 'neutral'}`}>
-                  {e.status}
-                </span>
+                <span class={`uikit-badge uikit-badge--${estimateStatusTone(e.status)}`}>{e.status}</span>
                 {e.status === 'draft' ? (
-                  <form method="POST" action={`/api/estimates/${e.id}/approve`} style="display: inline;">
-                    <button type="submit" class="uikit-button uikit-button--secondary">
-                      Approve
-                    </button>
-                  </form>
+                  <>
+                    <form method="POST" action={`/api/estimates/${e.id}/approve`} style="display: inline;">
+                      <button type="submit" class="uikit-button uikit-button--secondary">
+                        Approve
+                      </button>
+                    </form>
+                    <form method="POST" action={`/api/estimates/${e.id}/reject`} style="display: inline;">
+                      <button type="submit" class="uikit-button uikit-button--secondary">
+                        Reject
+                      </button>
+                    </form>
+                  </>
                 ) : null}
               </li>
             ))}

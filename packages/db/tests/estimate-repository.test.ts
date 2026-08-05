@@ -189,6 +189,94 @@ test('approveEstimate rejects a cross-tenant estimate', async () => {
   );
 });
 
+test('rejectEstimate moves a draft estimate to rejected and sets rejectedAt', async () => {
+  const { repo, estimates } = setup([
+    {
+      id: 'estimate-1',
+      business_id: BUSINESS_A,
+      lead_id: 'lead-1',
+      proposed_amount_minor_units: 50000,
+      proposed_amount_currency: 'USD',
+      summary: 'Roof soft wash',
+      status: 'draft',
+      approved_at: null,
+      created_at: '2026-01-01T00:00:00.000Z',
+    },
+  ]);
+
+  const result = await repo.rejectEstimate(BUSINESS_A, 'estimate-1', 'staff-1');
+
+  assert.equal(result.ok, true);
+  if (result.ok) {
+    assert.equal(result.estimate.status, 'rejected');
+    assert.ok(result.estimate.rejectedAt);
+    assert.equal(result.estimate.rejectedBy, 'staff-1');
+  }
+  assert.equal(estimates.rows[0].status, 'rejected');
+});
+
+test('rejectEstimate rejects an already-approved estimate rather than overriding it', async () => {
+  const { repo } = setup([
+    {
+      id: 'estimate-1',
+      business_id: BUSINESS_A,
+      lead_id: 'lead-1',
+      proposed_amount_minor_units: 50000,
+      proposed_amount_currency: 'USD',
+      summary: 'Roof soft wash',
+      status: 'approved',
+      approved_at: '2026-01-02T00:00:00.000Z',
+      created_at: '2026-01-01T00:00:00.000Z',
+    },
+  ]);
+
+  const result = await repo.rejectEstimate(BUSINESS_A, 'estimate-1');
+  assert.equal(result.ok, false);
+});
+
+test('approveEstimate rejects an already-rejected estimate rather than overriding it', async () => {
+  const { repo } = setup([
+    {
+      id: 'estimate-1',
+      business_id: BUSINESS_A,
+      lead_id: 'lead-1',
+      proposed_amount_minor_units: 50000,
+      proposed_amount_currency: 'USD',
+      summary: 'Roof soft wash',
+      status: 'rejected',
+      rejected_at: '2026-01-02T00:00:00.000Z',
+      created_at: '2026-01-01T00:00:00.000Z',
+    },
+  ]);
+
+  const result = await repo.approveEstimate(BUSINESS_A, 'estimate-1');
+  assert.equal(result.ok, false);
+});
+
+test('rejectEstimate rejects a cross-tenant estimate', async () => {
+  const { repo, estimates } = setup([
+    {
+      id: 'estimate-1',
+      business_id: BUSINESS_B,
+      lead_id: 'lead-1',
+      proposed_amount_minor_units: 50000,
+      proposed_amount_currency: 'USD',
+      summary: 'Roof soft wash',
+      status: 'draft',
+      approved_at: null,
+      created_at: '2026-01-01T00:00:00.000Z',
+    },
+  ]);
+
+  const result = await repo.rejectEstimate(BUSINESS_A, 'estimate-1');
+  assert.equal(result.ok, false);
+  assert.equal(
+    estimates.rows[0].status,
+    'draft',
+    "the other business's estimate must remain unchanged",
+  );
+});
+
 test('setEstimatePricing sets tax/discount/deposit on a draft estimate', async () => {
   const { repo, estimates } = setup([
     {
@@ -463,6 +551,28 @@ test('approveEstimateByCustomerToken rejects an already-approved estimate rather
       summary: 'Roof soft wash',
       status: 'approved',
       approved_at: '2026-01-02T00:00:00.000Z',
+      customer_approval_token: 'a-real-token',
+      customer_approval_token_expires_at: futureIsoDate(30),
+      customer_approved: false,
+      created_at: '2026-01-01T00:00:00.000Z',
+    },
+  ]);
+
+  const result = await repo.approveEstimateByCustomerToken('a-real-token', 'Jane Smith');
+  assert.equal(result.ok, false);
+});
+
+test('approveEstimateByCustomerToken rejects an already-rejected estimate - staff rejection cannot be overridden by a stale public link', async () => {
+  const { repo } = setup([
+    {
+      id: 'estimate-1',
+      business_id: BUSINESS_A,
+      lead_id: 'lead-1',
+      proposed_amount_minor_units: 50000,
+      proposed_amount_currency: 'USD',
+      summary: 'Roof soft wash',
+      status: 'rejected',
+      rejected_at: '2026-01-02T00:00:00.000Z',
       customer_approval_token: 'a-real-token',
       customer_approval_token_expires_at: futureIsoDate(30),
       customer_approved: false,

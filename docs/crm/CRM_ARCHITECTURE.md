@@ -40,9 +40,10 @@ accuracy, not as current status. The authoritative, current state
   real `Greencal-production` Supabase project. Every "migration NNN
   has not yet been run" note for a migration number in that range
   (Clusters 4 through 26, both Milestone sections) is superseded.
-- **Migrations 027** (Cluster 27 - Invoice/Payment persistence) and
-  **028** (Cluster 28 - Review-Request/Review-Record persistence) are
-  **not yet run** against production as of this writing.
+- **Migrations 027** (Cluster 27 - Invoice/Payment persistence), **028**
+  (Cluster 28 - Review-Request/Review-Record persistence), and **029**
+  (Estimate rejection) are **not yet run** against production as of
+  this writing.
 - Not independently re-verified in a live browser session by this
   assistant: the specific create-estimate → create-booking →
   auto-create-job → best-effort-schedule chain (Cluster 5), and every
@@ -749,6 +750,42 @@ typecheck/lint/test/build all pass locally (22/22 tests). Migration
 028 has NOT yet been run against production (owner action). Content
 persistence remains entirely unbuilt in this repository. See
 DECISIONS.md ADR-0038.
+
+## Phase 2 MVP re-audit fix: Estimate rejection + Invoice/Payment/Review Activity Timeline entries
+
+A re-audit of the full GreenCal MVP workflow after Cluster 28 found
+two real gaps. See DECISIONS.md ADR-0039 for the full reasoning.
+
+- **Estimate rejection**: `EstimateStatus` widened to `'draft' |
+'approved' | 'rejected'`. `migrations/029-estimate-rejection.sql`
+  widens the `estimates` status check constraint and adds
+  `rejected_at`/`rejected_by`. `EstimateRepository.rejectEstimate()`
+  mirrors `approveEstimate()` exactly. Fixed a real correctness bug
+  while doing this: both `approveEstimate()` and
+  `approveEstimateByCustomerToken()` only guarded against
+  re-approving an already-`approved` estimate - with `rejected` now
+  reachable, an unchanged guard would let a stale public
+  customer-approval link silently override a staff rejection. Both
+  guards tightened to reject anything not currently `draft`. Reject
+  buttons added next to the existing Approve buttons on the Lead page
+  and the Estimate detail page; the public `/approve/[token]` link
+  gains no new mutation - only an honest "no longer available" message
+  for an already-rejected estimate.
+- **Activity Timeline**: now composes `invoice-created`,
+  `payment-received`, and `review-received` entries per Job, using the
+  Invoice/Payment/ReviewRecord repositories Clusters 27-28 added.
+  Moved from `NOT_YET_IMPLEMENTED_TIMELINE_ENTRY_TYPES` to
+  `IMPLEMENTED_TIMELINE_ENTRY_TYPES`. `review-request-sent` stays
+  unimplemented on purpose - a staff-created ReviewRequest sits at
+  `not-eligible` and has not actually been sent (see Cluster 28);
+  reporting it as sent would be false. `call-logged`/`sms-sent`/
+  `email-sent` remain unimplemented - no persistence exists for any of
+  the three.
+
+**Classification: IMPLEMENTED AND TESTED LOCALLY.** 139/139
+`packages/db` tests passing (6 new). `apps/admin-console`
+typecheck/lint/test/build all pass locally (22/22 tests). Migration
+029 has NOT yet been run against production (owner action).
 
 ## What "CRM" means in this repository today
 

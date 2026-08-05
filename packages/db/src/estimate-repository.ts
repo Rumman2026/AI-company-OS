@@ -30,6 +30,7 @@ export type GetEstimateResult = { ok: true; estimate: Estimate } | { ok: false; 
 export type ListEstimatesResult =
   { ok: true; estimates: Estimate[] } | { ok: false; error: string };
 export type ApproveEstimateResult = { ok: true; estimate: Estimate } | { ok: false; error: string };
+export type RejectEstimateResult = { ok: true; estimate: Estimate } | { ok: false; error: string };
 export type SetEstimatePricingResult =
   { ok: true; estimate: Estimate } | { ok: false; error: string };
 export type GenerateCustomerApprovalLinkResult =
@@ -57,6 +58,17 @@ export interface EstimateRepository {
     estimateId: string,
     approvedBy?: string,
   ): Promise<ApproveEstimateResult>;
+  /**
+   * The only way any caller may move an Estimate from `draft` to
+   * `rejected` - rejects (does not throw) if the estimate is already
+   * approved or rejected, or does not exist. Mirrors `approveEstimate()`
+   * exactly - see DECISIONS.md ADR-0039.
+   */
+  rejectEstimate(
+    businessId: string,
+    estimateId: string,
+    rejectedBy?: string,
+  ): Promise<RejectEstimateResult>;
   /**
    * Sets tax rate / discount / deposit - rejects (does not throw) if
    * the Estimate is already `approved`, mirroring the same "mutable
@@ -107,6 +119,8 @@ interface EstimateRow {
   created_by: string | null;
   approved_at: string | null;
   approved_by: string | null;
+  rejected_at: string | null;
+  rejected_by: string | null;
   tax_rate_basis_points: number | null;
   discount_amount_minor_units: number | null;
   discount_amount_currency: string | null;
@@ -132,6 +146,8 @@ function toEstimate(row: EstimateRow): Estimate {
     createdBy: row.created_by ?? undefined,
     approvedAt: row.approved_at ?? undefined,
     approvedBy: row.approved_by ?? undefined,
+    rejectedAt: row.rejected_at ?? undefined,
+    rejectedBy: row.rejected_by ?? undefined,
     taxRateBasisPoints: row.tax_rate_basis_points ?? undefined,
     discountAmount:
       row.discount_amount_minor_units !== null && row.discount_amount_currency
@@ -156,7 +172,7 @@ function toEstimate(row: EstimateRow): Estimate {
 }
 
 const SELECT_COLUMNS =
-  'id, business_id, lead_id, proposed_amount_minor_units, proposed_amount_currency, summary, status, created_by, approved_at, approved_by, tax_rate_basis_points, discount_amount_minor_units, discount_amount_currency, deposit_amount_minor_units, deposit_amount_currency, customer_approval_token, customer_approval_token_expires_at, customer_approved, customer_signature_name, created_at';
+  'id, business_id, lead_id, proposed_amount_minor_units, proposed_amount_currency, summary, status, created_by, approved_at, approved_by, rejected_at, rejected_by, tax_rate_basis_points, discount_amount_minor_units, discount_amount_currency, deposit_amount_minor_units, deposit_amount_currency, customer_approval_token, customer_approval_token_expires_at, customer_approved, customer_signature_name, created_at';
 
 function isTokenExpired(expiresAt: string | undefined): boolean {
   if (!expiresAt) return true;
@@ -180,6 +196,8 @@ export function createSupabaseEstimateRepository(
           created_by: input.createdBy ?? null,
           approved_at: null,
           approved_by: null,
+          rejected_at: null,
+          rejected_by: null,
           tax_rate_basis_points: null,
           discount_amount_minor_units: null,
           discount_amount_currency: null,
@@ -212,8 +230,8 @@ export function createSupabaseEstimateRepository(
       }
 
       const current = toEstimate(data as EstimateRow);
-      if (current.status === 'approved') {
-        return { ok: false, error: 'estimate_already_approved' };
+      if (current.status !== 'draft') {
+        return { ok: false, error: `estimate_already_${current.status}` };
       }
 
       const approvedAt = new Date().toISOString();
@@ -234,6 +252,45 @@ export function createSupabaseEstimateRepository(
           status: 'approved',
           approvedAt,
           approvedBy: approvedBy ?? undefined,
+        },
+      };
+    },
+
+    async rejectEstimate(businessId, estimateId, rejectedBy) {
+      const { data, error } = await client
+        .from('estimates')
+        .select(SELECT_COLUMNS)
+        .eq('id', estimateId)
+        .eq('business_id', businessId)
+        .single();
+
+      if (error || !data) {
+        return { ok: false, error: error?.message ?? 'estimate_not_found' };
+      }
+
+      const current = toEstimate(data as EstimateRow);
+      if (current.status !== 'draft') {
+        return { ok: false, error: `estimate_already_${current.status}` };
+      }
+
+      const rejectedAt = new Date().toISOString();
+      const { error: updateError } = await client
+        .from('estimates')
+        .update({ status: 'rejected', rejected_at: rejectedAt, rejected_by: rejectedBy ?? null })
+        .eq('id', estimateId)
+        .eq('business_id', businessId);
+
+      if (updateError) {
+        return { ok: false, error: updateError.message ?? 'estimate_reject_failed' };
+      }
+
+      return {
+        ok: true,
+        estimate: {
+          ...current,
+          status: 'rejected',
+          rejectedAt,
+          rejectedBy: rejectedBy ?? undefined,
         },
       };
     },
@@ -365,8 +422,8 @@ export function createSupabaseEstimateRepository(
       if (isTokenExpired(current.customerApprovalTokenExpiresAt)) {
         return { ok: false, error: 'approval_link_expired' };
       }
-      if (current.status === 'approved') {
-        return { ok: false, error: 'estimate_already_approved' };
+      if (current.status !== 'draft') {
+        return { ok: false, error: `estimate_already_${current.status}` };
       }
 
       const approvedAt = new Date().toISOString();

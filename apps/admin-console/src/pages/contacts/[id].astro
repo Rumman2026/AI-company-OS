@@ -15,6 +15,9 @@ import {
   createSupabaseBookingRepository,
   createSupabaseJobRepository,
   createSupabasePhotoAssetRepository,
+  createSupabaseInvoiceRepository,
+  createSupabasePaymentRepository,
+  createSupabaseReviewRecordRepository,
   createActivityTimelineRepository,
   IMPLEMENTED_TIMELINE_ENTRY_TYPES,
   type TimelineEntry,
@@ -97,6 +100,9 @@ if (membership && id) {
       taskRepository: createSupabaseTaskRepository(Astro.locals.supabase),
       photoAssetRepository: createSupabasePhotoAssetRepository(Astro.locals.supabase),
       auditLogRepository: auditLogForTimeline,
+      invoiceRepository: createSupabaseInvoiceRepository(Astro.locals.supabase, auditLogForTimeline),
+      paymentRepository: createSupabasePaymentRepository(Astro.locals.supabase),
+      reviewRecordRepository: createSupabaseReviewRecordRepository(Astro.locals.supabase),
     });
 
     const unfilteredResult = await timelineRepo.listTimelineForContact(membership.businessId, id);

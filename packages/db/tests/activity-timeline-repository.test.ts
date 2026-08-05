@@ -9,6 +9,9 @@ import { createSupabaseNoteRepository } from '../src/note-repository';
 import { createSupabaseTaskRepository } from '../src/task-repository';
 import { createSupabasePhotoAssetRepository } from '../src/photo-asset-repository';
 import { createSupabaseAuditLogRepository } from '../src/audit-log-repository';
+import { createSupabaseInvoiceRepository } from '../src/invoice-repository';
+import { createSupabasePaymentRepository } from '../src/payment-repository';
+import { createSupabaseReviewRecordRepository } from '../src/review-record-repository';
 import { createFakeSupabaseClient, type FakeTable } from './fake-supabase';
 
 const BUSINESS_A = 'business-a';
@@ -158,6 +161,49 @@ function setup() {
       ],
       nextId: 2,
     },
+    invoices: {
+      rows: [
+        {
+          id: 'invoice-1',
+          business_id: BUSINESS_A,
+          job_id: 'job-1',
+          lead_id: 'lead-1',
+          status: 'paid',
+          total_amount_minor_units: 50000,
+          total_amount_currency: 'USD',
+          due_at: null,
+          created_at: '2026-01-06T00:00:00.000Z',
+        },
+      ],
+      nextId: 2,
+    },
+    payments: {
+      rows: [
+        {
+          id: 'payment-1',
+          business_id: BUSINESS_A,
+          invoice_id: 'invoice-1',
+          amount_minor_units: 50000,
+          amount_currency: 'USD',
+          occurred_at: '2026-01-07T00:00:00.000Z',
+          created_at: '2026-01-07T00:00:00.000Z',
+        },
+      ],
+      nextId: 2,
+    },
+    review_records: {
+      rows: [
+        {
+          id: 'review-record-1',
+          business_id: BUSINESS_A,
+          review_request_id: null,
+          job_id: 'job-1',
+          source_platform: 'Google',
+          received_at: '2026-01-08T00:00:00.000Z',
+        },
+      ],
+      nextId: 2,
+    },
     audit_log: {
       rows: [
         {
@@ -206,6 +252,9 @@ function setup() {
     taskRepository: createSupabaseTaskRepository(client),
     photoAssetRepository: createSupabasePhotoAssetRepository(client),
     auditLogRepository,
+    invoiceRepository: createSupabaseInvoiceRepository(client, auditLogRepository),
+    paymentRepository: createSupabasePaymentRepository(client),
+    reviewRecordRepository: createSupabaseReviewRecordRepository(client),
   });
 
   return { timeline };
@@ -231,6 +280,9 @@ test('listTimelineForContact composes every event source into one chronological,
   assert.ok(types.includes('task-created'));
   assert.ok(types.includes('task-completed'));
   assert.ok(types.includes('media-uploaded'));
+  assert.ok(types.includes('invoice-created'));
+  assert.ok(types.includes('payment-received'));
+  assert.ok(types.includes('review-received'));
 
   for (let i = 1; i < result.entries.length; i++) {
     assert.ok(
@@ -303,14 +355,26 @@ test('listTimelineForContact never fabricates an entry for a not-yet-implemented
   assert.equal(result.ok, true);
   if (!result.ok) return;
 
-  const notYetImplemented = [
-    'invoice-created',
-    'payment-received',
-    'call-logged',
-    'sms-sent',
-    'email-sent',
-    'review-request-sent',
-    'review-received',
-  ];
+  const notYetImplemented = ['call-logged', 'sms-sent', 'email-sent', 'review-request-sent'];
   assert.ok(result.entries.every((e) => !notYetImplemented.includes(e.type)));
+});
+
+test('listTimelineForContact reports invoice-created, payment-received, and review-received with correct summaries', async () => {
+  const { timeline } = setup();
+
+  const result = await timeline.listTimelineForContact(BUSINESS_A, 'contact-1');
+  assert.equal(result.ok, true);
+  if (!result.ok) return;
+
+  const invoiceEntry = result.entries.find((e) => e.type === 'invoice-created');
+  assert.ok(invoiceEntry);
+  assert.equal(invoiceEntry?.summary, 'Invoice created (500 USD)');
+
+  const paymentEntry = result.entries.find((e) => e.type === 'payment-received');
+  assert.ok(paymentEntry);
+  assert.equal(paymentEntry?.summary, 'Payment received (500 USD)');
+
+  const reviewEntry = result.entries.find((e) => e.type === 'review-received');
+  assert.ok(reviewEntry);
+  assert.equal(reviewEntry?.summary, 'Review received (Google)');
 });

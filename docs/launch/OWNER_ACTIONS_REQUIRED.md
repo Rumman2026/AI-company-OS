@@ -67,6 +67,22 @@ Ordered by urgency.
   table. See DECISIONS.md ADR-0038 and `docs/crm/CRM_ARCHITECTURE.md`
   Cluster 28.
 
+## 0d. ACTION REQUIRED — Estimate rejection migration (029, safe, not urgent)
+
+- **Status**: `packages/db/migrations/029-estimate-rejection.sql` has
+  been written and locally tested (139/139 `packages/db` tests
+  passing) but **not yet run** against `Greencal-production` - same
+  manual-application requirement as every migration in this project.
+- **What it adds**: widens an existing check constraint on
+  `estimates.status` to also allow `rejected`, and adds two additive,
+  nullable columns (`rejected_at`, `rejected_by`). No existing row's
+  meaning changes.
+- **Action**: open Supabase → SQL Editor → paste the full contents of
+  `packages/db/migrations/029-estimate-rejection.sql` → run.
+- **Result once run**: the new "Reject" buttons on the Lead page and
+  the Estimate detail page will work instead of failing against a
+  missing status value. See DECISIONS.md ADR-0039.
+
 ## 1. Prevent Supabase auto-pause from silently killing lead capture (urgent)
 
 - **Screen**: Supabase dashboard → the GreenCal project (`Greencal-production`)

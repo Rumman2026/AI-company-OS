@@ -47,8 +47,8 @@ authoritative record:
   DECISIONS.md ADR-0035/ADR-0036. Login, dashboard, and role
   resolution are owner-verified working against real production data.
 - Migrations 001 through 026 are all confirmed run against the real
-  `Greencal-production` Supabase project. Migrations 027 (Cluster 27)
-  and 028 (Cluster 28) are not yet run.
+  `Greencal-production` Supabase project. Migrations 027 (Cluster 27),
+  028 (Cluster 28), and 029 (Estimate rejection) are not yet run.
 
 **Phase 2A (in progress) — GreenCal Pressure Washing website, revenue-launch sprint**
 
@@ -646,6 +646,37 @@ MembershipRole[]`, with a fallback to the legacy `memberships.role`
   133/133 `packages/db`) all pass.
 - Migration 028 has not yet been run against production (owner
   action - see `docs/launch/OWNER_ACTIONS_REQUIRED.md`).
+
+**Phase 2 MVP re-audit fix (implemented, tested locally) — Estimate rejection + Invoice/Payment/Review Activity Timeline entries (ADR-0039)**
+
+- Scope: see [DECISIONS.md](DECISIONS.md) ADR-0039. A re-audit of the
+  full GreenCal MVP workflow after Cluster 28 found two real gaps:
+  `EstimateStatus` had no `rejected` value despite "estimate approval
+  or rejection" being an explicitly named MVP requirement, and the
+  Activity Timeline still listed `invoice-created`/`payment-received`/
+  `review-received` as not-yet-implemented even though Clusters 27-28
+  now produce that data.
+- Implemented with repository evidence: `EstimateStatus` widened to
+  include `rejected`; `migrations/029-estimate-rejection.sql` widens
+  the `estimates` status check constraint and adds `rejected_at`/
+  `rejected_by`; `EstimateRepository.rejectEstimate()` mirrors
+  `approveEstimate()`. Both `approveEstimate()` and
+  `approveEstimateByCustomerToken()`'s guards were tightened from
+  `=== 'approved'` to `!== 'draft'` - a real correctness fix, not just
+  the new feature, since the old guard would have let a stale public
+  approval link silently override a staff rejection. Reject buttons
+  added to the Lead page and Estimate detail page; the public
+  approval link shows an honest "no longer available" message instead
+  of gaining a second public mutation action. `ActivityTimelineRepository`
+  now composes `invoice-created`/`payment-received`/`review-received`
+  entries per Job (139/139 `packages/db` tests passing total, 6 new).
+  `review-request-sent`/`call-logged`/`sms-sent`/`email-sent` remain
+  honestly unimplemented.
+- Lint (0 errors repo-wide), typecheck (0 errors repo-wide), a local
+  production build, and unit tests (22/22 `apps/admin-console`,
+  139/139 `packages/db`) all pass.
+- Migration 029 has not yet been run against production (owner
+  action).
 
 **Growth-system domain contracts (in progress) — `packages/core-models`**
 

@@ -53,6 +53,7 @@ const totals = estimate
   : null;
 
 const alreadyApproved = estimate?.status === 'approved';
+const alreadyRejected = estimate?.status === 'rejected';
 ---
 
 <!doctype html>
@@ -169,6 +170,10 @@ const alreadyApproved = estimate?.status === 'approved';
               Approved{estimate.customerSignatureName ? ` by ${estimate.customerSignatureName}` : ''} on{' '}
               {estimate.approvedAt ? new Date(estimate.approvedAt).toLocaleDateString() : ''}
             </div>
+          ) : alreadyRejected ? (
+            <div class="uikit-error-banner" role="alert">
+              This estimate is no longer available. Please contact us if you have questions.
+            </div>
           ) : (
             <>
               {errorMessage ? (
@@ -177,7 +182,9 @@ const alreadyApproved = estimate?.status === 'approved';
                     ? 'Please enter your full name to approve.'
                     : errorMessage === 'estimate_already_approved'
                       ? 'This estimate was already approved.'
-                      : 'Something went wrong. Please try again.'}
+                      : errorMessage === 'estimate_already_rejected'
+                        ? 'This estimate is no longer available. Please contact us if you have questions.'
+                        : 'Something went wrong. Please try again.'}
                 </div>
               ) : null}
               <form method="POST" action={`/api/public/estimates/${token}/approve`}>
