@@ -1,5 +1,6 @@
 ---
 import type { Task } from '@ai-company-os/core-models';
+import { formatDate } from '../lib/format-datetime';
 
 interface Props {
   entityType: 'lead' | 'contact' | 'company' | 'job';
@@ -25,7 +26,7 @@ const { entityType, entityId, tasks, redirectTo } = Astro.props;
           {task.dueAt ? (
             <span style="color: var(--color-text-muted); font-size: 0.8125rem;">
               {' '}
-              &middot; due {new Date(task.dueAt).toLocaleDateString()}
+              &middot; due {formatDate(task.dueAt)}
             </span>
           ) : null}
           {task.completed ? null : (

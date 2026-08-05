@@ -4,6 +4,7 @@ import { getCurrentMembership } from '../../lib/auth/membership';
 import { createSupabaseInvoiceRepository, createSupabaseAuditLogRepository } from '@ai-company-os/db';
 import { invoiceStatusTone } from '@ai-company-os/ui-kit';
 import { formatMinorUnitsAsDollars } from '../../lib/estimates/parse-amount';
+import { formatDateTime, formatDate } from '../../lib/format-datetime';
 import type { InvoiceStatus } from '@ai-company-os/core-models';
 
 const user = Astro.locals.user!;
@@ -108,8 +109,8 @@ const ALL_STATUSES: InvoiceStatus[] = [
                 <td>
                   {formatMinorUnitsAsDollars(invoice.totalAmountMinorUnits, invoice.totalAmountCurrency)}
                 </td>
-                <td>{invoice.dueAt ? new Date(invoice.dueAt).toLocaleDateString() : '—'}</td>
-                <td>{new Date(invoice.createdAt).toLocaleString()}</td>
+                <td>{invoice.dueAt ? formatDate(invoice.dueAt) : '—'}</td>
+                <td>{formatDateTime(invoice.createdAt)}</td>
                 <td>
                   <a href={`/invoices/${invoice.id}`}>View</a>
                 </td>

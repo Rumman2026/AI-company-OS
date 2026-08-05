@@ -2,6 +2,7 @@
 import AdminLayout from '../../layouts/AdminLayout.astro';
 import { getCurrentMembership } from '../../lib/auth/membership';
 import { createSupabaseAuditLogRepository } from '@ai-company-os/db';
+import { formatDateTime } from '../../lib/format-datetime';
 import type { AuditLog } from '@ai-company-os/core-models';
 
 const user = Astro.locals.user!;
@@ -92,7 +93,7 @@ const ENTITY_ROUTE_PREFIX: Record<string, string> = {
           <tbody>
             {records.map((r) => (
               <tr>
-                <td>{new Date(r.occurredAt).toLocaleString()}</td>
+                <td>{formatDateTime(r.occurredAt)}</td>
                 <td>
                   {ENTITY_ROUTE_PREFIX[r.entityType] ? (
                     <a href={`${ENTITY_ROUTE_PREFIX[r.entityType]}/${r.entityId}`}>

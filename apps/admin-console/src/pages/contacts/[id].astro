@@ -24,6 +24,7 @@ import {
   type TimelineEntryType,
 } from '@ai-company-os/db';
 import { leadStatusTone } from '@ai-company-os/ui-kit';
+import { formatDateTime } from '../../lib/format-datetime';
 import type { LeadStatus, CompanyId, Note, Task } from '@ai-company-os/core-models';
 
 const user = Astro.locals.user!;
@@ -214,7 +215,7 @@ if (membership && id) {
                         {lead.status}
                       </span>
                     </td>
-                    <td>{new Date(lead.createdAt).toLocaleString()}</td>
+                    <td>{formatDateTime(lead.createdAt)}</td>
                     <td>
                       <a href={`/leads/${lead.id}`}>View</a>
                     </td>

@@ -8,6 +8,7 @@ import {
 } from '@ai-company-os/db';
 import { invoiceStatusTone } from '@ai-company-os/ui-kit';
 import { formatMinorUnitsAsDollars } from '../../lib/estimates/parse-amount';
+import { formatDateTime, formatDate } from '../../lib/format-datetime';
 import type { InvoiceStatus, Payment } from '@ai-company-os/core-models';
 
 const user = Astro.locals.user!;
@@ -90,9 +91,9 @@ if (membership && id) {
           <dt>Amount</dt>
           <dd>{formatMinorUnitsAsDollars(invoice.totalAmountMinorUnits, invoice.totalAmountCurrency)}</dd>
           <dt>Due</dt>
-          <dd>{invoice.dueAt ? new Date(invoice.dueAt).toLocaleDateString() : '—'}</dd>
+          <dd>{invoice.dueAt ? formatDate(invoice.dueAt) : '—'}</dd>
           <dt>Created</dt>
-          <dd>{new Date(invoice.createdAt).toLocaleString()}</dd>
+          <dd>{formatDateTime(invoice.createdAt)}</dd>
         </dl>
 
         {transitionError ? (
@@ -141,7 +142,7 @@ if (membership && id) {
             {payments.map((p) => (
               <li>
                 {formatMinorUnitsAsDollars(p.amount.amountMinorUnits, p.amount.currency)} -{' '}
-                {new Date(p.occurredAt).toLocaleString()}
+                {formatDateTime(p.occurredAt)}
               </li>
             ))}
           </ul>

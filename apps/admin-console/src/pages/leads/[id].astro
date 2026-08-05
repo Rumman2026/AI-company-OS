@@ -15,6 +15,7 @@ import {
 } from '@ai-company-os/db';
 import { leadStatusTone, estimateStatusTone } from '@ai-company-os/ui-kit';
 import { formatMinorUnitsAsDollars } from '../../lib/estimates/parse-amount';
+import { formatDateTime, formatDate } from '../../lib/format-datetime';
 import type { LeadStatus, Note, Task } from '@ai-company-os/core-models';
 
 const user = Astro.locals.user!;
@@ -129,7 +130,7 @@ if (membership && id) {
           <dt>Contact</dt>
           <dd>{contactName ?? lead.contactId}</dd>
           <dt>Created</dt>
-          <dd>{new Date(lead.createdAt).toLocaleString()}</dd>
+          <dd>{formatDateTime(lead.createdAt)}</dd>
         </dl>
 
         <form
@@ -184,7 +185,7 @@ if (membership && id) {
                   {formatMinorUnitsAsDollars(e.proposedAmount.amountMinorUnits, e.proposedAmount.currency)} -{' '}
                   {e.summary}
                 </a>{' '}
-                ({new Date(e.createdAt).toLocaleDateString()}){' '}
+                ({formatDate(e.createdAt)}){' '}
                 <span class={`uikit-badge uikit-badge--${estimateStatusTone(e.status)}`}>{e.status}</span>
                 {e.status === 'draft' ? (
                   <>
@@ -232,7 +233,7 @@ if (membership && id) {
               const job = b.jobId ? jobsById.get(b.jobId) : undefined;
               return (
                 <li>
-                  Scheduled {new Date(b.scheduledAt).toLocaleString()}
+                  Scheduled {formatDateTime(b.scheduledAt)}
                   {job ? (
                     <>
                       {' '}

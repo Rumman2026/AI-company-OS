@@ -3,6 +3,7 @@ import AdminLayout from '../../layouts/AdminLayout.astro';
 import { getCurrentMembership } from '../../lib/auth/membership';
 import { createSupabaseLeadRepository, createSupabaseAuditLogRepository } from '@ai-company-os/db';
 import { leadStatusTone } from '@ai-company-os/ui-kit';
+import { formatDateTime } from '../../lib/format-datetime';
 import type { LeadStatus } from '@ai-company-os/core-models';
 
 const user = Astro.locals.user!;
@@ -105,7 +106,7 @@ const ALL_STATUSES: LeadStatus[] = [
                     {lead.status}
                   </span>
                 </td>
-                <td>{new Date(lead.createdAt).toLocaleString()}</td>
+                <td>{formatDateTime(lead.createdAt)}</td>
                 <td>
                   {lead.archivedAt ? (
                     <span class="uikit-badge uikit-badge--neutral">Archived</span>

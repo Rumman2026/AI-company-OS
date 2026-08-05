@@ -2,6 +2,7 @@
 import AdminLayout from '../../layouts/AdminLayout.astro';
 import { getCurrentMembership } from '../../lib/auth/membership';
 import { createSupabaseTaskRepository } from '@ai-company-os/db';
+import { formatDateTime } from '../../lib/format-datetime';
 import type { Task } from '@ai-company-os/core-models';
 
 const ENTITY_ROUTE_PREFIX: Record<string, string> = {
@@ -82,7 +83,7 @@ if (membership) {
             {tasks.map((task) => (
               <tr>
                 <td>{task.completed ? <s>{task.title}</s> : task.title}</td>
-                <td>{task.dueAt ? new Date(task.dueAt).toLocaleString() : '—'}</td>
+                <td>{task.dueAt ? formatDateTime(task.dueAt) : '—'}</td>
                 <td>
                   {task.entityType && task.entityId ? (
                     <a href={`${ENTITY_ROUTE_PREFIX[task.entityType]}/${task.entityId}`}>

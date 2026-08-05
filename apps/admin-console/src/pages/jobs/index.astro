@@ -3,6 +3,7 @@ import AdminLayout from '../../layouts/AdminLayout.astro';
 import { getCurrentMembership } from '../../lib/auth/membership';
 import { createSupabaseJobRepository, createSupabaseAuditLogRepository } from '@ai-company-os/db';
 import { jobStatusTone } from '@ai-company-os/ui-kit';
+import { formatDateTime } from '../../lib/format-datetime';
 import type { JobStatus } from '@ai-company-os/core-models';
 
 const user = Astro.locals.user!;
@@ -92,8 +93,8 @@ const ALL_STATUSES: JobStatus[] = [
                 <td>
                   <span class={`uikit-badge uikit-badge--${jobStatusTone(job.status)}`}>{job.status}</span>
                 </td>
-                <td>{job.scheduledAt ? new Date(job.scheduledAt).toLocaleString() : '—'}</td>
-                <td>{new Date(job.createdAt).toLocaleString()}</td>
+                <td>{job.scheduledAt ? formatDateTime(job.scheduledAt) : '—'}</td>
+                <td>{formatDateTime(job.createdAt)}</td>
                 <td>
                   <a href={`/jobs/${job.id}`}>View</a>
                 </td>

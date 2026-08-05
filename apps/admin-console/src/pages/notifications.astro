@@ -2,6 +2,7 @@
 import AdminLayout from '../layouts/AdminLayout.astro';
 import { getCurrentMembership } from '../lib/auth/membership';
 import { createSupabaseNotificationRepository } from '@ai-company-os/db';
+import { formatDateTime } from '../lib/format-datetime';
 import type { Notification } from '@ai-company-os/core-models';
 
 const user = Astro.locals.user!;
@@ -52,7 +53,7 @@ const ENTITY_LINK: Record<string, (id: string) => string> = {
             <a href={ENTITY_LINK[notification.entityType](notification.entityId)}>View</a>
           ) : null}{' '}
           <span style="color: var(--color-text-muted); font-size: 0.875rem;">
-            {new Date(notification.createdAt).toLocaleString()}
+            {formatDateTime(notification.createdAt)}
           </span>
           {!notification.read ? (
             <form

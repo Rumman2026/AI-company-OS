@@ -9,6 +9,7 @@ import {
   createSupabaseJobRepository,
 } from '@ai-company-os/db';
 import { jobStatusTone } from '@ai-company-os/ui-kit';
+import { formatDateLong, formatTime } from '../../lib/format-datetime';
 import type { JobStatus } from '@ai-company-os/core-models';
 
 const user = Astro.locals.user!;
@@ -70,12 +71,7 @@ if (membership) {
 function groupByDate(items: typeof appointments) {
   const groups = new Map<string, typeof appointments>();
   for (const item of items) {
-    const dateKey = new Date(item.scheduledAt).toLocaleDateString(undefined, {
-      weekday: 'long',
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-    });
+    const dateKey = formatDateLong(item.scheduledAt);
     if (!groups.has(dateKey)) groups.set(dateKey, []);
     groups.get(dateKey)!.push(item);
   }
@@ -122,10 +118,7 @@ const grouped = groupByDate(appointments);
                 {items.map((appointment) => (
                   <tr>
                     <td>
-                      {new Date(appointment.scheduledAt).toLocaleTimeString(undefined, {
-                        hour: 'numeric',
-                        minute: '2-digit',
-                      })}
+                      {formatTime(appointment.scheduledAt)}
                     </td>
                     <td>{appointment.contactName}</td>
                     <td>

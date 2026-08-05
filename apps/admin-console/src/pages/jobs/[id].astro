@@ -17,6 +17,7 @@ import {
 } from '@ai-company-os/db';
 import { jobStatusTone, invoiceStatusTone, reviewRequestStatusTone } from '@ai-company-os/ui-kit';
 import { formatMinorUnitsAsDollars } from '../../lib/estimates/parse-amount';
+import { formatDateTime, formatDate } from '../../lib/format-datetime';
 import type { JobStatus, Note, Task, Invoice, ReviewRequest, ReviewRecord } from '@ai-company-os/core-models';
 
 const user = Astro.locals.user!;
@@ -115,9 +116,9 @@ if (membership && id) {
             <a href={`/leads/${job.leadId}`}>{job.leadId}</a>
           </dd>
           <dt>Scheduled</dt>
-          <dd>{job.scheduledAt ? new Date(job.scheduledAt).toLocaleString() : '—'}</dd>
+          <dd>{job.scheduledAt ? formatDateTime(job.scheduledAt) : '—'}</dd>
           <dt>Created</dt>
-          <dd>{new Date(job.createdAt).toLocaleString()}</dd>
+          <dd>{formatDateTime(job.createdAt)}</dd>
         </dl>
 
         {transitionError ? (
@@ -160,7 +161,7 @@ if (membership && id) {
                 <a href={`/invoices/${invoice.id}`}>
                   {formatMinorUnitsAsDollars(invoice.totalAmount.amountMinorUnits, invoice.totalAmount.currency)}
                 </a>{' '}
-                ({new Date(invoice.createdAt).toLocaleDateString()}){' '}
+                ({formatDate(invoice.createdAt)}){' '}
                 <span class={`uikit-badge uikit-badge--${invoiceStatusTone(invoice.status)}`}>
                   {invoice.status}
                 </span>
@@ -192,7 +193,7 @@ if (membership && id) {
                 <span class={`uikit-badge uikit-badge--${reviewRequestStatusTone(rr.status)}`}>
                   {rr.status}
                 </span>{' '}
-                ({new Date(rr.createdAt).toLocaleDateString()})
+                ({formatDate(rr.createdAt)})
                 {rr.status !== 'opted-out' ? (
                   <form method="POST" action={`/api/review-requests/${rr.id}/opt-out`} style="display: inline;">
                     <input type="hidden" name="jobId" value={job.id} />
@@ -228,7 +229,7 @@ if (membership && id) {
           <ul>
             {reviewRecords.map((record) => (
               <li>
-                {record.sourcePlatform} - {new Date(record.receivedAt).toLocaleDateString()}
+                {record.sourcePlatform} - {formatDate(record.receivedAt)}
               </li>
             ))}
           </ul>

@@ -9,6 +9,7 @@ import {
   type EstimateAttachmentWithSignedUrl,
 } from '@ai-company-os/db';
 import { formatMinorUnitsAsDollars } from '../../lib/estimates/parse-amount';
+import { formatDateTime, formatDate } from '../../lib/format-datetime';
 import { estimateStatusTone } from '@ai-company-os/ui-kit';
 import {
   calculateEstimateTotals,
@@ -116,7 +117,7 @@ const approvalLinkUrl =
           <dt>Summary</dt>
           <dd>{estimate.summary}</dd>
           <dt>Created</dt>
-          <dd>{new Date(estimate.createdAt).toLocaleString()}</dd>
+          <dd>{formatDateTime(estimate.createdAt)}</dd>
         </dl>
 
         {errorMessage ? (
@@ -144,12 +145,12 @@ const approvalLinkUrl =
           </div>
         ) : estimate.status === 'approved' ? (
           <p style="color: var(--color-text-muted); font-size: 0.875rem; margin-bottom: 1.5rem;">
-            Approved on {estimate.approvedAt ? new Date(estimate.approvedAt).toLocaleString() : '—'} - line
+            Approved on {estimate.approvedAt ? formatDateTime(estimate.approvedAt) : '—'} - line
             items are now immutable.
           </p>
         ) : (
           <p style="color: var(--color-text-muted); font-size: 0.875rem; margin-bottom: 1.5rem;">
-            Rejected on {estimate.rejectedAt ? new Date(estimate.rejectedAt).toLocaleString() : '—'} - line
+            Rejected on {estimate.rejectedAt ? formatDateTime(estimate.rejectedAt) : '—'} - line
             items are now immutable.
           </p>
         )}
@@ -368,7 +369,7 @@ const approvalLinkUrl =
           <p>
             Approved by the customer
             {estimate.customerSignatureName ? ` (${estimate.customerSignatureName})` : ''} on{' '}
-            {estimate.approvedAt ? new Date(estimate.approvedAt).toLocaleString() : ''}.
+            {estimate.approvedAt ? formatDateTime(estimate.approvedAt) : ''}.
           </p>
         ) : hasActiveApprovalLink ? (
           <>
@@ -378,7 +379,7 @@ const approvalLinkUrl =
             </p>
             <p style="color: var(--color-text-muted); font-size: 0.875rem;">
               Expires {estimate.customerApprovalTokenExpiresAt
-                ? new Date(estimate.customerApprovalTokenExpiresAt).toLocaleDateString()
+                ? formatDate(estimate.customerApprovalTokenExpiresAt)
                 : ''}.
             </p>
           </>

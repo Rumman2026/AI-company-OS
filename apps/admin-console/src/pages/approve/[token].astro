@@ -2,6 +2,7 @@
 import { tokensCss, componentsCss } from '@ai-company-os/ui-kit';
 import { createPublicEstimateRepositories } from '../../lib/estimates/public-approval-client';
 import { formatMinorUnitsAsDollars } from '../../lib/estimates/parse-amount';
+import { formatDate } from '../../lib/format-datetime';
 import {
   calculateEstimateTotals,
   createCurrencyCode,
@@ -168,7 +169,7 @@ const alreadyRejected = estimate?.status === 'rejected';
           {alreadyApproved ? (
             <div class="uikit-badge uikit-badge--success">
               Approved{estimate.customerSignatureName ? ` by ${estimate.customerSignatureName}` : ''} on{' '}
-              {estimate.approvedAt ? new Date(estimate.approvedAt).toLocaleDateString() : ''}
+              {estimate.approvedAt ? formatDate(estimate.approvedAt) : ''}
             </div>
           ) : alreadyRejected ? (
             <div class="uikit-error-banner" role="alert">

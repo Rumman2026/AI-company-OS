@@ -6,6 +6,7 @@ import {
   createSupabaseEstimateLineItemRepository,
 } from '@ai-company-os/db';
 import { formatMinorUnitsAsDollars } from '../../../lib/estimates/parse-amount';
+import { formatDate } from '../../../lib/format-datetime';
 import {
   calculateEstimateTotals,
   createCurrencyCode,
@@ -131,11 +132,11 @@ const totals = estimate
                 <strong>Status:</strong> {estimate.status}
               </p>
               <p style="margin: 0;">
-                <strong>Date:</strong> {new Date(estimate.createdAt).toLocaleDateString()}
+                <strong>Date:</strong> {formatDate(estimate.createdAt)}
               </p>
               {estimate.approvedAt ? (
                 <p style="margin: 0;">
-                  <strong>Approved:</strong> {new Date(estimate.approvedAt).toLocaleDateString()}
+                  <strong>Approved:</strong> {formatDate(estimate.approvedAt)}
                 </p>
               ) : null}
             </div>
