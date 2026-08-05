@@ -30,6 +30,18 @@ complete. See [docs/INDEX.md](docs/INDEX.md) for routing.
 the present state; do not describe later phases as started without new
 repository evidence.
 
+**CRITICAL BLOCKER — CRM V1 is not releasable until this is resolved.**
+See [docs/launch/CRM_V1_RELEASE_READINESS.md](docs/launch/CRM_V1_RELEASE_READINESS.md)
+BLOCKER-001: production "Create booking + job" fails with Postgres
+`42501`, root cause not yet confirmed (grant/RLS fixes attempted,
+error persists; full Postgrest error object not yet captured).
+Deferred by explicit owner decision while independent work continues
+
+- do not build new work on the assumption that booking/job creation
+  succeeds in production; any feature needing a real Job must use a
+  clearly-marked test fixture, never a live production booking created
+  through this broken path.
+
 **Current production status (authoritative — supersedes per-cluster deployment/migration notes below)**
 
 The Cluster 9-27 entries below were each written at the time that
