@@ -15,22 +15,7 @@ export interface CreateBookingInput {
   readonly createdBy?: string;
 }
 
-export type CreateBookingResult =
-  | { ok: true; booking: Booking }
-  | {
-      ok: false;
-      error: string;
-      /**
-       * Temporary diagnostic fields, populated only from a real
-       * Postgrest/Postgres error - being used to identify a live
-       * production "permission denied for table bookings" incident by
-       * surfacing the full error object to the caller instead of just
-       * a collapsed message. Remove once the incident is resolved.
-       */
-      code?: string;
-      details?: string;
-      hint?: string;
-    };
+export type CreateBookingResult = { ok: true; booking: Booking } | { ok: false; error: string };
 export type GetBookingResult = { ok: true; booking: Booking } | { ok: false; error: string };
 export type ListBookingsResult = { ok: true; bookings: Booking[] } | { ok: false; error: string };
 export type LinkJobResult = { ok: true } | { ok: false; error: string };
@@ -101,13 +86,7 @@ export function createSupabaseBookingRepository(client: MinimalSupabaseClient): 
             hint: error.hint,
           });
         }
-        return {
-          ok: false,
-          error: error?.message ?? 'booking_insert_failed',
-          code: error?.code,
-          details: error?.details,
-          hint: error?.hint,
-        };
+        return { ok: false, error: error?.message ?? 'booking_insert_failed' };
       }
       return { ok: true, booking: toBooking(data as BookingRow) };
     },

@@ -6,7 +6,6 @@ import {
   createSupabaseAuditLogRepository,
 } from '@ai-company-os/db';
 import { getCurrentMembership } from '../../../../lib/auth/membership';
-import { getSupabaseEnv } from '../../../../lib/supabase/env';
 
 export const prerender = false;
 
@@ -21,14 +20,6 @@ export const prerender = false;
  * a silent failure or a fabricated success.
  */
 export const POST: APIRoute = async ({ request, locals, params, redirect }) => {
-  // Temporary, unconditional entry log - before any other statement,
-  // any early return, or any await - to prove the request reaches this
-  // route handler at all. If this never appears in Vercel Runtime
-  // Logs, the problem is upstream of this file entirely (routing,
-  // caching, or the form not actually submitting here), not the
-  // database. Remove once confirmed.
-  console.error('entered createBooking route', { estimateId: params.id, method: request.method });
-
   const { id: estimateId } = params;
   const user = locals.user!;
   const membership = await getCurrentMembership(locals.supabase, user.id);
@@ -60,41 +51,6 @@ export const POST: APIRoute = async ({ request, locals, params, redirect }) => {
     return redirect(`/leads/${leadId}?error=invalid-scheduled-at`);
   }
 
-  // Temporary runtime-identity diagnostic - proves which Supabase
-  // project and which auth context this specific request is actually
-  // using, before the createBooking() call that has been failing with
-  // "permission denied for table bookings" despite confirmed-correct
-  // grants/policies. Logs no secret - only the project's hostname
-  // (already public, since it's the frontend's own API endpoint) and
-  // the caller's own uid/roles, never the anon key. Remove once the
-  // runtime-identity question is settled.
-  const diagEnv = getSupabaseEnv();
-  console.error('createBooking runtime-identity diagnostic', {
-    supabaseHost: diagEnv ? new URL(diagEnv.url).hostname : 'getSupabaseEnv() returned null',
-    projectRef: diagEnv ? new URL(diagEnv.url).hostname.split('.')[0] : 'unknown',
-    clientType:
-      'authenticated (anon key + session, via locals.supabase) - never service-role on this route',
-    authUid: user.id,
-    membershipRoles: membership.roles,
-    businessId: membership.businessId,
-  });
-
-  // Pre-insert instrumentation - authenticatedRole/authUid aren't known
-  // inside BookingRepository itself (repositories are role-agnostic;
-  // authorization already happened via RLS), so this is logged here at
-  // the call site rather than inside createBooking(). The matching
-  // post-insert full-error log (code/message/details/hint) already
-  // exists inside booking-repository.ts (commit 40ad4b1) - both appear
-  // in the same request's log stream, in order.
-  console.error('createBooking: before insert', {
-    table: 'bookings',
-    operation: 'insert',
-    authenticatedRole: membership.roles,
-    authUid: user.id,
-    businessId: membership.businessId,
-    estimateId,
-  });
-
   const bookings = createSupabaseBookingRepository(locals.supabase);
   const bookingResult = await bookings.createBooking({
     businessId: membership.businessId,
@@ -103,29 +59,8 @@ export const POST: APIRoute = async ({ request, locals, params, redirect }) => {
     scheduledAt: scheduledAtDate.toISOString(),
     createdBy: user.id,
   });
-
-  if (bookingResult.ok) {
-    console.error('createBooking: insert succeeded', { bookingId: bookingResult.booking.id });
-  } else {
-    console.error('createBooking: insert failed - see the entry above for the full error object');
-
-    // Temporary diagnostic response - renders the full Postgrest error
-    // object directly in the browser instead of redirecting, because
-    // this exact object could not be located/copied from Vercel
-    // Runtime Logs. Replaces the normal redirect-on-failure behavior
-    // ONLY for this one failure branch. Remove once the incident is
-    // resolved and restore the plain redirect.
-    return new Response(
-      JSON.stringify({
-        step: 'bookings.insert',
-        table: 'bookings',
-        code: bookingResult.code ?? null,
-        message: bookingResult.error,
-        details: bookingResult.details ?? null,
-        hint: bookingResult.hint ?? null,
-      }),
-      { status: 500, headers: { 'content-type': 'application/json' } },
-    );
+  if (!bookingResult.ok) {
+    return redirect(`/leads/${leadId}?error=${encodeURIComponent(bookingResult.error)}`);
   }
 
   const auditLog = createSupabaseAuditLogRepository(locals.supabase);
