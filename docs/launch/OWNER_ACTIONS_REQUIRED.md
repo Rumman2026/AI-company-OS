@@ -3,6 +3,25 @@
 Status: the concise, actionable list — see individual docs for detail.
 Ordered by urgency.
 
+## 0f. ACTION REQUIRED — orphan-booking investigation, then migration 036 (BLOCKER-002)
+
+- **Status**: BLOCKER-001 (booking creation `42501`) is resolved -
+  migrations 033-035 all confirmed run. A related issue surfaced
+  during that incident: one orphan `Booking` row (no linked `Job`)
+  exists from a failed attempt, and nothing yet prevents a second
+  Booking being created for the same Estimate. See
+  `docs/launch/CRM_V1_RELEASE_READINESS.md` BLOCKER-002 for the full
+  investigation query and cleanup options.
+- **Action**: run the two read-only investigation queries in that
+  document first. Only if they confirm no two `bookings` rows share an
+  `estimate_id`, run `packages/db/migrations/036-bookings-one-per-estimate.sql`.
+  If a real duplicate is found, resolve it per BLOCKER-002's cleanup
+  options _before_ running migration 036 - the migration will fail
+  outright (correctly) if a duplicate still exists.
+- **Result once run**: a database-level guarantee that an Estimate can
+  never have more than one Booking, on top of the admin-console UI
+  already hiding the "Create booking + job" form once one exists.
+
 ## 0. RESOLVED — admin-console login incident (migrations 024-026)
 
 - **Status**: fully resolved and owner-verified. After migration 022,

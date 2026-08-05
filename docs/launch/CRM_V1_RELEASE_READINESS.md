@@ -9,8 +9,46 @@ for pending owner actions.
 
 ### BLOCKER-001: Booking creation fails in production with SQLSTATE 42501
 
-**Status**: Open, deferred (owner decision) - not fixed, not silently
-buried. CRM V1 cannot be declared complete while this is open.
+**Status**: **RESOLVED**, confirmed live in production. Kept below in
+full for the historical record - do not delete this section.
+
+**Resolution evidence**: after `migrations/034-restore-bookings-grant.sql`
+and `035-restore-jobs-grant.sql` both ran, the owner reproduced the
+exact original failing workflow live in the production admin-console:
+"Create booking + job" completed successfully, producing a real
+`Booking` row linked to a real `Job` row, with the Job's best-effort
+`draft → scheduled` transition also succeeding (`"Scheduled 8/5/2026,
+12:30 PM · Job: scheduled"` shown on the Lead detail page). Root
+cause, confirmed by direct query evidence (not inferred): `authenticated`'s
+base table-level `SELECT`/`INSERT`/`UPDATE` grants on `bookings` and,
+separately, on `jobs`, had been stripped by the same still-undetermined
+mechanism already documented in DECISIONS.md ADR-0035/ADR-0036 for
+`memberships`/`businesses`/`membership_roles` - both tables showed the
+identical fingerprint (`REFERENCES`/`TRIGGER`/`TRUNCATE` present,
+`SELECT`/`INSERT`/`UPDATE`/`DELETE` absent) before their respective
+grant-restoration migrations ran. RLS itself was never the problem on
+either table - policies were confirmed correct throughout.
+
+**All temporary diagnostic code has been removed** (commit reverting
+`40ad4b1`/`ebaa5ab`/`459e4c8`/`cde1a92`/`f7f4611`'s route/repository
+changes back to the pre-incident state - plain redirect-on-failure
+behavior, no diagnostic logging beyond the permanent structured
+error-path log pattern already used elsewhere in this codebase).
+Confirmed via typecheck/lint/test/build all passing after the revert.
+
+**Exact migrations that resolved this**: `033-bookings-jobs-policy-and-grants-recovery.sql`,
+`034-restore-bookings-grant.sql`, `035-restore-jobs-grant.sql` - all
+three confirmed run against `Greencal-production`.
+
+**A related, separate, lower-severity issue was found while resolving
+this** - see BLOCKER-002 below.
+
+<details>
+<summary>Full original incident record (historical - kept for reference)</summary>
+
+**Status (at time of writing, now superseded)**: Open, deferred (owner
+decision) - not fixed, not silently buried. CRM V1 could not be
+declared complete while this was open.
 
 **Exact failing workflow**: Lead detail page → approved Estimate →
 "Create booking + job" → fails before either record is confirmed
@@ -145,18 +183,104 @@ is closed):
   Lead → Estimate → Booking → Job → Invoice → Payment workflow passes
   end-to-end in production.
 
+</details>
+
+### BLOCKER-002: Orphan Booking with no linked Job, and no DB-level duplicate prevention
+
+**Status**: Open (low severity, non-blocking for continued smoke
+testing, but must be resolved before CRM V1).
+
+**How it happened**: during the BLOCKER-001 investigation, at least
+one earlier "Create booking + job" attempt against the same approved
+Estimate reached the `bookings` INSERT successfully (in a window where
+that table's grant happened to be present) but failed at the `jobs`
+INSERT (which still lacked its grant at that point) - leaving a real
+`Booking` row with `job_id = null` and no corresponding `Job`. Nothing
+in the schema or application code prevented a second, later attempt
+against the same Estimate from creating a second Booking once both
+grants were fixed - which is exactly what happened (the working
+Booking shown in the resolution evidence above is a second, separate
+row from the orphan).
+
+**Fixes applied**:
+
+1. **Application layer**: the Lead detail page
+   (`apps/admin-console/src/pages/leads/[id].astro`) now hides the
+   "Create booking + job" form once the approved Estimate already has
+   a Booking (of any kind, orphaned or fully linked) - shows a message
+   pointing to the existing Booking/Job in the list above instead.
+2. **Database layer**: `migrations/036-bookings-one-per-estimate.sql`
+   adds `unique (estimate_id)` on `bookings` - the authoritative,
+   race-condition-proof enforcement. **This migration must not be run
+   until the orphan-booking investigation query below confirms no two
+   existing `bookings` rows share the same `estimate_id`** - Postgres
+   validates all existing rows against a new unique constraint, so it
+   will fail outright (correctly) if a real duplicate still exists.
+
+**Orphan-booking investigation** (read-only, run in Supabase SQL
+Editor):
+
+```sql
+select b.id as booking_id, b.estimate_id, b.job_id, b.scheduled_at, b.created_at,
+       e.status as estimate_status, e.summary as estimate_summary,
+       l.id as lead_id
+from bookings b
+join estimates e on e.id = b.estimate_id
+join leads l on l.id = b.lead_id
+where b.job_id is null
+order by b.created_at;
+```
+
+This finds every Booking with no linked Job (the orphan should be
+exactly one row here, dated around 8/13/2026 per the scheduled time
+reported) and shows its `estimate_id` directly, so it's possible to
+confirm whether it shares an `estimate_id` with any other Booking:
+
+```sql
+select estimate_id, count(*) as booking_count
+from bookings
+group by estimate_id
+having count(*) > 1;
+```
+
+If this second query returns any rows, migration 036 cannot be run
+until those duplicates are resolved (see below). If it returns zero
+rows, migration 036 is safe to run immediately.
+
+**Proposed safest cleanup/repair** (do not delete automatically - this
+is real production data, however incomplete):
+
+- **Option A (recommended if the orphan's Estimate is the same one now
+  correctly booked)**: leave the orphan Booking row in place as a
+  historical record of the failed attempt (it is harmless - nothing
+  reads or displays a Booking with no Job in a way that would confuse
+  a user, since the Lead page already only shows "Job: {status}" when
+  a `job_id` is present), but manually create the missing Job for it
+  **only if** it turns out to be a different Estimate than the one
+  already successfully booked - reconcile by comparing `estimate_id`
+  values from the query above.
+- **Option B**: if the orphan is confirmed to be a duplicate attempt
+  against the _same_ Estimate that already has a working Booking+Job,
+  it is genuinely a leftover artifact of the incident with no
+  independent value - delete only that specific row by its exact
+  `booking_id` (never a bulk delete), after the owner explicitly
+  confirms which row via the investigation query's output.
+- Do not guess which option applies without running the query above
+  first.
+
 ## Release-readiness checklist (CRM V1)
 
-| Area                                                           | Status                                                                       |
-| -------------------------------------------------------------- | ---------------------------------------------------------------------------- |
-| Lead                                                           | Live, verified                                                               |
-| Estimate (create/approve/reject)                               | Live, verified this session                                                  |
-| **Booking + Job creation**                                     | **BLOCKED - see BLOCKER-001**                                                |
-| Job status progression                                         | Code-complete; not independently verified live (blocked on the above)        |
-| Invoice + Payment                                              | Code-complete (Cluster 27); production verification pending real Job records |
-| Review request                                                 | Code-complete (Cluster 28); production verification pending                  |
-| Activity Timeline (incl. Invoice/Payment/Review entries)       | Code-complete (ADR-0039); production verification pending                    |
-| Notes, Tasks, Media, Notifications, Settings, Service Packages | Previously verified live in production (pre-dates this session's incidents)  |
+| Area                                                           | Status                                                                      |
+| -------------------------------------------------------------- | --------------------------------------------------------------------------- |
+| Lead                                                           | Live, verified                                                              |
+| Estimate (create/approve/reject)                               | Live, verified this session                                                 |
+| **Booking + Job creation**                                     | **Live, verified** - BLOCKER-001 resolved                                   |
+| Job status progression                                         | Live, verified (best-effort `draft → scheduled` succeeded in production)    |
+| Invoice + Payment                                              | Code-complete (Cluster 27); production verification in progress             |
+| Review request                                                 | Code-complete (Cluster 28); production verification pending                 |
+| Activity Timeline (incl. Invoice/Payment/Review entries)       | Code-complete (ADR-0039); production verification pending                   |
+| Notes, Tasks, Media, Notifications, Settings, Service Packages | Previously verified live in production (pre-dates this session's incidents) |
+| **Booking duplicate-prevention**                               | **BLOCKED - see BLOCKER-002** (orphan-booking cleanup + unique constraint)  |
 
 CRM V1 cannot be marked released while any row above is not
-`Live, verified`.
+`Live, verified`, and while BLOCKER-002 remains open.

@@ -30,17 +30,20 @@ complete. See [docs/INDEX.md](docs/INDEX.md) for routing.
 the present state; do not describe later phases as started without new
 repository evidence.
 
-**CRITICAL BLOCKER — CRM V1 is not releasable until this is resolved.**
-See [docs/launch/CRM_V1_RELEASE_READINESS.md](docs/launch/CRM_V1_RELEASE_READINESS.md)
-BLOCKER-001: production "Create booking + job" fails with Postgres
-`42501`, root cause not yet confirmed (grant/RLS fixes attempted,
-error persists; full Postgrest error object not yet captured).
-Deferred by explicit owner decision while independent work continues
+**BLOCKER-001 RESOLVED — CRM V1 is still not releasable; see BLOCKER-002.**
+See [docs/launch/CRM_V1_RELEASE_READINESS.md](docs/launch/CRM_V1_RELEASE_READINESS.md).
+BLOCKER-001 (production "Create booking + job" failing with Postgres
+`42501`) is resolved and confirmed live - root cause was missing
+`authenticated` base grants on `bookings` and `jobs` (migrations
+033-035), the same class of issue as ADR-0035/ADR-0036. All temporary
+diagnostic code has been removed.
 
-- do not build new work on the assumption that booking/job creation
-  succeeds in production; any feature needing a real Job must use a
-  clearly-marked test fixture, never a live production booking created
-  through this broken path.
+- **BLOCKER-002 remains open**: one orphan `Booking` row (no linked
+  `Job`) from a failed attempt during the incident needs
+  investigation/cleanup, and a database-level `unique (estimate_id)`
+  constraint (migration 036) is drafted but not yet run - do not
+  consider booking creation fully hardened until that constraint is in
+  place.
 
 **Current production status (authoritative — supersedes per-cluster deployment/migration notes below)**
 
@@ -58,11 +61,16 @@ authoritative record:
   and fixed live against it - see "Post-launch fix" below and
   DECISIONS.md ADR-0035/ADR-0036. Login, dashboard, and role
   resolution are owner-verified working against real production data.
-- Migrations 001 through 030 are all confirmed run against the real
+- Migrations 001 through 035 are all confirmed run against the real
   `Greencal-production` Supabase project, including 027 (Cluster 27),
-  028 (Cluster 28), 029 (Estimate rejection), and 030 (restores a
-  missing `leads` grant found during the V1.0 smoke test - see
-  DECISIONS.md ADR-0040).
+  028 (Cluster 28), 029 (Estimate rejection), 030 (restores a missing
+  `leads` grant - DECISIONS.md ADR-0040), 031 (restores estimate
+  pricing columns migration 014 never actually added), 032 (restores
+  estimates' missing UPDATE policy/grants), and 033-035 (restore
+  missing grants on `bookings`/`jobs` - see
+  `docs/launch/CRM_V1_RELEASE_READINESS.md` BLOCKER-001, resolved).
+  Migration 036 (one-booking-per-estimate DB constraint) is drafted
+  but **not yet run** - see BLOCKER-002 in that same document.
 
 **Phase 2A (in progress) — GreenCal Pressure Washing website, revenue-launch sprint**
 
