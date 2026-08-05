@@ -107,15 +107,25 @@ export const POST: APIRoute = async ({ request, locals, params, redirect }) => {
   if (bookingResult.ok) {
     console.error('createBooking: insert succeeded', { bookingId: bookingResult.booking.id });
   } else {
-    // The full PostgreSQL error object (code/message/details/hint) for
-    // this exact failure is already logged inside
-    // BookingRepository.createBooking() itself - this line just marks
-    // that the route observed the failure and is about to redirect.
     console.error('createBooking: insert failed - see the entry above for the full error object');
-  }
 
-  if (!bookingResult.ok) {
-    return redirect(`/leads/${leadId}?error=${encodeURIComponent(bookingResult.error)}`);
+    // Temporary diagnostic response - renders the full Postgrest error
+    // object directly in the browser instead of redirecting, because
+    // this exact object could not be located/copied from Vercel
+    // Runtime Logs. Replaces the normal redirect-on-failure behavior
+    // ONLY for this one failure branch. Remove once the incident is
+    // resolved and restore the plain redirect.
+    return new Response(
+      JSON.stringify({
+        step: 'bookings.insert',
+        table: 'bookings',
+        code: bookingResult.code ?? null,
+        message: bookingResult.error,
+        details: bookingResult.details ?? null,
+        hint: bookingResult.hint ?? null,
+      }),
+      { status: 500, headers: { 'content-type': 'application/json' } },
+    );
   }
 
   const auditLog = createSupabaseAuditLogRepository(locals.supabase);
