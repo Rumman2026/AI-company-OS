@@ -72,6 +72,20 @@ export function createSupabaseBookingRepository(client: MinimalSupabaseClient): 
         .single();
 
       if (error || !data) {
+        if (error) {
+          // Structured, permanent error-path logging - same rationale as
+          // getCurrentMembership()'s fix during the memberships/RLS
+          // incident: distinguishes the exact Postgres/PostgREST failure
+          // reason instead of collapsing every failure into one generic
+          // message, since that made a real production incident
+          // undiagnosable from the outside.
+          console.error('createBooking: insert failed', {
+            code: error.code,
+            message: error.message,
+            details: error.details,
+            hint: error.hint,
+          });
+        }
         return { ok: false, error: error?.message ?? 'booking_insert_failed' };
       }
       return { ok: true, booking: toBooking(data as BookingRow) };
