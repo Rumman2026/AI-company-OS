@@ -24,10 +24,15 @@ if (membership) {
   }
 }
 
-const ENTITY_TYPES = ['Lead', 'Job'];
+const ENTITY_TYPES = ['Lead', 'Job', 'Invoice', 'ReviewRequest'];
 const ENTITY_ROUTE_PREFIX: Record<string, string> = {
   Lead: '/leads',
   Job: '/jobs',
+  Invoice: '/invoices',
+  // ReviewRequest has no standalone detail page - reviews are only
+  // viewable via their originating Job's "Reviews" section, so this
+  // deliberately has no route prefix (renders as plain text, not a
+  // dead link).
 };
 ---
 
