@@ -2852,6 +2852,59 @@ types this ADR partially closes), [ADR-0030](#adr-0030-public-customer-estimate-
 
 ---
 
+## ADR-0040: Restore `leads` SELECT/UPDATE grant for `authenticated` (V1.0 smoke-test incident)
+
+**Status**: Confirmed (implemented, verified live)
+
+**Context**: During the GreenCal V1.0 production smoke test, the
+admin-console Leads page failed with Postgres `42501`, "permission
+denied for table leads." A full read-only diagnostic (RLS enabled
+status, all policies, table grants, the owner's membership/business_id,
+and business_id consistency between the smoke-test Contact/Lead pair)
+confirmed every RLS-layer check passed - the failure was isolated to
+the base table-privilege layer, the same class of issue as
+ADR-0035/ADR-0036 (`memberships`/`businesses`/`membership_roles`).
+Checked via `grep grant` across every migration file: migration 002
+(which created `leads`' RLS policies) never contained a `grant`
+statement, and no later migration added one. This is now the fourth
+table with this exact symptom - the exact mechanism remains
+undeterminable from this repository (no access to Supabase's
+dashboard/audit log), consistent with ADR-0036's finding.
+
+**Decision**: `migrations/030-restore-leads-select-update-grant.sql`
+grants exactly `SELECT, UPDATE` on `leads` to `authenticated` - matching
+precisely what `apps/admin-console`'s authenticated session exercises
+against this table today (list/detail reads, status transitions,
+archive/restore). `INSERT` is deliberately excluded:
+`LeadRepository.createLead()` exists and is used, but only by
+`apps/greencal-website`'s server-side intake adapter via the
+service-role key, which bypasses grants/RLS entirely - no
+authenticated-session code path in `apps/admin-console` creates a
+Lead. Does not disable or alter RLS - migration 002's tenant-scoped
+policies continue to govern row visibility unchanged.
+
+**Alternatives considered**: Granting `INSERT` preemptively "in case a
+future Add-Lead feature needs it" - rejected per the same
+least-privilege discipline established in ADR-0036; grant only on
+evidence of actual use. Adding a `packages/db` unit test for this fix
+
+- not possible; the `fake-supabase` test double doesn't model
+  `GRANT`/RLS at all (documented limitation, same as every prior
+  grant-fix this session), so no test can actually exercise this bug
+  class - adding one would be exactly the fake/no-op validation this
+  project's standards forbid.
+
+**Consequences**: `docs/launch/OWNER_ACTIONS_REQUIRED.md` updated.
+`contacts` is flagged as the next most likely table to show the same
+symptom (also read by the Lead detail page, also missing an explicit
+grant in every migration) - to be fixed only on the same
+evidence-based pattern if/when it actually surfaces, not preemptively.
+
+**Related**: [ADR-0035](#adr-0035-fix-infinite-rls-recursion-on-membershipsmembership_roles-via-security-definer-helper-functions-corrects-adr-0032),
+[ADR-0036](#adr-0036-restore-memberships-select-grant-for-authenticated-post-migration-024-incident).
+
+---
+
 ## Proposed decisions (not yet made)
 
 - Service-to-service communication pattern (REST/gRPC/queue) beyond the

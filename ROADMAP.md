@@ -46,9 +46,11 @@ authoritative record:
   and fixed live against it - see "Post-launch fix" below and
   DECISIONS.md ADR-0035/ADR-0036. Login, dashboard, and role
   resolution are owner-verified working against real production data.
-- Migrations 001 through 026 are all confirmed run against the real
-  `Greencal-production` Supabase project. Migrations 027 (Cluster 27),
-  028 (Cluster 28), and 029 (Estimate rejection) are not yet run.
+- Migrations 001 through 030 are all confirmed run against the real
+  `Greencal-production` Supabase project, including 027 (Cluster 27),
+  028 (Cluster 28), 029 (Estimate rejection), and 030 (restores a
+  missing `leads` grant found during the V1.0 smoke test - see
+  DECISIONS.md ADR-0040).
 
 **Phase 2A (in progress) — GreenCal Pressure Washing website, revenue-launch sprint**
 

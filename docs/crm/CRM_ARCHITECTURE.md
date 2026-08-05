@@ -40,10 +40,11 @@ accuracy, not as current status. The authoritative, current state
   real `Greencal-production` Supabase project. Every "migration NNN
   has not yet been run" note for a migration number in that range
   (Clusters 4 through 26, both Milestone sections) is superseded.
-- **Migrations 027** (Cluster 27 - Invoice/Payment persistence), **028**
-  (Cluster 28 - Review-Request/Review-Record persistence), and **029**
-  (Estimate rejection) are **not yet run** against production as of
-  this writing.
+- **Migrations 001 through 030 are all confirmed run** against
+  production, including **027** (Invoice/Payment), **028**
+  (Review-Request/Review-Record), **029** (Estimate rejection), and
+  **030** (restores a missing `leads` SELECT/UPDATE grant found during
+  the V1.0 smoke test - see DECISIONS.md ADR-0040).
 - Not independently re-verified in a live browser session by this
   assistant: the specific create-estimate → create-booking →
   auto-create-job → best-effort-schedule chain (Cluster 5), and every

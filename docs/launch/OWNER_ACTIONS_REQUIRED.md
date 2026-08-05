@@ -30,58 +30,29 @@ Ordered by urgency.
   `getCurrentMembership()` remains. No action needed - kept for
   reference only.
 
-## 0b. ACTION REQUIRED — Invoice/Payment migration (027, safe, not urgent)
+## 0e. RESOLVED — migrations 027-030, including a V1.0 smoke-test incident (`leads` grant)
 
-- **Status**: `packages/db/migrations/027-invoice-payment-persistence.sql`
-  has been written and locally tested (124/124 `packages/db` tests
-  passing) but **not yet run** against `Greencal-production` - this
-  environment has no Supabase CLI or credential access, so every
-  migration in this project is applied by you, manually, in the
-  Supabase SQL Editor.
-- **What it adds**: two new tables, `invoices` and `payments`, both
-  tenant-scoped with row-level security enabled. Additive only - no
-  existing table, column, or policy is changed.
-- **Action**: open Supabase → SQL Editor → paste the full contents of
-  `packages/db/migrations/027-invoice-payment-persistence.sql` → run.
-- **Result once run**: `apps/admin-console`'s new `/invoices` list page,
-  invoice detail page (status transitions, payment recording), and the
-  new "Invoices" section on each Job's detail page will read/write real
-  data instead of failing against a missing table. See DECISIONS.md
-  ADR-0037 and `docs/crm/CRM_ARCHITECTURE.md` Cluster 27.
-
-## 0c. ACTION REQUIRED — Review-Request migration (028, safe, not urgent)
-
-- **Status**: `packages/db/migrations/028-review-request-persistence.sql`
-  has been written and locally tested (133/133 `packages/db` tests
-  passing) but **not yet run** against `Greencal-production` - same
-  manual-application requirement as every migration in this project.
-- **What it adds**: two new tables, `review_requests` and
-  `review_records`, both tenant-scoped with row-level security
-  enabled. Additive only - no existing table, column, or policy is
-  changed.
-- **Action**: open Supabase → SQL Editor → paste the full contents of
-  `packages/db/migrations/028-review-request-persistence.sql` → run.
-- **Result once run**: the new "Reviews" section on each Job's detail
-  page (request a review, opt a customer out, log a received review)
-  will read/write real data instead of failing against a missing
-  table. See DECISIONS.md ADR-0038 and `docs/crm/CRM_ARCHITECTURE.md`
-  Cluster 28.
-
-## 0d. ACTION REQUIRED — Estimate rejection migration (029, safe, not urgent)
-
-- **Status**: `packages/db/migrations/029-estimate-rejection.sql` has
-  been written and locally tested (139/139 `packages/db` tests
-  passing) but **not yet run** against `Greencal-production` - same
-  manual-application requirement as every migration in this project.
-- **What it adds**: widens an existing check constraint on
-  `estimates.status` to also allow `rejected`, and adds two additive,
-  nullable columns (`rejected_at`, `rejected_by`). No existing row's
-  meaning changes.
-- **Action**: open Supabase → SQL Editor → paste the full contents of
-  `packages/db/migrations/029-estimate-rejection.sql` → run.
-- **Result once run**: the new "Reject" buttons on the Lead page and
-  the Estimate detail page will work instead of failing against a
-  missing status value. See DECISIONS.md ADR-0039.
+- **Status**: all four confirmed run against `Greencal-production`
+  during the V1.0 production smoke test:
+  - `027-invoice-payment-persistence.sql`, `028-review-request-persistence.sql`,
+    `029-estimate-rejection.sql` - ran cleanly, each independently
+    verified via read-only queries (tables, RLS, policies, columns,
+    constraints all confirmed matching).
+  - `030-restore-leads-select-update-grant.sql` - a real incident found
+    mid-smoke-test: the Leads page failed with Postgres `42501`,
+    "permission denied for table leads." Diagnosed as the same
+    base-grant privilege-layer issue as the earlier `memberships`/
+    `businesses`/`membership_roles` incident (ADR-0035/ADR-0036) - RLS
+    and all policies were confirmed correct; `leads` simply never had
+    an explicit `GRANT` in any migration. Fixed with the same
+    minimal, evidence-based pattern: `grant select, update on
+public.leads to authenticated;`. See DECISIONS.md ADR-0040.
+- **Watch for**: `contacts` is the next most likely table to show the
+  identical symptom (also missing an explicit grant in every
+  migration, also read by the Lead detail page). If `permission denied
+for table contacts` appears, the fix is the same narrow pattern -
+  flag it and it will be resolved the same way, on that evidence.
+- **Action**: none - already done.
 
 ## 1. Prevent Supabase auto-pause from silently killing lead capture (urgent)
 

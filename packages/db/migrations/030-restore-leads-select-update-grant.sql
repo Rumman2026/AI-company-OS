@@ -1,0 +1,51 @@
+-- Fixes a real production incident, discovered during the GreenCal
+-- V1.0 smoke test: querying `leads` as the `authenticated` role fails
+-- with Postgres error 42501, "permission denied for table leads".
+--
+-- Diagnosis (see the read-only verification queries run against
+-- production before this migration was written): RLS is enabled on
+-- `leads`, all three tenant-scoped policies from migration 002 exist
+-- correctly, the logged-in owner's membership and business_id are
+-- correct, and the smoke-test lead's business_id matches. Every
+-- RLS-layer check passed. This is the same, different privilege layer
+-- as ADR-0036 (memberships/membership_roles, migrations 025/026):
+-- Postgres requires a role to hold the base table-level GRANT before
+-- RLS is ever evaluated - RLS controls WHICH ROWS are visible once
+-- access is already permitted, and cannot itself grant access to a
+-- table the role has no privilege on. Migration 002 (which created
+-- `leads`' RLS policies) never contained a `grant` statement, and no
+-- later migration added one either - checked via `grep grant` across
+-- every migration file. The exact mechanism by which this base grant
+-- was never present (or was lost) is not determinable from this
+-- repository, same as ADR-0036's finding for memberships/businesses/
+-- membership_roles - this is now the fourth table with this exact
+-- symptom, suggesting a project-wide privilege-configuration issue
+-- outside this repository's visibility, not something specific to any
+-- one table.
+--
+-- SAFE TO RUN AGAINST THE LIVE PRODUCTION DATABASE - additive GRANTs
+-- only. Does not disable or alter RLS in any way - the tenant-scoped
+-- policies from migration 002 still fully govern which rows are
+-- visible once this base table-level access is restored.
+--
+-- Scoped to exactly what apps/admin-console's authenticated session
+-- exercises against `leads` today: SELECT (list/get) and UPDATE
+-- (status transitions via LeadRepository.transitionLeadStatusForRoles,
+-- archive/restore). INSERT is deliberately NOT granted here -
+-- LeadRepository.createLead() exists and is used, but only via
+-- apps/greencal-website's server-side intake adapter, which uses the
+-- service-role key and therefore bypasses grants/RLS entirely; no
+-- authenticated-session code path in apps/admin-console creates a
+-- Lead. If a future admin-console "Add Lead" feature is built, INSERT
+-- must be granted then, on that evidence, not preemptively here.
+--
+-- If the same 42501 error recurs for a different table (contacts is
+-- the next most likely, since the Lead detail page also reads it),
+-- that table needs the identical, narrowly-scoped fix - grant only
+-- the specific privilege the error names, not a broader set
+-- "just in case."
+--
+-- Run once, in the Supabase SQL Editor, after
+-- packages/db/migrations/029-estimate-rejection.sql.
+
+grant select, update on public.leads to authenticated;
