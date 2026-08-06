@@ -303,21 +303,159 @@ is real production data, however incomplete):
 - Do not guess which option applies without running the query above
   first.
 
+## Cross-tenant isolation live test
+
+**Status**: run against production. The Playwright suite lives at
+`apps/admin-console/tests/e2e/tenant-isolation.e2e.spec.ts`, as a
+separate `e2e-tenant-isolation` project in
+`apps/admin-console/playwright.config.ts` - excluded from the default
+`chromium` project and from `pnpm test`, so it never runs unless
+explicitly invoked with `pnpm --filter admin-console run test:e2e:tenant-isolation`
+and real credentials present in a gitignored
+`apps/admin-console/.env.e2e.local` (copy `.env.e2e.local.example`).
+Each check self-skips (not fails) when its specific env var is absent.
+
+**Setup confirmed**: the `crm-isolation-test-tenant` business, its Auth
+user, membership, and `membership_roles` row all exist in production.
+(The Phase C setup check previously returned zero rows and blocked this
+test from running meaningfully - that is resolved; kept only as
+historical context for why the test could not run before.)
+
+**Confirmed passing against production** (required env vars confirmed
+non-empty, no security assertion self-skipped): Tenant B login; correct
+Tenant B dashboard identity; Tenant A Lead read rejection; Tenant A
+Estimate read rejection; Tenant A Job read rejection; Tenant A Invoice
+read rejection; Tenant A list isolation; Tenant A Job write rejection.
+
+**Open - seeded-lead-in-own-tenant check is failing**: the newest
+assertion (steps 8-9, "a pre-seeded Tenant B Lead is visible only to
+Tenant B") fails against the real seeded Lead
+(`f217d64b-aeef-4a0e-8fb4-f33cedd36459`, `crm-isolation-test-tenant`
+business, set as `E2E_TENANT_B_SEEDED_LEAD_ID`). Tenant B navigating to
+its **own** Lead gets an error banner, not the Lead:
+
+```
+Lead not found: Cannot coerce the result to a single JSON object.
+```
+
+That exact text is a PostgREST/Supabase error (a `.single()`-style query
+returning zero or more than one row), not this app's normal not-found
+copy - a real signal, not a test false-negative. Root cause not yet
+diagnosed (no Supabase query access in this session). Next steps, in
+order:
+
+1. Confirm the Lead still exists at that id and its `business_id`
+   matches `crm-isolation-test-tenant`'s id:
+   `select id, business_id, contact_id, status from leads where id = 'f217d64b-aeef-4a0e-8fb4-f33cedd36459';`
+2. If it exists and the business matches, the Lead-by-id read path
+   (`apps/admin-console/src/pages/leads/[id].astro` and its repository
+   query) likely has a real `.single()`-on-unexpected-row-count bug
+   independent of RLS - needs code-level investigation, not another SQL
+   round-trip.
+
+Because this step failed, **step 10-11 (archive the throwaway Lead as
+cleanup) did not run** - the seeded Lead is still active, unarchived, in
+production. Not itself unsafe (clearly labeled `E2E Throwaway Contact`),
+but should be resolved together with the fix above, then the suite
+rerun end-to-end so cleanup actually executes.
+
+The HTML report (`playwright-report/index.html`) regenerated correctly
+on this failing run; `.env.e2e.local` and all `test-results`/
+`playwright-report` output remain gitignored and were not staged or
+committed.
+
+**One expectation correction (unrelated, already correct)**: the test
+asserts against this app's real behavior for a cross-tenant record id -
+an HTTP 200 page with a visible "not found" message (RLS-filtered at
+the query layer), not a literal 404/403 HTTP status. This app has never
+returned 404/403 for any detail page in this codebase; asserting a
+status code here would test for behavior that was never built, not for
+isolation.
+
+**Seed SQL for the one throwaway Tenant B Lead** (step 8/9 of the
+script - no "Create Lead" UI exists in admin-console). Idempotent
+(safe to re-run), scoped only to the `crm-isolation-test-tenant`
+business by slug lookup - never touches any other business's rows.
+Run in the Supabase SQL Editor, then copy the returned `lead_id` into
+`E2E_TENANT_B_SEEDED_LEAD_ID` in `.env.e2e.local`:
+
+```sql
+do $$
+declare
+  v_business_id uuid;
+  v_contact_id uuid;
+  v_lead_id uuid;
+begin
+  select id into v_business_id from businesses where slug = 'crm-isolation-test-tenant';
+  if v_business_id is null then
+    raise exception 'crm-isolation-test-tenant business not found - run Phase B setup first';
+  end if;
+
+  select id into v_contact_id from contacts
+  where email = 'e2e-throwaway-contact@example.com';
+
+  if v_contact_id is null then
+    insert into contacts (display_name, phone, email)
+    values ('E2E Throwaway Contact', '+15550000000', 'e2e-throwaway-contact@example.com')
+    returning id into v_contact_id;
+  end if;
+
+  select id into v_lead_id from leads
+  where business_id = v_business_id and contact_id = v_contact_id;
+
+  if v_lead_id is null then
+    insert into leads (business_id, contact_id, status, attribution)
+    values (
+      v_business_id,
+      v_contact_id,
+      'new',
+      jsonb_build_object('channel', 'unknown', 'leadCreatedAt', now())
+    )
+    returning id into v_lead_id;
+  end if;
+
+  raise notice 'lead_id: %', v_lead_id;
+end $$;
+
+select id as lead_id, business_id, contact_id, status, created_at
+from leads
+where business_id = (select id from businesses where slug = 'crm-isolation-test-tenant');
+```
+
+The final `select` returns the `lead_id` to copy into `.env.e2e.local`.
+This Lead is intentionally clearly labeled (`E2E Throwaway Contact`,
+a fake phone/email) so it's unambiguous in any list view. The test
+suite archives it via the existing "Archive lead" UI action as its
+closest available cleanup (no Lead-delete UI exists in admin-console,
+consistent with every other entity in this app) - a real `DELETE` of
+this row, if wanted, remains a separate manual SQL step for the owner,
+scoped by this exact `lead_id`, never run automatically.
+
+**Already run**: this produced Lead id
+`f217d64b-aeef-4a0e-8fb4-f33cedd36459`, now set as
+`E2E_TENANT_B_SEEDED_LEAD_ID` in `.env.e2e.local` - see "Open -
+seeded-lead-in-own-tenant check is failing" above for why the
+isolation test's own-tenant-read check against this id is currently
+failing (still unarchived as a result).
+
 ## Release-readiness checklist (CRM V1)
 
-| Area                                                           | Status                                                                      |
-| -------------------------------------------------------------- | --------------------------------------------------------------------------- |
-| Lead                                                           | Live, verified                                                              |
-| Estimate (create/approve/reject)                               | Live, verified this session                                                 |
-| **Booking + Job creation**                                     | **Live, verified** - BLOCKER-001 resolved                                   |
-| Job status progression                                         | Live, verified (best-effort `draft → scheduled` succeeded in production)    |
-| Invoice + Payment                                              | Code-complete (Cluster 27); production verification in progress             |
-| Review request                                                 | Code-complete (Cluster 28); production verification pending                 |
-| Activity Timeline (incl. Invoice/Payment/Review entries)       | Code-complete (ADR-0039); production verification pending                   |
-| Notes, Tasks, Media, Notifications, Settings, Service Packages | Previously verified live in production (pre-dates this session's incidents) |
-| Booking duplicate-prevention (app-layer)                       | Live - UI hides the form once a Booking exists for an Estimate              |
-| Booking duplicate-prevention (DB-layer constraint)             | Deferred, low-priority - see BLOCKER-002. Not release-blocking.             |
+| Area                                                           | Status                                                                                                                        |
+| -------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| Lead                                                           | Live, verified                                                                                                                |
+| Estimate (create/approve/reject)                               | Live, verified this session                                                                                                   |
+| **Booking + Job creation**                                     | **Live, verified** - BLOCKER-001 resolved                                                                                     |
+| Job status progression                                         | Live, verified (best-effort `draft → scheduled` succeeded in production)                                                      |
+| Invoice + Payment                                              | **Live, verified** - creation, payment recording, Paid transition, and persistence after refresh all confirmed in production  |
+| Review request                                                 | Code-complete (Cluster 28); production verification pending                                                                   |
+| Activity Timeline (incl. Invoice/Payment/Review entries)       | Code-complete (ADR-0039); production verification pending                                                                     |
+| Notes, Tasks, Media, Notifications, Settings, Service Packages | Previously verified live in production (pre-dates this session's incidents)                                                   |
+| Timestamp display (America/Los_Angeles)                        | Live, verified - commit `d05d65f`                                                                                             |
+| Booking duplicate-prevention (app-layer)                       | Live - UI hides the form once a Booking exists for an Estimate                                                                |
+| Booking duplicate-prevention (DB-layer constraint)             | Deferred, low-priority - see BLOCKER-002. Not release-blocking.                                                               |
+| Cross-tenant isolation (Playwright E2E)                        | 8/9 production assertions passing; seeded-lead-own-tenant check failing (open) - see "Cross-tenant isolation live test" above |
 
 CRM V1 cannot be marked released while any row above marked
-`Live, verified` is not - BLOCKER-002 is explicitly non-blocking per
-owner decision and does not gate release.
+`Live, verified` is not, or while the cross-tenant isolation suite has
+an unresolved failing assertion - BLOCKER-002 is explicitly non-blocking
+per owner decision and does not gate release.

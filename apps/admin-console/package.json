@@ -9,7 +9,8 @@
     "typecheck": "astro check",
     "lint": "eslint . --ext .ts,.tsx,.astro --no-error-on-unmatched-pattern",
     "format": "prettier --write .",
-    "test": "playwright test"
+    "test": "playwright test",
+    "test:e2e:tenant-isolation": "playwright test --project=e2e-tenant-isolation --reporter=html"
   },
   "devDependencies": {
     "@astrojs/check": "^0.9.9",
