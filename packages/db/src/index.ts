@@ -255,3 +255,25 @@ export type {
   ListTimelineOptions,
   ListTimelineResult,
 } from './activity-timeline-repository';
+
+/**
+ * The Jervis integration path - migrations 039 (writes) and 040 (reads).
+ *
+ * Unlike every other export here, this one does NOT take a `createDbClient`
+ * service-role client. Jervis is external and authenticates as a dedicated
+ * Supabase Auth machine identity, reaching the CRM only through the narrow
+ * SECURITY DEFINER RPCs. See DECISIONS.md ADR-0041 and ADR-0042.
+ */
+export { createSupabaseJervisIntegrationRepository } from './jervis-integration-repository';
+export type {
+  JervisIntegrationRepository,
+  JervisRpcClient,
+  JervisWriteContext,
+  JervisWriteResult,
+  JervisReadResult,
+  JervisAuditReadResult,
+  JervisContact,
+  JervisLead,
+  JervisTask,
+  JervisAuditEvent,
+} from './jervis-integration-repository';
