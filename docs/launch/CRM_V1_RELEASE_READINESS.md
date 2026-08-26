@@ -440,22 +440,14 @@ failing (still unarchived as a result).
 
 ## Release-readiness checklist (CRM V1)
 
-| Area                                                           | Status                                                                                                                        |
-| -------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
-| Lead                                                           | Live, verified                                                                                                                |
-| Estimate (create/approve/reject)                               | Live, verified this session                                                                                                   |
-| **Booking + Job creation**                                     | **Live, verified** - BLOCKER-001 resolved                                                                                     |
-| Job status progression                                         | Live, verified (best-effort `draft → scheduled` succeeded in production)                                                      |
-| Invoice + Payment                                              | **Live, verified** - creation, payment recording, Paid transition, and persistence after refresh all confirmed in production  |
-| Review request                                                 | Code-complete (Cluster 28); production verification pending                                                                   |
-| Activity Timeline (incl. Invoice/Payment/Review entries)       | Code-complete (ADR-0039); production verification pending                                                                     |
-| Notes, Tasks, Media, Notifications, Settings, Service Packages | Previously verified live in production (pre-dates this session's incidents)                                                   |
-| Timestamp display (America/Los_Angeles)                        | Live, verified - commit `d05d65f`                                                                                             |
-| Booking duplicate-prevention (app-layer)                       | Live - UI hides the form once a Booking exists for an Estimate                                                                |
-| Booking duplicate-prevention (DB-layer constraint)             | Deferred, low-priority - see BLOCKER-002. Not release-blocking.                                                               |
-| Cross-tenant isolation (Playwright E2E)                        | 8/9 production assertions passing; seeded-lead-own-tenant check failing (open) - see "Cross-tenant isolation live test" above |
+**Moved.** The current authoritative checklist - every area, its status, and the
+exact condition under which CRM V1 may be marked released - now lives in a
+single small canonical file:
 
-CRM V1 cannot be marked released while any row above marked
-`Live, verified` is not, or while the cross-tenant isolation suite has
-an unresolved failing assertion - BLOCKER-002 is explicitly non-blocking
-per owner decision and does not gate release.
+[docs/launch/CRM_V1_RELEASE_CHECKLIST.md](CRM_V1_RELEASE_CHECKLIST.md)
+
+It is not duplicated here. This document remains the record of HOW each item
+reached its current state - the incident narrative, the diagnostic history, the
+full BLOCKER-001 and BLOCKER-002 investigations, and the cross-tenant isolation
+test log above. Update the checklist file when a status changes; update this
+document when the story behind a status changes.
