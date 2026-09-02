@@ -1,5 +1,8 @@
 import type { APIRoute } from 'astro';
-import { createSupabaseLeadRepository, createSupabaseAuditLogRepository } from '@ai-company-os/db';
+import {
+  createSupabaseLeadRepository,
+  createUserScopedAuditLogRepository,
+} from '@ai-company-os/db';
 import { getCurrentMembership } from '../../../../lib/auth/membership';
 
 export const prerender = false;
@@ -13,7 +16,7 @@ export const POST: APIRoute = async ({ locals, params, redirect }) => {
     return redirect('/leads');
   }
 
-  const auditLog = createSupabaseAuditLogRepository(locals.supabase);
+  const auditLog = createUserScopedAuditLogRepository(locals.supabase);
   const leads = createSupabaseLeadRepository(locals.supabase, auditLog);
   const result = await leads.restoreLead(membership.businessId, id);
 

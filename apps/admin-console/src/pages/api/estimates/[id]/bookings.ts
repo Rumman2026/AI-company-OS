@@ -3,7 +3,7 @@ import {
   createSupabaseEstimateRepository,
   createSupabaseBookingRepository,
   createSupabaseJobRepository,
-  createSupabaseAuditLogRepository,
+  createUserScopedAuditLogRepository,
 } from '@ai-company-os/db';
 import { getCurrentMembership } from '../../../../lib/auth/membership';
 
@@ -63,7 +63,7 @@ export const POST: APIRoute = async ({ request, locals, params, redirect }) => {
     return redirect(`/leads/${leadId}?error=${encodeURIComponent(bookingResult.error)}`);
   }
 
-  const auditLog = createSupabaseAuditLogRepository(locals.supabase);
+  const auditLog = createUserScopedAuditLogRepository(locals.supabase);
   const jobs = createSupabaseJobRepository(locals.supabase, auditLog);
   const jobResult = await jobs.createJob(membership.businessId, leadId, bookingResult.booking.id);
   if (!jobResult.ok) {

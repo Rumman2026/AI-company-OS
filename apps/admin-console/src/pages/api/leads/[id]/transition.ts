@@ -1,5 +1,8 @@
 import type { APIRoute } from 'astro';
-import { createSupabaseLeadRepository, createSupabaseAuditLogRepository } from '@ai-company-os/db';
+import {
+  createSupabaseLeadRepository,
+  createUserScopedAuditLogRepository,
+} from '@ai-company-os/db';
 import { getCurrentMembership } from '../../../../lib/auth/membership';
 import { isValidLeadStatus } from '../../../../lib/leads/validate-status';
 
@@ -22,7 +25,7 @@ export const POST: APIRoute = async ({ request, locals, params, redirect }) => {
     return redirect(`/leads/${id}?error=invalid-status`);
   }
 
-  const auditLog = createSupabaseAuditLogRepository(locals.supabase);
+  const auditLog = createUserScopedAuditLogRepository(locals.supabase);
   const leadRepo = createSupabaseLeadRepository(locals.supabase, auditLog);
 
   const result = await leadRepo.transitionLeadStatusForRoles(

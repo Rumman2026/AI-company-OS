@@ -1,5 +1,5 @@
 import type { APIRoute } from 'astro';
-import { createSupabaseJobRepository, createSupabaseAuditLogRepository } from '@ai-company-os/db';
+import { createSupabaseJobRepository, createUserScopedAuditLogRepository } from '@ai-company-os/db';
 import { getCurrentMembership } from '../../../../lib/auth/membership';
 import { isValidJobStatus } from '../../../../lib/jobs/validate-status';
 
@@ -22,7 +22,7 @@ export const POST: APIRoute = async ({ request, locals, params, redirect }) => {
     return redirect(`/jobs/${id}?error=invalid-status`);
   }
 
-  const auditLog = createSupabaseAuditLogRepository(locals.supabase);
+  const auditLog = createUserScopedAuditLogRepository(locals.supabase);
   const jobs = createSupabaseJobRepository(locals.supabase, auditLog);
 
   const result = await jobs.transitionJobStatusForRoles(

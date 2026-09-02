@@ -1,7 +1,7 @@
 import type { APIRoute } from 'astro';
 import {
   createSupabaseReviewRequestRepository,
-  createSupabaseAuditLogRepository,
+  createUserScopedAuditLogRepository,
 } from '@ai-company-os/db';
 import { getCurrentMembership } from '../../lib/auth/membership';
 
@@ -22,7 +22,7 @@ export const POST: APIRoute = async ({ request, locals, redirect }) => {
     return redirect('/jobs?error=invalid-review-request-input');
   }
 
-  const auditLog = createSupabaseAuditLogRepository(locals.supabase);
+  const auditLog = createUserScopedAuditLogRepository(locals.supabase);
   const reviewRequests = createSupabaseReviewRequestRepository(locals.supabase, auditLog);
   const result = await reviewRequests.createReviewRequest({
     businessId: membership.businessId,

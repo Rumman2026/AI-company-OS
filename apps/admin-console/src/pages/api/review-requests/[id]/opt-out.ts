@@ -1,7 +1,7 @@
 import type { APIRoute } from 'astro';
 import {
   createSupabaseReviewRequestRepository,
-  createSupabaseAuditLogRepository,
+  createUserScopedAuditLogRepository,
 } from '@ai-company-os/db';
 import { getCurrentMembership } from '../../../../lib/auth/membership';
 
@@ -20,7 +20,7 @@ export const POST: APIRoute = async ({ request, locals, params, redirect }) => {
   const jobId = form.get('jobId');
   const redirectTo = typeof jobId === 'string' && jobId.length > 0 ? `/jobs/${jobId}` : '/jobs';
 
-  const auditLog = createSupabaseAuditLogRepository(locals.supabase);
+  const auditLog = createUserScopedAuditLogRepository(locals.supabase);
   const reviewRequests = createSupabaseReviewRequestRepository(locals.supabase, auditLog);
 
   const result = await reviewRequests.transitionReviewRequestStatusForRoles(

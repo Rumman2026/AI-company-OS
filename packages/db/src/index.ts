@@ -51,7 +51,10 @@ export type {
   RestoreLeadResult,
 } from './lead-repository';
 
-export { createSupabaseAuditLogRepository } from './audit-log-repository';
+export {
+  createSupabaseAuditLogRepository,
+  createUserScopedAuditLogRepository,
+} from './audit-log-repository';
 export type {
   AuditLogRepository,
   WriteAuditRecordResult,

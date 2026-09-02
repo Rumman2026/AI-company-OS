@@ -168,7 +168,10 @@ export function createSupabaseReviewRequestRepository(
         return { ok: false, error: updateError.message ?? 'review_request_update_failed' };
       }
 
-      await auditLog.writeAuditRecord(businessId, result.auditRecord);
+      const auditWrite = await auditLog.writeAuditRecord(businessId, result.auditRecord);
+      if (!auditWrite.ok) {
+        return { ok: false, error: `audit_write_failed: ${auditWrite.error}` };
+      }
 
       return { ok: true, result };
     },

@@ -1,7 +1,7 @@
 import type { APIRoute } from 'astro';
 import {
   createSupabaseInvoiceRepository,
-  createSupabaseAuditLogRepository,
+  createUserScopedAuditLogRepository,
 } from '@ai-company-os/db';
 import {
   createCurrencyCode,
@@ -50,7 +50,7 @@ export const POST: APIRoute = async ({ request, locals, params, redirect }) => {
     evidence = { outcome: 'no-captured-payment' };
   }
 
-  const auditLog = createSupabaseAuditLogRepository(locals.supabase);
+  const auditLog = createUserScopedAuditLogRepository(locals.supabase);
   const invoices = createSupabaseInvoiceRepository(locals.supabase, auditLog);
 
   const result = await invoices.transitionInvoiceStatusForRoles(

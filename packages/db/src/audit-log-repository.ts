@@ -1,3 +1,4 @@
+import type { SupabaseClient } from '@supabase/supabase-js';
 import {
   createAuditRecordId,
   createCorrelationId,
@@ -34,6 +35,13 @@ export interface AuditLogRepository {
   ): Promise<ListAuditRecordsResult>;
 }
 
+/**
+ * A user-scoped client, which needs `.rpc` because a signed-in user's only way
+ * into `audit_log` is the SECURITY DEFINER function - see
+ * migrations/044-crm-audit-writer.sql.
+ */
+export type AuditLogRpcClient = Pick<SupabaseClient, 'from' | 'rpc'>;
+
 interface AuditLogRow {
   id: string;
   entity_type: string;
@@ -69,6 +77,40 @@ function toAuditLog(row: AuditLogRow): AuditLog {
 const SELECT_COLUMNS =
   'id, entity_type, entity_id, action, previous_value, new_value, actor_category, actor_id, automated, occurred_at, reason, correlation_id';
 
+/** Reading is identical for both callers: one tenant-scoped SELECT policy governs it. */
+function listAuditRecordsWith(
+  client: Pick<MinimalSupabaseClient, 'from'>,
+): AuditLogRepository['listAuditRecords'] {
+  return async (businessId, options = {}) => {
+    let query = client
+      .from('audit_log')
+      .select(SELECT_COLUMNS)
+      .eq('business_id', businessId)
+      .order('occurred_at', { ascending: false });
+
+    if (options.entityType) query = query.eq('entity_type', options.entityType);
+    if (options.entityId) query = query.eq('entity_id', options.entityId);
+    if (typeof options.limit === 'number') query = query.limit(options.limit);
+
+    const { data, error } = await query;
+
+    if (error || !data) {
+      return { ok: false, error: error?.message ?? 'audit_log_list_failed' };
+    }
+    return { ok: true, records: (data as AuditLogRow[]).map(toAuditLog) };
+  };
+}
+
+/**
+ * The TRUSTED-SERVER writer, for a client built with the service-role key
+ * (`createDbClient`) - today that is apps/greencal-website's quote intake.
+ *
+ * It inserts into `audit_log` directly, which only works because service-role
+ * bypasses RLS. DO NOT hand this a user-scoped client: `audit_log` has no
+ * INSERT policy and no INSERT grant for `authenticated` in any migration, so
+ * the insert fails with 42501 - which is exactly the defect migration 044 and
+ * `createUserScopedAuditLogRepository` exist to fix.
+ */
 export function createSupabaseAuditLogRepository(
   client: MinimalSupabaseClient,
 ): AuditLogRepository {
@@ -95,23 +137,45 @@ export function createSupabaseAuditLogRepository(
       return { ok: true };
     },
 
-    async listAuditRecords(businessId, options = {}) {
-      let query = client
-        .from('audit_log')
-        .select(SELECT_COLUMNS)
-        .eq('business_id', businessId)
-        .order('occurred_at', { ascending: false });
+    listAuditRecords: listAuditRecordsWith(client),
+  };
+}
 
-      if (options.entityType) query = query.eq('entity_type', options.entityType);
-      if (options.entityId) query = query.eq('entity_id', options.entityId);
-      if (typeof options.limit === 'number') query = query.limit(options.limit);
+/**
+ * The USER-SCOPED writer, for the request-scoped cookie client the admin
+ * console builds per request (`createSupabaseServerClient`).
+ *
+ * Writes go through `public.crm_write_audit_record`, never a direct INSERT,
+ * because a signed-in user has no INSERT privilege on `audit_log` at all. The
+ * function - not this code - decides `actor_id` and `occurred_at`, and verifies
+ * that the claimed `actor_category` is a role the caller actually holds in that
+ * business. `record.actorId` and `record.occurredAt` are therefore NOT SENT:
+ * transmitting them would imply the server honours them, and a future reader
+ * would reasonably assume the stored actor came from the client. See
+ * migrations/044-crm-audit-writer.sql for the forgery model.
+ */
+export function createUserScopedAuditLogRepository(client: AuditLogRpcClient): AuditLogRepository {
+  return {
+    async writeAuditRecord(businessId, record) {
+      const { error } = await client.rpc('crm_write_audit_record', {
+        p_business_id: businessId,
+        p_entity_type: record.entityType,
+        p_entity_id: record.entityId,
+        p_action: record.action,
+        p_previous_value: record.previousValue,
+        p_new_value: record.newValue,
+        p_actor_category: record.actorCategory,
+        p_automated: record.automated,
+        p_reason: record.reason ?? null,
+        p_correlation_id: record.correlationId ?? null,
+      });
 
-      const { data, error } = await query;
-
-      if (error || !data) {
-        return { ok: false, error: error?.message ?? 'audit_log_list_failed' };
+      if (error) {
+        return { ok: false, error: error.message ?? 'audit_log_rpc_failed' };
       }
-      return { ok: true, records: (data as AuditLogRow[]).map(toAuditLog) };
+      return { ok: true };
     },
+
+    listAuditRecords: listAuditRecordsWith(client),
   };
 }
