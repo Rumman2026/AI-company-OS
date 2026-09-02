@@ -3,8 +3,8 @@
 Durable state for resuming without chat memory. Update it in place; do not
 start a second ledger.
 
-Last updated: 2026-09-02, after migration 043 was applied to production and
-verified end to end.
+Last updated: 2026-09-02, after migrations 043 and 044 were applied to
+production and verified end to end.
 
 ## Canonical locations
 
@@ -37,30 +37,31 @@ Run as: `sudo -u jervis env HOME=/home/jervis CI=true ASTRO_TELEMETRY_DISABLED=1
 
 ## Production migration state
 
-| Migration                            | State                                                  |
-| ------------------------------------ | ------------------------------------------------------ |
-| 001–040                              | live                                                   |
-| 041 e2e-fixture-rpc                  | **LIVE** (2026-09-01)                                  |
-| 042 restore-crm-authenticated-grants | **LIVE** (2026-09-02), verified                        |
-| 043 restore-remaining-crm-grants     | **LIVE** (2026-09-02 19:18:50), verified behaviourally |
-| 044 crm-audit-writer                 | **PREPARED, NOT APPLIED** — needs its own approval     |
-| 023 notifications                    | **NEVER APPLIED** — table absent from production       |
+| Migration                            | State                                                          |
+| ------------------------------------ | -------------------------------------------------------------- |
+| 001–040                              | live                                                           |
+| 041 e2e-fixture-rpc                  | **LIVE** (2026-09-01)                                          |
+| 042 restore-crm-authenticated-grants | **LIVE** (2026-09-02), verified                                |
+| 043 restore-remaining-crm-grants     | **LIVE** (2026-09-02 19:18:50), verified behaviourally         |
+| 044 crm-audit-writer                 | **LIVE** (2026-09-02 20:19:59), 19/19 acceptance checks passed |
+| 023 notifications                    | **NEVER APPLIED** — table absent from production               |
 
-Lifetime Supabase Management API requests: 4 (1 edge-blocked, 1 `SELECT 1`, 1 = 042, 1 = 043).
+Lifetime Supabase Management API requests: 5 (1 edge-blocked, 1 `SELECT 1`, 1 = 042, 1 = 043, 1 = 044).
 
 **An approval is bound to a commit and the executor requires `commit == branch
 head`.** Any commit after an approval invalidates it. Create approvals last.
 
 ## Known defects
 
-| #   | Defect                                                                                                                                                                                                                                                                                                    | Severity | State                                                                                                        |
-| --- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | ------------------------------------------------------------------------------------------------------------ |
-| D1  | 9 tables 42501 for `authenticated`                                                                                                                                                                                                                                                                        | **P1**   | **RESOLVED** 2026-09-02 by 043. Matrix verified behaviourally as a signed-in user; browser audit 20/20 clean |
-| D2  | `audit_log` has no INSERT path for the console; six call sites discarded the failure. **Evidenced:** production holds 4 audit rows for the fixture tenant, all `automation`/`automated=true` written by migration 039's SECURITY DEFINER path on 2026-08-24. **Zero** rows from human staff actions, ever | **P1**   | Code fixed; **migration 044 awaiting approval**                                                              |
-| D3  | `notifications` absent from production (023 never applied)                                                                                                                                                                                                                                                | P2       | Not started                                                                                                  |
-| D4  | Tenant-isolation E2E never executed                                                                                                                                                                                                                                                                       | P1       | **RESOLVED** — 2/2, twice, non-destructive                                                                   |
-| D5  | `service_role` has **no privilege on `audit_log`** (42501 on SELECT). Affects no live path today — the only service-role caller is the website intake, and `createLead` writes no audit record — but `jervis_audit` and any future server-side writer need it                                             | P2       | **Not fixed.** Needs its own grant migration and its own owner decision                                      |
-| D6  | Lead creation writes no audit record at all (only transitions do)                                                                                                                                                                                                                                         | P3       | Open, product question                                                                                       |
+| #   | Defect                                                                                                                                                                                                                                                        | Severity | State                                                                                                        |
+| --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | ------------------------------------------------------------------------------------------------------------ |
+| D1  | 9 tables 42501 for `authenticated`                                                                                                                                                                                                                            | **P1**   | **RESOLVED** 2026-09-02 by 043. Matrix verified behaviourally as a signed-in user; browser audit 20/20 clean |
+| D2  | `audit_log` had no INSERT path for the console                                                                                                                                                                                                                | **P1**   | **DATABASE RESOLVED** by 044. Function live, 19/19 acceptance checks. **APPLICATION NOT DEPLOYED** — see D7  |
+| D7  | **The admin console deployment still runs pre-044 code.** Proven live: a browser transition moved the fixture lead `new -> lost` and wrote **no** audit row, while the RPC itself works. The fix is committed and pushed but not deployed                     | **P1**   | **Needs a deployment, which is owner-gated**                                                                 |
+| D3  | `notifications` absent from production (023 never applied)                                                                                                                                                                                                    | P2       | Not started                                                                                                  |
+| D4  | Tenant-isolation E2E never executed                                                                                                                                                                                                                           | P1       | **RESOLVED** — 2/2, twice, non-destructive                                                                   |
+| D5  | `service_role` has **no privilege on `audit_log`** (42501 on SELECT). Affects no live path today — the only service-role caller is the website intake, and `createLead` writes no audit record — but `jervis_audit` and any future server-side writer need it | P2       | **Not fixed.** Needs its own grant migration and its own owner decision                                      |
+| D6  | Lead creation writes no audit record at all (only transitions do)                                                                                                                                                                                             | P3       | Open, product question                                                                                       |
 
 **Not a defect:** the Activity Timeline is contact-scoped by design — it
 aggregates a customer's history across leads, estimates, jobs and invoices, and
@@ -84,11 +85,11 @@ functional content, not status codes; see the verification section below.
 
 ## Blockers requiring the owner
 
-| #      | Blocker                                                                                                                   | Why it needs you                                      |
-| ------ | ------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------- |
-| B2     | Only `deepseek` is released, and it was released for the **Jervis-Quant** objective, not Leader. All seven others engaged | Releasing providers is an owner action                |
-| B3     | $1.00/day ceiling. **Not a bottleneck so far** — see below                                                                | Only decide if you want autonomous multi-agent cycles |
-| ~~B4~~ | **CLEARED** 2026-09-02. Deploy key registered; 8 commits pushed; `origin/jervis/leader-v1` == VPS HEAD                    | —                                                     |
+| #      | Blocker                                                                                                                                                                                  | Why it needs you                                                                                   |
+| ------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
+| B2     | **ALL EIGHT providers are now engaged.** DeepSeek's 24h Quant lease has closed. `enabled_providers=[]`, all 8 roles unservable, 112 runs `blocked_on_owner`. The Brain has zero capacity | Releasing providers is an owner action. **This is what blocks BUSINESS_AUTONOMOUS_WORK_EXECUTION** |
+| B3     | $1.00/day ceiling. **Not a bottleneck so far** — see below                                                                                                                               | Only decide if you want autonomous multi-agent cycles                                              |
+| ~~B4~~ | **CLEARED** 2026-09-02. Deploy key registered; 8 commits pushed; `origin/jervis/leader-v1` == VPS HEAD                                                                                   | —                                                                                                  |
 
 ## Cost, measured (not projected)
 
