@@ -14,6 +14,19 @@ node_modules/
 *.log
 logs/
 
+# Plaintext credential drops - a file whose NAME announces that it holds an
+# API key or token must never be one `git add -A` away from being published.
+# These patterns are filename-shaped on purpose: they are a backstop for the
+# accident, not a place to keep secrets. A credential that has been written
+# to a file in this working tree should be rotated, not merely ignored.
+*API KEY*
+*API_KEY*
+*api-key*.txt
+*api_key*.txt
+*apikey*.txt
+*.secret
+*.token
+
 # Build output
 dist/
 apps/*/build/

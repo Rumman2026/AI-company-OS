@@ -1,13 +1,32 @@
 import { test, expect } from '@playwright/test';
+import { FIXTURE_LEAD_ID } from './fixture-constants';
+import { provisionTenantIsolationFixture } from './fixture-provisioner';
 
 /**
  * CRM cross-tenant isolation live verification - see
  * docs/launch/CRM_V1_RELEASE_READINESS.md for the full setup record
  * (the CRM Isolation Test Tenant business/membership this test logs in
- * as). Hits real production. Self-skips entirely if its required
- * environment variables aren't present, so `pnpm test`/CI never
- * attempt this without deliberately-provided credentials - see
- * playwright.config.ts and .env.e2e.local.example.
+ * as). Hits real production. This project is not even defined unless the
+ * run explicitly asked for it (see playwright.config.ts's
+ * E2E_TENANT_ISOLATION_ENABLED) - it only ever runs via the
+ * `test:e2e:tenant-isolation` script.
+ *
+ * THIS FILE NO LONGER WRITES ROWS. Its Tenant B Contact and Lead are the
+ * one fixed synthetic fixture provisioned by the
+ * `e2e-tenant-isolation-setup` project, which calls a single bounded
+ * SECURITY DEFINER function - see tests/e2e/fixture-provisioner.ts and
+ * packages/db/migrations/041-e2e-fixture-rpc.sql. Playwright will not run
+ * this project at all if that setup fails, so by the time any step below
+ * executes, the fixture is provisioned AND verified. Raw
+ * `insert into contacts` / `insert into leads` calls used to live in this
+ * file's beforeAll; they are gone, and so is the `service_role` table
+ * grant they would have required.
+ *
+ * NOTHING HERE SELF-SKIPS ANY MORE. A skip was defensible while a bare
+ * `pnpm test` could reach this project by accident; it cannot now. A
+ * release gate that reports "passed" because its login credentials were
+ * missing is worse than one that fails, so missing configuration throws
+ * in beforeAll - see .env.e2e.local.example for the full contract.
  *
  * One correction to the originally-specified expectation: this
  * application's detail pages (Job/Estimate/Lead/Invoice) do not return
@@ -30,7 +49,13 @@ const TENANT_A_JOB_ID = process.env.E2E_TENANT_A_JOB_ID;
 const TENANT_A_ESTIMATE_ID = process.env.E2E_TENANT_A_ESTIMATE_ID;
 const TENANT_A_LEAD_ID = process.env.E2E_TENANT_A_LEAD_ID;
 const TENANT_A_INVOICE_ID = process.env.E2E_TENANT_A_INVOICE_ID;
-const TENANT_B_SEEDED_LEAD_ID = process.env.E2E_TENANT_B_SEEDED_LEAD_ID;
+
+// The Tenant B fixture Lead/Contact are the FIXED synthetic pair owned by
+// packages/db/migrations/041-e2e-fixture-rpc.sql and mirrored in
+// fixture-constants.ts - never a UUID manually relayed through chat or SQL,
+// and never generated per run. The setup project provisions and verifies them
+// before this file is loaded.
+const SEEDED_LEAD_ID = FIXTURE_LEAD_ID;
 
 const REQUIRED = { BASE_URL, TENANT_B_EMAIL, TENANT_B_PASSWORD };
 const missingRequired = Object.entries(REQUIRED)
@@ -38,11 +63,43 @@ const missingRequired = Object.entries(REQUIRED)
   .map(([k]) => k);
 
 test.describe('CRM cross-tenant isolation (production, Tenant B)', () => {
-  test.skip(
-    missingRequired.length > 0,
-    `Skipped - missing required env var(s): ${missingRequired.join(', ')}. ` +
-      'Copy apps/admin-console/.env.e2e.local.example to .env.e2e.local and fill in real values.',
-  );
+  test.beforeAll(async () => {
+    // CONFIGURATION IS A HARD FAILURE, NOT A SKIP. The setup project has
+    // already proven the fixture credentials work (it could not have
+    // provisioned the fixture otherwise, and Playwright would not have
+    // started this project). What is left to check is the browser half:
+    // without these three, this suite would report a passing release gate
+    // having verified nothing.
+    if (missingRequired.length > 0) {
+      throw new Error(
+        `Missing required env var(s): ${missingRequired.join(', ')}. Copy ` +
+          'apps/admin-console/.env.e2e.local.example to .env.e2e.local and fill in real ' +
+          'values. Refusing to report a tenant-isolation result this run did not produce.',
+      );
+    }
+  });
+
+  test.afterAll(async () => {
+    // RESTORES THE FIXTURE, IT DOES NOT DELETE IT. The fixture is fixed and
+    // persistent now, so "cleanup" means putting it back the way the
+    // provisioner guarantees it - which is exactly what the provisioner
+    // does, so it is what runs here. Step 10-11 below ARCHIVES the fixture
+    // Lead on purpose; leaving it archived would make the next consecutive
+    // run fail at step 8-9 for a reason unrelated to tenant isolation, so
+    // repeatability depends on this.
+    //
+    // Same single bounded RPC as setup - this file still holds no delete,
+    // no insert, and no table access of any kind. It runs even when the
+    // test above failed (Playwright always runs afterAll), which is when
+    // restoring state matters most.
+    const restored = await provisionTenantIsolationFixture();
+    if (restored.leadId !== SEEDED_LEAD_ID) {
+      throw new Error(
+        `Fixture restore failed: provisioner returned lead ${restored.leadId}, expected ` +
+          `${SEEDED_LEAD_ID}.`,
+      );
+    }
+  });
 
   test('Tenant B cannot read, list, or write Tenant A data, and can operate its own tenant', async ({
     page,
@@ -167,43 +224,25 @@ test.describe('CRM cross-tenant isolation (production, Tenant B)', () => {
     });
 
     await test.step('8-9. A pre-seeded Tenant B Lead is visible only to Tenant B', async () => {
-      if (!TENANT_B_SEEDED_LEAD_ID) {
-        test.info().annotations.push({
-          type: 'skipped-check',
-          description:
-            'E2E_TENANT_B_SEEDED_LEAD_ID not provided - no "Create Lead" UI exists in ' +
-            'apps/admin-console, so this Lead must be seeded via SQL first - see ' +
-            'docs/launch/CRM_V1_RELEASE_READINESS.md.',
-        });
-        return;
-      }
-      const response = await page.goto(`/leads/${TENANT_B_SEEDED_LEAD_ID}`);
+      const response = await page.goto(`/leads/${SEEDED_LEAD_ID}`);
       expect(response?.status()).toBe(200);
       await expect(page.getByText('Lead not found')).not.toBeVisible();
       await page.goto('/leads');
-      await expect(page.locator('body')).toContainText(TENANT_B_SEEDED_LEAD_ID!);
+      const seededLeadLink = page.locator(`a[href="/leads/${SEEDED_LEAD_ID}"]`);
+      await expect(seededLeadLink).toHaveCount(1);
+      await expect(seededLeadLink).toBeVisible();
       await page.screenshot({ path: 'test-results/e2e-05-tenant-b-own-lead.png', fullPage: true });
     });
 
-    await test.step('10-11. Clean up the throwaway lead (archive - no delete UI exists for Leads)', async () => {
-      if (!TENANT_B_SEEDED_LEAD_ID) {
-        test.info().annotations.push({
-          type: 'skipped-check',
-          description: 'E2E_TENANT_B_SEEDED_LEAD_ID not provided - nothing to clean up.',
-        });
-        return;
-      }
+    await test.step('10-11. Archive the fixture lead (functional check; afterAll restores it)', async () => {
       // See the Origin-header note on the step 7 write attempt above -
       // same Astro same-origin check applies to every POST route.
-      const response = await page.request.post(`/api/leads/${TENANT_B_SEEDED_LEAD_ID}/archive`, {
+      const response = await page.request.post(`/api/leads/${SEEDED_LEAD_ID}/archive`, {
         headers: { origin: BASE_URL! },
       });
       expect(response.ok()).toBe(true);
-      await page.goto(`/leads/${TENANT_B_SEEDED_LEAD_ID}`);
+      await page.goto(`/leads/${SEEDED_LEAD_ID}`);
       await expect(page.getByText('Archived')).toBeVisible();
-      // A full row DELETE, if wanted, remains a separate manual SQL
-      // step scoped by this exact lead id - see
-      // docs/launch/CRM_V1_RELEASE_READINESS.md.
     });
   });
 });

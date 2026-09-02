@@ -2910,3 +2910,220 @@ evidence-based pattern if/when it actually surfaces, not preemptively.
 - Service-to-service communication pattern (REST/gRPC/queue) beyond the
   new task-router/job-queue placeholders (see ADR-0008) — **Proposed /
   TBD**.
+
+## ADR-0041: Jervis integration write path - private control plane and four narrow SECURITY DEFINER RPCs
+
+**Status**: Proposed (migration written and verified against a scratch
+database; NOT applied to Greencal-production)
+
+**Context**: Jervis - the external orchestration system - needs to create
+a Contact, a Lead, a follow-up Task and an audit row inside one business,
+so that an inbound quote can become tracked CRM work without a human
+retyping it. Two existing paths were considered and both are wrong for
+this caller:
+
+1. The service-role key. This is how `apps/greencal-website`'s intake
+   adapter writes today, and it bypasses grants and RLS entirely. Handing
+   that key to an external orchestrator gives it every business, every
+   table, unconditionally - the opposite of what a tenant-scoped
+   integration should hold.
+2. `grant insert on contacts, tasks, audit_log to authenticated`. This is
+   the change the missing privileges seem to ask for, and it is worse
+   than it looks. `authenticated` is a SHARED role: every signed-in human
+   CRM user holds it. The grant would hand every team member a write
+   capability this application never gave them, in every business they
+   belong to - and specifically it would let any session insert
+   `audit_log` rows. An append-only audit trail that any authenticated
+   session can write is not an audit trail.
+
+Migration 030 already recorded the relevant half of this: it granted
+`select, update` on `leads` and deliberately withheld `insert`, because
+the only Lead-creating path is server-side and service-role. The blast
+radius of a grant is every current and future member of every business;
+the blast radius of a function is its body.
+
+A further constraint shaped the design. Supabase Auth users do not each
+get their own Postgres role - they all execute as `authenticated`. So
+"grant EXECUTE to only the integration identity" is not expressible, and
+any design resting on it would be secure only in its description.
+
+**Decision**:
+
+- A `private` schema, never added to the project's exposed schemas and
+  with all privileges revoked from `PUBLIC`, `anon` and `authenticated`.
+  It holds `jervis_integration_identities` (the allowlist, keyed
+  `(user_id, business_id)` so Jervis can later hold authority in more
+  than one business without another migration) and `jervis_idempotency`.
+  These tables carry no RLS policies deliberately: they are unreachable
+  rather than filtered, and a policy would imply otherwise.
+- Four narrow RPCs in `public` - `jervis_create_contact`,
+  `jervis_create_lead`, `jervis_create_follow_up_task`,
+  `jervis_append_audit_event`. No general CRUD, no delete, no
+  arbitrary-SQL function.
+- **Authorization lives in the function body, not the grant.** Every RPC
+  calls `private.jervis_authorize(p_business_id)` first and
+  unconditionally, which requires `auth.uid()` to be present, to appear
+  in the allowlist for that exact business with `revoked_at is null`,
+  AND to hold a live `public.memberships` row for it. Both checks, because
+  the allowlist is what refuses an ordinary human and the membership check
+  is what makes revocation in the CRM's own model take effect at once.
+  `p_business_id` is never trusted - only ever confirmed against
+  `auth.uid()`.
+- **Actor identity is derived, never accepted.** `actor_category` is
+  `'automation'` (already an `ActorCategory` in `packages/core-models`),
+  `automated` is true, and `actor_id` comes from `auth.uid()`. There is no
+  actor parameter, because a caller-supplied actor is exactly how an
+  integration identity would claim to be a human user.
+- **Referential tenant checks are explicit.** These functions run as
+  owner, so RLS is not in play inside them: a Lead's Contact, a Task's
+  optional entity, and an audit row's subject are each asserted to belong
+  to `p_business_id`. `jervis_append_audit_event` takes a `uuid` entity id
+  rather than free text specifically so it can be checked - otherwise the
+  function would be a way to write history ABOUT another business's record
+  while stamping it with this one's, which is worse than a missing audit
+  trail.
+- **Idempotency is database-enforced, not check-then-insert.** The primary
+  key of `private.jervis_idempotency` is the arbiter: the first caller
+  claims it with `INSERT .. ON CONFLICT DO NOTHING`, performs the write and
+  records `resource_id`; a concurrent caller finds the claim taken and
+  blocks on its row lock with `SELECT .. FOR UPDATE` until the winner
+  commits, then returns the same id without writing. Under READ COMMITTED
+  a plain SELECT would not see the winner's uncommitted row and would
+  wrongly conclude the key was free.
+- `p_idempotency_key` and `p_correlation_id` are separate parameters and
+  are not interchangeable: the first prevents duplicate execution, the
+  second threads related business and audit events together.
+- The migration seeds NO identity. Provisioning the Jervis Auth user and
+  inserting its allowlist row is a controlled setup step, so the
+  authorization list is operational state rather than schema history.
+
+**Consequences**:
+
+- No existing table, column, row, policy or grant is altered. **No
+  ordinary authenticated user gains any new capability** - which is the
+  entire reason this was not done with table grants.
+- Supabase's Security Advisor will flag four authenticated-callable
+  SECURITY DEFINER functions as privileged API surface. That finding is
+  accurate and is accepted rather than dismissed: EXECUTE cannot be
+  narrowed below `authenticated` on this platform, so the identity check
+  is implemented in the bodies instead. Any change that weakens
+  `private.jervis_authorize` re-opens it.
+- Verified on a scratch database reproducing migrations 001/002/004/006:
+  the positive loop, replay, and every denial - ordinary authenticated
+  human, revoked identity, unauthenticated, both real businesses, and all
+  three referential checks. The Jervis test identity is deliberately given
+  a real membership in GreenCal Pressure Washing so that the cross-tenant
+  denial proves the allowlist rather than the membership check. A separate
+  two-connection test proves the concurrent claim: one CRM row, both
+  callers the same id. See `packages/db/tests/migration-039/`.
+- Rollback is `039-jervis-integration-rpcs.rollback.sql`, but withdrawing
+  one identity's access should normally be `update ... set revoked_at =
+now()` instead, which needs no migration and preserves what that
+  identity did.
+
+## ADR-0042: A no-argument SECURITY DEFINER RPC for the E2E isolation fixture, instead of table grants for `service_role`
+
+**Status**: Proposed (migration written; static security assertions run in
+`pnpm test`; behavioral suite written for a scratch database; NOT applied to
+Greencal-production)
+
+**Context**: `apps/admin-console`'s cross-tenant isolation E2E suite is a
+release gate. It logs in as the CRM Isolation Test Tenant (Tenant B) and proves
+that Tenant B cannot read, list, or write GreenCal's records — and, in the same
+run, that Tenant B _can_ see its own Lead, which is what distinguishes real
+isolation from a blank page.
+
+That last check needs a Lead to exist in Tenant B. The suite created one itself,
+in `beforeAll`, via a service-role client calling `insert into contacts` /
+`insert into leads` directly, and deleted both rows in `afterAll`. On this
+project that no longer works: `service_role` holds no SELECT/INSERT privilege on
+the CRM tables, so the gate fails at setup.
+
+The change the failure appears to ask for is `grant select, insert, delete on
+contacts, leads to service_role`. It is the wrong shape for the same reason
+ADR-0041 rejected the analogous grant for `authenticated`, and the reason lands
+harder here because the caller is a test. A grant is permanent, unscoped and
+invisible at the call site: it says "any row, any business, forever", not "the
+isolation fixture", and every future holder of the secret key inherits it. The
+blast radius of a grant is every row in every tenant; the blast radius of a
+function is its body.
+
+A parameterised helper — `e2e_provision_fixture(p_business_id, p_contact_id,
+p_lead_id)` — was considered and rejected. It is a general-purpose row writer
+wearing a test-shaped name, and its authorization story reduces to "we trust the
+caller to pass the right UUIDs".
+
+Unlike ADR-0041, the per-identity check does not have to live inside the body
+here. Supabase Auth users all share the `authenticated` role, but the E2E
+provisioner authenticates as `service_role`, which is a distinct Postgres role —
+so "grant EXECUTE to exactly that caller" is expressible, and is used.
+
+**Decision**:
+
+- One function, `public.e2e_provision_tenant_isolation_fixture()`, taking **no
+  arguments**. The tenant id, slug and name, the Contact id/name/email/phone,
+  and the Lead id and attribution are `constant` declarations in its body. There
+  is no argument a caller can supply to aim it at another business, contact or
+  lead. Non-generalizability is the security property, not a stylistic choice.
+- `security definer` with `set search_path = ''`, every relation
+  schema-qualified, and no dynamic SQL — no `execute`, no `format()`, no
+  `quote_ident`, so nothing constructed at runtime can become an identifier.
+- Fails closed on every conflict: the business row must exist _and_ match the
+  expected slug _and_ name; a Contact or Lead already sitting on a fixture id
+  with different data raises rather than being overwritten or re-parented. Each
+  refusal is asserted in two parts — that it raised, and that the conflicting row
+  was left untouched.
+- Idempotent via `insert ... on conflict (id) do nothing`, then unconditional
+  verification of whatever row is actually present. It additionally resets two
+  lifecycle fields (`leads.status`/`archived_at`, `contacts.archived_at`) on
+  every call. This is the one place it writes to a row it did not create, and it
+  is deliberate: the E2E suite's final step archives the fixture Lead on purpose,
+  so without the reset the _second_ consecutive run would fail at the
+  own-tenant-visibility check for a reason unrelated to isolation. Identity is
+  never reset; only lifecycle state, only on those two rows, addressed by primary
+  key and scoped by tenant.
+- Privilege model: `revoke all` from `public`, `anon` and `authenticated`;
+  `grant execute` to `service_role` alone. The migration grants **no** table
+  privilege to any role. The function lives in the exposed `public` schema, so
+  the revokes are what keep it off the Data API for ordinary sessions.
+- The E2E side moves out of the spec file: `tests/e2e/fixture-provisioner.ts`
+  calls the RPC and verifies the returned fixture field by field, and runs as its
+  own Playwright _setup project_ that `e2e-tenant-isolation` declares as a
+  dependency. A config-level `globalSetup` was rejected because it would also run
+  for the default `chromium` project. Cleanup is no longer a delete: `afterAll`
+  re-invokes the same bounded RPC to restore canonical state.
+
+**Alternatives considered**:
+
+- _Grant `service_role` the table privileges._ Rejected — see Context. It is
+  also the change ADR-0041 already declined to make for a much more privileged
+  caller.
+- _A parameterised fixture RPC._ Rejected: general-purpose write surface.
+- _Keep generating a fresh Contact/Lead per run and hard-delete them._ Rejected:
+  it requires INSERT and DELETE table grants, which is the thing being avoided,
+  and a fixed fixture is verifiable in a way a random one is not.
+- _Let the suite skip when it cannot provision._ Rejected: a release gate that
+  reports "passed" because it was unconfigured is worse than one that fails.
+
+**Consequences**:
+
+- The E2E path's entire database capability is EXECUTE on one no-argument
+  function. It cannot read `contacts` or `leads` directly, in any tenant.
+- Supabase's Security Advisor will flag a `SECURITY DEFINER` function in
+  `public`. That flag is correct and expected; the answer is the EXECUTE grant,
+  not suppressing the warning.
+- The fixture rows now persist between runs rather than being created and
+  deleted. They are synthetic, live only in the isolation tenant, and are
+  restored to canonical state at the start and end of every run.
+- Two suites verify the migration, and they answer different questions.
+  `packages/db/tests/migration-041-e2e-fixture-rpc.test.ts` runs in `pnpm test`
+  everywhere with no database and pins the properties decidable from the text
+  (no-argument, no table grant, EXECUTE to `service_role` only, constants not
+  parameters, no dynamic SQL). `packages/db/tests/migration-041/test041.sql`
+  proves behavior against a scratch database, including `set role service_role`
+  calling the function successfully while still being unable to `select` from
+  `public.contacts`.
+- Rollback is `041-e2e-fixture-rpc.rollback.sql`. It drops the function and
+  deliberately deletes no rows.
+- Applying this migration to Greencal-production is a separate, explicitly
+  authorized step. It has not been applied.
