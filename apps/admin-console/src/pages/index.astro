@@ -1,7 +1,7 @@
 ---
 import AdminLayout from '../layouts/AdminLayout.astro';
 import { getCurrentMembership } from '../lib/auth/membership';
-import { createSupabaseLeadRepository, createSupabaseAuditLogRepository } from '@ai-company-os/db';
+import { createSupabaseLeadRepository, createUserScopedAuditLogRepository } from '@ai-company-os/db';
 
 const user = Astro.locals.user!;
 const membership = await getCurrentMembership(Astro.locals.supabase, user.id);
@@ -10,7 +10,7 @@ let statusCounts: Array<{ status: string; count: number }> = [];
 let loadError: string | null = null;
 
 if (membership) {
-  const auditLog = createSupabaseAuditLogRepository(Astro.locals.supabase);
+  const auditLog = createUserScopedAuditLogRepository(Astro.locals.supabase);
   const leadRepo = createSupabaseLeadRepository(Astro.locals.supabase, auditLog);
   const result = await leadRepo.listLeads(membership.businessId);
 

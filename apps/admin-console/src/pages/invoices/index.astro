@@ -1,7 +1,7 @@
 ---
 import AdminLayout from '../../layouts/AdminLayout.astro';
 import { getCurrentMembership } from '../../lib/auth/membership';
-import { createSupabaseInvoiceRepository, createSupabaseAuditLogRepository } from '@ai-company-os/db';
+import { createSupabaseInvoiceRepository, createUserScopedAuditLogRepository } from '@ai-company-os/db';
 import { invoiceStatusTone } from '@ai-company-os/ui-kit';
 import { formatMinorUnitsAsDollars } from '../../lib/estimates/parse-amount';
 import { formatDateTime, formatDate } from '../../lib/format-datetime';
@@ -23,7 +23,7 @@ let invoices: Array<{
 let loadError: string | null = null;
 
 if (membership) {
-  const auditLog = createSupabaseAuditLogRepository(Astro.locals.supabase);
+  const auditLog = createUserScopedAuditLogRepository(Astro.locals.supabase);
   const invoiceRepo = createSupabaseInvoiceRepository(Astro.locals.supabase, auditLog);
   const result = await invoiceRepo.listInvoices(membership.businessId, {
     status: statusFilter ?? undefined,

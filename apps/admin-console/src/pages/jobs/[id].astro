@@ -6,7 +6,7 @@ import MediaSection from '../../components/MediaSection.astro';
 import { getCurrentMembership } from '../../lib/auth/membership';
 import {
   createSupabaseJobRepository,
-  createSupabaseAuditLogRepository,
+  createUserScopedAuditLogRepository,
   createSupabaseNoteRepository,
   createSupabaseTaskRepository,
   createSupabasePhotoAssetRepository,
@@ -49,7 +49,7 @@ let reviewRecords: ReviewRecord[] = [];
 const transitionError = Astro.url.searchParams.get('error');
 
 if (membership && id) {
-  const auditLog = createSupabaseAuditLogRepository(Astro.locals.supabase);
+  const auditLog = createUserScopedAuditLogRepository(Astro.locals.supabase);
   const jobRepo = createSupabaseJobRepository(Astro.locals.supabase, auditLog);
   const result = await jobRepo.getJob(membership.businessId, id);
 

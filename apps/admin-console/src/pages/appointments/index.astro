@@ -5,7 +5,7 @@ import {
   createSupabaseBookingRepository,
   createSupabaseLeadRepository,
   createSupabaseContactRepository,
-  createSupabaseAuditLogRepository,
+  createUserScopedAuditLogRepository,
   createSupabaseJobRepository,
 } from '@ai-company-os/db';
 import { jobStatusTone } from '@ai-company-os/ui-kit';
@@ -30,7 +30,7 @@ if (membership) {
   const bookingsResult = await bookingRepo.listBookings(membership.businessId);
 
   if (bookingsResult.ok) {
-    const auditLog = createSupabaseAuditLogRepository(Astro.locals.supabase);
+    const auditLog = createUserScopedAuditLogRepository(Astro.locals.supabase);
     const leadRepo = createSupabaseLeadRepository(Astro.locals.supabase, auditLog);
     const contactRepo = createSupabaseContactRepository(Astro.locals.supabase);
     const jobRepo = createSupabaseJobRepository(Astro.locals.supabase, auditLog);

@@ -7,7 +7,7 @@ import { getCurrentMembership } from '../../lib/auth/membership';
 import {
   createSupabaseContactRepository,
   createSupabaseLeadRepository,
-  createSupabaseAuditLogRepository,
+  createUserScopedAuditLogRepository,
   createSupabaseCompanyRepository,
   createSupabaseNoteRepository,
   createSupabaseTaskRepository,
@@ -60,7 +60,7 @@ if (membership && id) {
 
   if (result.ok) {
     contact = result.contact;
-    const auditLog = createSupabaseAuditLogRepository(Astro.locals.supabase);
+    const auditLog = createUserScopedAuditLogRepository(Astro.locals.supabase);
     const leadRepo = createSupabaseLeadRepository(Astro.locals.supabase, auditLog);
     const leadsResult = await leadRepo.listLeads(membership.businessId, { contactId: id });
     if (leadsResult.ok) {
@@ -91,7 +91,7 @@ if (membership && id) {
     });
     if (tasksResult.ok) tasks = tasksResult.tasks;
 
-    const auditLogForTimeline = createSupabaseAuditLogRepository(Astro.locals.supabase);
+    const auditLogForTimeline = createUserScopedAuditLogRepository(Astro.locals.supabase);
     const timelineRepo = createActivityTimelineRepository({
       leadRepository: createSupabaseLeadRepository(Astro.locals.supabase, auditLogForTimeline),
       estimateRepository: createSupabaseEstimateRepository(Astro.locals.supabase),

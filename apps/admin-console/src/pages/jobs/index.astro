@@ -1,7 +1,7 @@
 ---
 import AdminLayout from '../../layouts/AdminLayout.astro';
 import { getCurrentMembership } from '../../lib/auth/membership';
-import { createSupabaseJobRepository, createSupabaseAuditLogRepository } from '@ai-company-os/db';
+import { createSupabaseJobRepository, createUserScopedAuditLogRepository } from '@ai-company-os/db';
 import { jobStatusTone } from '@ai-company-os/ui-kit';
 import { formatDateTime } from '../../lib/format-datetime';
 import type { JobStatus } from '@ai-company-os/core-models';
@@ -15,7 +15,7 @@ let jobs: Array<{ id: string; status: JobStatus; scheduledAt?: string; createdAt
 let loadError: string | null = null;
 
 if (membership) {
-  const auditLog = createSupabaseAuditLogRepository(Astro.locals.supabase);
+  const auditLog = createUserScopedAuditLogRepository(Astro.locals.supabase);
   const jobRepo = createSupabaseJobRepository(Astro.locals.supabase, auditLog);
   const result = await jobRepo.listJobs(membership.businessId, { status: statusFilter ?? undefined });
   if (result.ok) {

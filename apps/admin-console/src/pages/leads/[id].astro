@@ -6,7 +6,7 @@ import { getCurrentMembership } from '../../lib/auth/membership';
 import {
   createSupabaseLeadRepository,
   createSupabaseContactRepository,
-  createSupabaseAuditLogRepository,
+  createUserScopedAuditLogRepository,
   createSupabaseEstimateRepository,
   createSupabaseBookingRepository,
   createSupabaseJobRepository,
@@ -62,7 +62,7 @@ const transitionError = Astro.url.searchParams.get('error');
 const infoMessage = Astro.url.searchParams.get('info');
 
 if (membership && id) {
-  const auditLog = createSupabaseAuditLogRepository(Astro.locals.supabase);
+  const auditLog = createUserScopedAuditLogRepository(Astro.locals.supabase);
   const leadRepo = createSupabaseLeadRepository(Astro.locals.supabase, auditLog);
   const result = await leadRepo.getLead(membership.businessId, id);
 

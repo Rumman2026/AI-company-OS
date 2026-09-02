@@ -3,7 +3,7 @@ import AdminLayout from '../../layouts/AdminLayout.astro';
 import { getCurrentMembership } from '../../lib/auth/membership';
 import {
   createSupabaseInvoiceRepository,
-  createSupabaseAuditLogRepository,
+  createUserScopedAuditLogRepository,
   createSupabasePaymentRepository,
 } from '@ai-company-os/db';
 import { invoiceStatusTone } from '@ai-company-os/ui-kit';
@@ -41,7 +41,7 @@ let payments: Payment[] = [];
 const transitionError = Astro.url.searchParams.get('error');
 
 if (membership && id) {
-  const auditLog = createSupabaseAuditLogRepository(Astro.locals.supabase);
+  const auditLog = createUserScopedAuditLogRepository(Astro.locals.supabase);
   const invoiceRepo = createSupabaseInvoiceRepository(Astro.locals.supabase, auditLog);
   const result = await invoiceRepo.getInvoice(membership.businessId, id);
 

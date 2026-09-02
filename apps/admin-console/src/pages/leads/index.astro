@@ -1,7 +1,7 @@
 ---
 import AdminLayout from '../../layouts/AdminLayout.astro';
 import { getCurrentMembership } from '../../lib/auth/membership';
-import { createSupabaseLeadRepository, createSupabaseAuditLogRepository } from '@ai-company-os/db';
+import { createSupabaseLeadRepository, createUserScopedAuditLogRepository } from '@ai-company-os/db';
 import { leadStatusTone } from '@ai-company-os/ui-kit';
 import { formatDateTime } from '../../lib/format-datetime';
 import type { LeadStatus } from '@ai-company-os/core-models';
@@ -16,7 +16,7 @@ let leads: Array<{ id: string; status: LeadStatus; createdAt: string; archivedAt
 let loadError: string | null = null;
 
 if (membership) {
-  const auditLog = createSupabaseAuditLogRepository(Astro.locals.supabase);
+  const auditLog = createUserScopedAuditLogRepository(Astro.locals.supabase);
   const leadRepo = createSupabaseLeadRepository(Astro.locals.supabase, auditLog);
   const result = await leadRepo.listLeads(membership.businessId, {
     status: statusFilter ?? undefined,

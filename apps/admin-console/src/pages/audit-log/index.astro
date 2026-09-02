@@ -1,7 +1,7 @@
 ---
 import AdminLayout from '../../layouts/AdminLayout.astro';
 import { getCurrentMembership } from '../../lib/auth/membership';
-import { createSupabaseAuditLogRepository } from '@ai-company-os/db';
+import { createUserScopedAuditLogRepository } from '@ai-company-os/db';
 import { formatDateTime } from '../../lib/format-datetime';
 import type { AuditLog } from '@ai-company-os/core-models';
 
@@ -13,7 +13,7 @@ let records: AuditLog[] = [];
 let loadError: string | null = null;
 
 if (membership) {
-  const auditLog = createSupabaseAuditLogRepository(Astro.locals.supabase);
+  const auditLog = createUserScopedAuditLogRepository(Astro.locals.supabase);
   const result = await auditLog.listAuditRecords(membership.businessId, {
     entityType: entityType || undefined,
     limit: 200,
