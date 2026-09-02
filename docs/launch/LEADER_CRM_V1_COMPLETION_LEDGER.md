@@ -94,7 +94,7 @@ functional content, not status codes; see the verification section below.
 ## Cost, measured (not projected)
 
 Provider spend for all of this session's Leader engineering: **$0.00.** Today's
-`cost_records` total is $0.002784 across 3 calls, all predating this work.
+`cost_records` total is $0.003111 across 4 calls, none of them from this work.
 
 **$1/day is not a practical bottleneck for engineering done through direct tool
 execution.** It only binds if Leader development is routed through Hermes/Jervis
@@ -108,16 +108,18 @@ multi-agent cycles, which cost a measured $0.054 (single pass) to $0.46
 | Canonical E2E tests passing                     | ✅ on the VPS, twice                                                                                                                       |
 | Tenant isolation passing                        | ✅ 2/2, non-destructive                                                                                                                    |
 | Production permission model verified            | ⚠️ 042 and 043 verified behaviourally; D5 open                                                                                             |
-| audit_log defect resolved                       | ⚠️ code fixed and proven; migration pending                                                                                                |
+| audit_log defect resolved                       | ⚠️ database side live and proven; **blocked on deploying the app** (D7)                                                                    |
 | Primary CRM workflows exercised                 | ⚠️ 20 pages clean; features verified for real content, not just HTTP 200; write flows not exercised (fixture tenant has no jobs/estimates) |
-| No known P0/P1 defects                          | ⚠️ D1 resolved; D2 pending 044                                                                                                             |
+| No known P0/P1 defects                          | ❌ D7 open — the console deployment predates the fix                                                                                       |
 | No silently swallowed critical writes           | ✅ all six call sites now surface failure                                                                                                  |
 | Staging/browser verification complete           | ⚠️ read-only pass done                                                                                                                     |
 | Test suite green                                | ✅ db 199, admin-console 53, website 268, Jervis 6735                                                                                      |
 | Security/governance checks green                | ✅ all forgery/cross-tenant attacks refused                                                                                                |
-| Production changes applied or awaiting approval | ⚠️ 043 applied; 044 awaiting                                                                                                               |
+| Production changes applied or awaiting approval | ✅ 042, 043 and 044 all applied and verified                                                                                               |
 
-**Leader CRM v1 is NOT complete.**
+**Leader CRM v1 is NOT complete.** The database is now correct and proven; what
+remains is a deployment (D7), two grant/product decisions (D5, D6), and the
+provider release that would let the autonomy layer run at all (B2).
 
 ## 043 verification, 2026-09-02 (post-apply)
 
