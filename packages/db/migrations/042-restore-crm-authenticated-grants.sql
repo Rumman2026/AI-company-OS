@@ -1,0 +1,123 @@
+-- Restores the base table-level privileges for `authenticated` on the four
+-- remaining CRM tables whose RLS policies exist but whose GRANTs do not:
+-- `contacts`, `tasks`, `notes` and `audit_log`.
+--
+-- THE FAILURE, OBSERVED LIVE. Signed in as a real CRM user against
+-- Greencal-production (project ref orokuivcetynnzfpebzu), a plain
+-- `select id from <table> limit 1` returns Postgres 42501, "permission denied
+-- for table <table>", on exactly these four tables. `leads`, `jobs`,
+-- `estimates`, `invoices`, `bookings`, `businesses` and `memberships` all
+-- succeed. This is the sixth occurrence of the identical symptom - see
+-- migrations 025, 026, 030, 034, 035, 037, 038 - and migration 030 named
+-- `contacts` as the next most likely table before it ever failed.
+--
+-- WHY IT IS A GRANT PROBLEM AND NOT AN RLS PROBLEM. Postgres requires a role to
+-- hold the base table privilege BEFORE any policy is evaluated. RLS decides
+-- WHICH ROWS are visible once access is already permitted; it cannot itself
+-- grant access to a table the role holds no privilege on. 42501 is raised at
+-- the privilege layer, which is why PostgREST never reaches the policy. The
+-- tenant-scoped policies are present and correct:
+--
+--   contacts   migration 002  contacts_tenant_select / _insert / _update
+--   tasks      migration 006  tasks_tenant_select / _insert / _update
+--   notes      migration 005  notes_tenant_select / _insert
+--   audit_log  migration 002  audit_log_tenant_select
+--
+-- THE GRANTS BELOW MIRROR THAT POLICY SET EXACTLY - one grant per operation
+-- that already has a policy, and nothing else. That is the whole selection
+-- rule. The intent is "the table privilege permits the operation, and RLS
+-- continues to decide which rows", never "bypass RLS".
+--
+-- WHAT IS DELIBERATELY NOT GRANTED, and why each absence is load-bearing:
+--   * DELETE on anything. No policy defines it on any of these four tables,
+--     and `notes` and `audit_log` are append-only by design (see migration
+--     027's comment and 038's). A DELETE grant with no DELETE policy would be
+--     inert today and a latent hazard the moment someone adds a policy.
+--   * INSERT or UPDATE on `audit_log`. There is no INSERT policy for it in any
+--     migration, and ADR-0041 argues the substantive case: an append-only audit
+--     trail that any authenticated session can write is not an audit trail.
+--     SELECT alone is what the Activity Timeline needs to READ. See the
+--     KNOWN REMAINING GAP note below - this migration does not close it.
+--   * UPDATE on `notes`. No policy; append-only.
+--   * TRUNCATE, REFERENCES, TRIGGER, or `all privileges` on anything.
+--   * Any grant to `anon`. An unauthenticated session must reach none of this.
+--   * Any grant to `service_role`. Migration 041 deliberately gave the
+--     E2E/service path EXECUTE on one function and no table access; a grant
+--     here would silently undo that.
+--
+-- A NOTE THAT CONTRADICTS MIGRATION 039, DELIBERATELY. 039's header calls
+-- `grant insert on contacts, tasks, audit_log to authenticated` "wrong", and
+-- its `jervis_create_contact` comment states that "authenticated holds no
+-- INSERT on contacts by design". After this migration, the `contacts` and
+-- `tasks` halves of that sentence are no longer true, and 039's comment should
+-- be read as describing the state at the time it was written.
+--
+-- Both statements can be right about different things, and the distinction is
+-- the tenant boundary. 039's objection is to granting a capability the
+-- APPLICATION never gave the user - specifically `audit_log` INSERT, which this
+-- migration still withholds. `contacts` and `tasks` INSERT are different: the
+-- application has offered those operations since migrations 002 and 006, gated
+-- by a tenant-scoped policy that restricts every row to businesses the caller
+-- actually belongs to. Restoring them returns the system to its designed
+-- contract rather than widening it.
+--
+-- 039's SECURITY DEFINER RPCs are unaffected either way: their authorization
+-- lives in `jervis_private.jervis_authorize()` in the function body, keyed on
+-- `auth.uid()` and the allowlist - never on the absence of a table grant. A
+-- Jervis identity that lost its allowlist row still cannot call them, and an
+-- ordinary CRM user still cannot write `audit_log`.
+--
+-- SCOPE DIVERGENCE FROM MIGRATION 030, STATED PLAINLY. 030 granted only what
+-- apps/admin-console demonstrably exercises, and withheld `leads` INSERT on
+-- that basis. This migration follows the RLS-policy contract instead. The two
+-- rules agree on `tasks` (INSERT via src/pages/api/tasks.ts), `notes` (INSERT
+-- via src/pages/api/notes.ts), `contacts` UPDATE (archive / restore /
+-- link-company endpoints) and every SELECT. They disagree on exactly one
+-- grant: `contacts` INSERT has no admin-console consumer today - the only
+-- Contact-creating path is apps/greencal-website's service-role intake adapter,
+-- which bypasses grants entirely. It is granted here because the policy
+-- contract defines it; if strict minimum privilege is preferred, dropping
+-- `insert` from the `contacts` line is a safe, self-contained edit.
+--
+-- KNOWN REMAINING GAP - NOT CLOSED BY THIS MIGRATION. `audit_log` has no
+-- INSERT policy in any migration and no INSERT grant, so every audit write
+-- attempted by an `authenticated` session fails. It fails SILENTLY:
+-- `AuditLogRepository.writeAuditRecord()` returns `{ ok: false }`, and all 39
+-- call sites - `await auditLog.writeAuditRecord(...)` in lead-, job-, invoice-
+-- and estimate-repository - discard that result and return `{ ok: true }`. The
+-- consequence is that CRM state transitions in production report success while
+-- writing no audit row. Granting SELECT here therefore makes the Activity
+-- Timeline READABLE but not POPULATED, and the timeline will still render
+-- empty for any transition performed to date. Closing that gap needs a design
+-- decision, not a grant - most plausibly a SECURITY DEFINER writer in the shape
+-- of `jervis_private.jervis_audit()` (migration 039), so the trail stays
+-- unwritable by ordinary sessions. It is deliberately out of scope here.
+--
+-- IDEMPOTENT BY GRANT SEMANTICS. `grant` on an already-held privilege is a
+-- no-op, not an error, so this file is safe to re-run. It is additive only:
+-- no policy is created, altered or dropped, no table is modified, RLS is not
+-- disabled or weakened anywhere, and no privilege is removed from any role.
+--
+-- Run once, in the Supabase SQL Editor, after
+-- packages/db/migrations/041-e2e-fixture-rpc.sql.
+
+begin;
+
+-- Read by the Contacts list/detail pages and by the Lead detail page's
+-- contact-name lookup. UPDATE backs the archive, restore and link-company
+-- endpoints. INSERT matches contacts_tenant_insert - see the scope note above.
+grant select, insert, update on public.contacts to authenticated;
+
+-- SELECT backs the Tasks page and the per-entity task lists; INSERT backs
+-- src/pages/api/tasks.ts; UPDATE backs src/pages/api/tasks/[id]/complete.ts.
+grant select, insert, update on public.tasks to authenticated;
+
+-- SELECT backs the per-entity note lists; INSERT backs src/pages/api/notes.ts.
+-- No UPDATE: notes are append-only and have no update policy.
+grant select, insert on public.notes to authenticated;
+
+-- SELECT only, for the Activity Timeline and the audit-log page. INSERT stays
+-- withheld on purpose - see the two notes above.
+grant select on public.audit_log to authenticated;
+
+commit;
